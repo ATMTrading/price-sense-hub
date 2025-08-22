@@ -96,7 +96,11 @@ export function Header() {
                 {MARKETS.map((m) => (
                   <DropdownMenuItem
                     key={m.id}
-                    onClick={() => setMarket(m)}
+                    onClick={() => {
+                      setMarket(m);
+                      // Refresh the page to apply language changes immediately
+                      window.location.reload();
+                    }}
                     className={market.code === m.code ? 'bg-accent' : ''}
                   >
                     {m.flag} {m.code} - {m.currency}
