@@ -58,12 +58,7 @@ export function Footer() {
           <div>
             <h3 className="font-semibold mb-4">{translate('footer.market', market)}</h3>
             <div className="text-sm text-muted-foreground">
-              <p>
-                <span style={{ fontFamily: '"Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", "Android Emoji", sans-serif' }}>
-                  {market.flag}
-                </span>
-                {" "}{market.currency}
-              </p>
+              <p>{market.code} {market.currency}</p>
             </div>
           </div>
         </div>
