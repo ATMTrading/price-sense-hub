@@ -59,15 +59,26 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     try {
       setIsLoading(true);
       
+      console.log('Attempting sign in with email:', email);
+      
       // Clean up any existing auth state
-      await supabase.auth.signOut({ scope: 'global' });
+      try {
+        await supabase.auth.signOut({ scope: 'global' });
+      } catch (signOutError) {
+        console.log('Sign out error (ignored):', signOutError);
+      }
       
       const { data, error } = await supabase.auth.signInWithPassword({
-        email,
+        email: email.trim().toLowerCase(),
         password,
       });
 
-      if (error) throw error;
+      console.log('Sign in response:', { data: !!data.user, error });
+
+      if (error) {
+        console.error('Sign in error details:', error);
+        throw error;
+      }
 
       if (data.user) {
         toast({
@@ -82,9 +93,22 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
       return { error: null };
     } catch (error: any) {
+      console.error('Sign in failed:', error);
+      
+      let errorMessage = error.message;
+      
+      // Provide more user-friendly error messages
+      if (error.message?.includes('Invalid login credentials')) {
+        errorMessage = 'Invalid email or password. Please check your credentials and try again.';
+      } else if (error.message?.includes('invalid') && error.message?.includes('email')) {
+        errorMessage = 'Please enter a valid email address (e.g., user@example.com).';
+      } else if (error.message?.includes('Email not confirmed')) {
+        errorMessage = 'Please check your email and click the confirmation link before signing in.';
+      }
+      
       toast({
         title: "Sign in failed",
-        description: error.message,
+        description: errorMessage,
         variant: "destructive",
       });
       return { error };
@@ -97,17 +121,24 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     try {
       setIsLoading(true);
       
+      console.log('Attempting sign up with email:', email);
+      
       const redirectUrl = `${window.location.origin}/`;
       
       const { data, error } = await supabase.auth.signUp({
-        email,
+        email: email.trim().toLowerCase(),
         password,
         options: {
           emailRedirectTo: redirectUrl
         }
       });
 
-      if (error) throw error;
+      console.log('Sign up response:', { data: !!data.user, error });
+
+      if (error) {
+        console.error('Sign up error details:', error);
+        throw error;
+      }
 
       toast({
         title: "Account created successfully",
@@ -116,9 +147,22 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
       return { error: null };
     } catch (error: any) {
+      console.error('Sign up failed:', error);
+      
+      let errorMessage = error.message;
+      
+      // Provide more user-friendly error messages
+      if (error.message?.includes('invalid') && error.message?.includes('email')) {
+        errorMessage = 'Please enter a valid email address (e.g., user@example.com).';
+      } else if (error.message?.includes('User already registered')) {
+        errorMessage = 'An account with this email already exists. Try signing in instead.';
+      } else if (error.message?.includes('Password should be')) {
+        errorMessage = 'Password must be at least 6 characters long.';
+      }
+      
       toast({
         title: "Sign up failed",
-        description: error.message,
+        description: errorMessage,
         variant: "destructive",
       });
       return { error };
