@@ -9,6 +9,7 @@ import CategoryListing from "./pages/CategoryListing";
 import Contact from "./pages/Contact";
 import Privacy from "./pages/Privacy";
 import NotFound from "./pages/NotFound";
+import { Admin } from "./pages/Admin";
 import { useMarket } from "./hooks/useMarket";
 
 const queryClient = new QueryClient();
@@ -27,6 +28,7 @@ const AppContent = () => {
       <Route path="/c/:categorySlug" element={<CategoryListing />} />
       <Route path="/contact" element={<Contact />} />
       <Route path="/privacy" element={<Privacy />} />
+      <Route path="/admin" element={<Admin />} />
       {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
       <Route path="*" element={<NotFound />} />
     </Routes>

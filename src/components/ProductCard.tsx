@@ -7,13 +7,22 @@ import { translate, formatCurrency } from '@/lib/i18n';
 interface Product {
   id: string;
   title: string;
-  imageUrl: string;
+  image_url: string;
   price: number;
-  originalPrice?: number;
-  merchant: string;
+  original_price?: number;
+  currency: string;
+  shop: {
+    id: string;
+    name: string;
+    logo_url?: string;
+  };
   rating?: number;
-  reviewCount?: number;
-  availability: 'in-stock' | 'out-of-stock' | 'limited';
+  review_count?: number;
+  availability: 'in_stock' | 'out_of_stock' | 'limited';
+  affiliate_links?: Array<{
+    affiliate_url: string;
+    tracking_code?: string;
+  }>;
 }
 
 interface ProductCardProps {
@@ -25,13 +34,17 @@ export function ProductCard({ product, className = '' }: ProductCardProps) {
   const { market } = useMarket();
 
   const handleViewOffer = () => {
-    // TODO: Implement click tracking
-    console.log('Track click:', product.id);
+    // Open affiliate link if available
+    if (product.affiliate_links && product.affiliate_links.length > 0) {
+      window.open(product.affiliate_links[0].affiliate_url, '_blank');
+      // TODO: Implement click tracking
+      console.log('Track click:', product.id, product.affiliate_links[0].tracking_code);
+    }
   };
 
-  const savings = product.originalPrice ? product.originalPrice - product.price : 0;
-  const savingsPercent = product.originalPrice 
-    ? Math.round((savings / product.originalPrice) * 100)
+  const savings = product.original_price ? product.original_price - product.price : 0;
+  const savingsPercent = product.original_price 
+    ? Math.round((savings / product.original_price) * 100)
     : 0;
 
   return (
@@ -40,7 +53,7 @@ export function ProductCard({ product, className = '' }: ProductCardProps) {
         {/* Image */}
         <div className="aspect-square mb-4 overflow-hidden rounded-lg bg-muted">
           <img
-            src={product.imageUrl}
+            src={product.image_url}
             alt={product.title}
             className="h-full w-full object-cover transition-smooth group-hover:scale-105"
             loading="lazy"
@@ -68,9 +81,9 @@ export function ProductCard({ product, className = '' }: ProductCardProps) {
                   />
                 ))}
               </div>
-              {product.reviewCount && (
+              {product.review_count && (
                 <span className="text-xs text-muted-foreground">
-                  ({product.reviewCount})
+                  ({product.review_count})
                 </span>
               )}
             </div>
@@ -82,9 +95,9 @@ export function ProductCard({ product, className = '' }: ProductCardProps) {
               <span className="font-bold text-lg">
                 {formatCurrency(product.price, market)}
               </span>
-              {product.originalPrice && (
+              {product.original_price && (
                 <span className="text-sm text-muted-foreground line-through">
-                  {formatCurrency(product.originalPrice, market)}
+                  {formatCurrency(product.original_price, market)}
                 </span>
               )}
             </div>
@@ -101,13 +114,13 @@ export function ProductCard({ product, className = '' }: ProductCardProps) {
           </div>
 
           {/* Merchant */}
-          <p className="text-xs text-muted-foreground">{product.merchant}</p>
+          <p className="text-xs text-muted-foreground">{product.shop.name}</p>
 
           {/* Availability */}
           <div className="flex items-center space-x-2">
             <div
               className={`h-2 w-2 rounded-full ${
-                product.availability === 'in-stock'
+                product.availability === 'in_stock'
                   ? 'bg-success'
                   : product.availability === 'limited'
                   ? 'bg-warning'
@@ -115,7 +128,7 @@ export function ProductCard({ product, className = '' }: ProductCardProps) {
               }`}
             />
             <span className="text-xs text-muted-foreground">
-              {product.availability === 'in-stock'
+              {product.availability === 'in_stock'
                 ? translate('availability.inStock', market)
                 : product.availability === 'limited'
                 ? translate('availability.limitedStock', market)
@@ -126,7 +139,7 @@ export function ProductCard({ product, className = '' }: ProductCardProps) {
           {/* CTA Button */}
           <Button
             onClick={handleViewOffer}
-            disabled={product.availability === 'out-of-stock'}
+            disabled={product.availability === 'out_of_stock'}
             className="w-full"
             size="sm"
           >

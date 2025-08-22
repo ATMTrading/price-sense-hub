@@ -81,6 +81,11 @@ export function Header() {
                     {translate('categories.sports', market)}
                   </Link>
                 </DropdownMenuItem>
+                <DropdownMenuItem asChild>
+                  <Link to="/admin">
+                    Admin Panel
+                  </Link>
+                </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
 

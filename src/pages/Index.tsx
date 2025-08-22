@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react';
 import { Smartphone, Laptop, Heart, Baby, Dumbbell, Zap, Search } from 'lucide-react';
 import { Header } from '@/components/Layout/Header';
 import { Footer } from '@/components/Layout/Footer';
@@ -7,9 +8,135 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useMarket } from '@/hooks/useMarket';
 import { translate } from '@/lib/i18n';
+import { supabase } from '@/integrations/supabase/client';
+
+interface Product {
+  id: string;
+  title: string;
+  image_url: string;
+  price: number;
+  original_price?: number;
+  currency: string;
+  shop: {
+    id: string;
+    name: string;
+    logo_url?: string;
+  };
+  rating?: number;
+  review_count?: number;
+  availability: 'in_stock' | 'out_of_stock' | 'limited';
+  affiliate_links?: Array<{
+    affiliate_url: string;
+    tracking_code?: string;
+  }>;
+}
 
 const Index = () => {
   const { market } = useMarket();
+  const [topDeals, setTopDeals] = useState<Product[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetchTopDeals();
+  }, [market]);
+
+  const fetchTopDeals = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('products')
+        .select(`
+          *,
+          shop:shops(*),
+          affiliate_links(*)
+        `)
+        .eq('market_code', market.code)
+        .eq('is_active', true)
+        .eq('is_featured', true)
+        .limit(4);
+
+      if (error) throw error;
+      
+      // Cast the data to match our interface
+      const typedData = (data || []).map(item => ({
+        id: item.id,
+        title: item.title,
+        image_url: item.image_url,
+        price: item.price,
+        original_price: item.original_price,
+        currency: item.currency,
+        shop: item.shop,
+        rating: item.rating,
+        review_count: item.review_count,
+        availability: item.availability as 'in_stock' | 'out_of_stock' | 'limited',
+        affiliate_links: Array.isArray(item.affiliate_links) 
+          ? item.affiliate_links.map(link => ({
+              affiliate_url: link.affiliate_url,
+              tracking_code: link.tracking_code
+            }))
+          : []
+      }));
+      
+      setTopDeals(typedData);
+    } catch (error) {
+      console.error('Error fetching top deals:', error);
+      // Fallback to mock data
+      setTopDeals([
+        {
+          id: '1',
+          title: 'Samsung Galaxy S24 Ultra 256GB',
+          image_url: 'https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?w=300&h=300&fit=crop',
+          price: 1199,
+          original_price: 1399,
+          currency: market.currency,
+          shop: { id: '1', name: 'TechStore' },
+          rating: 4.8,
+          review_count: 234,
+          availability: 'in_stock',
+          affiliate_links: [{ affiliate_url: '#', tracking_code: 'demo' }]
+        },
+        {
+          id: '2',
+          title: 'Apple MacBook Pro 14" M3',
+          image_url: 'https://images.unsplash.com/photo-1517336714731-489689fd1ca8?w=300&h=300&fit=crop',
+          price: 1999,
+          original_price: 2199,
+          currency: market.currency,
+          shop: { id: '2', name: 'AppleStore' },
+          rating: 4.9,
+          review_count: 156,
+          availability: 'limited',
+          affiliate_links: [{ affiliate_url: '#', tracking_code: 'demo' }]
+        },
+        {
+          id: '3',
+          title: 'Sony WH-1000XM5 Headphones',
+          image_url: 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=300&h=300&fit=crop',
+          price: 299,
+          original_price: 399,
+          currency: market.currency,
+          shop: { id: '3', name: 'AudioPro' },
+          rating: 4.7,
+          review_count: 89,
+          availability: 'in_stock',
+          affiliate_links: [{ affiliate_url: '#', tracking_code: 'demo' }]
+        },
+        {
+          id: '4',
+          title: 'Nintendo Switch OLED',
+          image_url: 'https://images.unsplash.com/photo-1606144042614-b2417e99c4e3?w=300&h=300&fit=crop',
+          price: 349,
+          currency: market.currency,
+          shop: { id: '4', name: 'GameWorld' },
+          rating: 4.6,
+          review_count: 201,
+          availability: 'in_stock',
+          affiliate_links: [{ affiliate_url: '#', tracking_code: 'demo' }]
+        }
+      ]);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   // Mock data for demonstration
   const categories = [
@@ -48,52 +175,6 @@ const Index = () => {
       slug: 'smartphones',
       icon: Smartphone,
       productCount: 2890
-    }
-  ];
-
-  const topDeals = [
-    {
-      id: '1',
-      title: 'Samsung Galaxy S24 Ultra 256GB',
-      imageUrl: 'https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?w=300&h=300&fit=crop',
-      price: 1199,
-      originalPrice: 1399,
-      merchant: 'TechStore',
-      rating: 4.8,
-      reviewCount: 234,
-      availability: 'in-stock' as const
-    },
-    {
-      id: '2',
-      title: 'Apple MacBook Pro 14" M3',
-      imageUrl: 'https://images.unsplash.com/photo-1517336714731-489689fd1ca8?w=300&h=300&fit=crop',
-      price: 1999,
-      originalPrice: 2199,
-      merchant: 'AppleStore',
-      rating: 4.9,
-      reviewCount: 156,
-      availability: 'limited' as const
-    },
-    {
-      id: '3',
-      title: 'Sony WH-1000XM5 Headphones',
-      imageUrl: 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=300&h=300&fit=crop',
-      price: 299,
-      originalPrice: 399,
-      merchant: 'AudioPro',
-      rating: 4.7,
-      reviewCount: 89,
-      availability: 'in-stock' as const
-    },
-    {
-      id: '4',
-      title: 'Nintendo Switch OLED',
-      imageUrl: 'https://images.unsplash.com/photo-1606144042614-b2417e99c4e3?w=300&h=300&fit=crop',
-      price: 349,
-      merchant: 'GameWorld',
-      rating: 4.6,
-      reviewCount: 201,
-      availability: 'in-stock' as const
     }
   ];
 
@@ -168,9 +249,16 @@ const Index = () => {
             </div>
             
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-              {topDeals.map((product) => (
-                <ProductCard key={product.id} product={product} />
-              ))}
+              {loading ? (
+                // Loading skeleton
+                [...Array(4)].map((_, i) => (
+                  <div key={i} className="bg-muted animate-pulse rounded-lg h-80"></div>
+                ))
+              ) : (
+                topDeals.map((product) => (
+                  <ProductCard key={product.id} product={product} />
+                ))
+              )}
             </div>
 
             <div className="text-center mt-8">

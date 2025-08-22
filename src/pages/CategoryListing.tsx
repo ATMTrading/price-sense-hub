@@ -12,6 +12,27 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useMarket } from '@/hooks/useMarket';
 import { translate, formatCurrency } from '@/lib/i18n';
 
+interface Product {
+  id: string;
+  title: string;
+  image_url: string;
+  price: number;
+  original_price?: number;
+  currency: string;
+  shop: {
+    id: string;
+    name: string;
+    logo_url?: string;
+  };
+  rating?: number;
+  review_count?: number;
+  availability: 'in_stock' | 'out_of_stock' | 'limited';
+  affiliate_links?: Array<{
+    affiliate_url: string;
+    tracking_code?: string;
+  }>;
+}
+
 export default function CategoryListing() {
   const { categorySlug } = useParams();
   const { market } = useMarket();
@@ -20,16 +41,21 @@ export default function CategoryListing() {
   const [selectedMerchants, setSelectedMerchants] = useState<string[]>([]);
 
   // Mock data
-  const products = Array.from({ length: 20 }, (_, i) => ({
+  const products: Product[] = Array.from({ length: 20 }, (_, i) => ({
     id: `product-${i + 1}`,
     title: `Premium Product ${i + 1} - High Quality Electronics`,
-    imageUrl: `https://images.unsplash.com/photo-${1500000000000 + i * 100000}?w=300&h=300&fit=crop`,
+    image_url: `https://images.unsplash.com/photo-${1500000000000 + i * 100000}?w=300&h=300&fit=crop`,
     price: Math.floor(Math.random() * 1500) + 100,
-    originalPrice: Math.random() > 0.6 ? Math.floor(Math.random() * 1500) + 200 : undefined,
-    merchant: ['TechStore', 'ElectroWorld', 'DigitalHub', 'GadgetPlus'][Math.floor(Math.random() * 4)],
+    original_price: Math.random() > 0.6 ? Math.floor(Math.random() * 1500) + 200 : undefined,
+    currency: market.currency,
+    shop: {
+      id: `shop-${Math.floor(Math.random() * 4) + 1}`,
+      name: ['TechStore', 'ElectroWorld', 'DigitalHub', 'GadgetPlus'][Math.floor(Math.random() * 4)]
+    },
     rating: Math.random() * 2 + 3,
-    reviewCount: Math.floor(Math.random() * 500) + 10,
-    availability: (['in-stock', 'limited', 'out-of-stock'] as const)[Math.floor(Math.random() * 3)]
+    review_count: Math.floor(Math.random() * 500) + 10,
+    availability: (['in_stock', 'limited', 'out_of_stock'] as const)[Math.floor(Math.random() * 3)],
+    affiliate_links: [{ affiliate_url: '#', tracking_code: 'demo' }]
   }));
 
   const merchants = ['TechStore', 'ElectroWorld', 'DigitalHub', 'GadgetPlus'];
