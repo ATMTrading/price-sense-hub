@@ -35,6 +35,8 @@ export const ScheduleManager = () => {
   const [networks, setNetworks] = useState([]);
   const { toast } = useToast();
 
+  console.log('ScheduleManager render - jobs:', jobs, 'type:', typeof jobs, 'isArray:', Array.isArray(jobs));
+
   useEffect(() => {
     loadJobs();
     loadFeeds();
@@ -42,18 +44,26 @@ export const ScheduleManager = () => {
   }, []);
 
   const loadJobs = async () => {
+    console.log('loadJobs called');
     try {
       const { data, error } = await supabase.functions.invoke('admin-operations', {
         body: { action: 'get_scheduled_jobs' }
       });
 
-      if (error) throw error;
+      console.log('admin-operations response:', { data, error });
+
+      if (error) {
+        console.error('Supabase function error:', error);
+        setJobs([]);
+        throw error;
+      }
       
       // Ensure data is always an array, even if the function returns an error object
       if (data && Array.isArray(data)) {
+        console.log('Setting jobs to array:', data);
         setJobs(data);
-      } else if (data && data.error) {
-        console.error('Database error:', data.error);
+      } else if (data && typeof data === 'object' && data.error) {
+        console.error('Database error in response:', data.error);
         setJobs([]); // Set empty array if there's a database error
         toast({
           title: "Error loading scheduled jobs",
@@ -61,7 +71,8 @@ export const ScheduleManager = () => {
           variant: "destructive"
         });
       } else {
-        setJobs(data || []);
+        console.log('Setting jobs to fallback array:', data || []);
+        setJobs(Array.isArray(data) ? data : []);
       }
     } catch (error) {
       console.error('Failed to load jobs:', error);
@@ -174,6 +185,10 @@ export const ScheduleManager = () => {
     { label: "Every Monday at 8 AM", value: "0 8 * * 1" },
   ];
 
+  // Always ensure jobs is an array - final safeguard
+  const safeJobs = Array.isArray(jobs) ? jobs : [];
+  console.log('safeJobs:', safeJobs, 'original jobs:', jobs);
+
   if (loading) {
     return <div>Loading scheduled jobs...</div>;
   }
@@ -281,7 +296,7 @@ export const ScheduleManager = () => {
       )}
 
       <div className="grid gap-4">
-        {jobs.map((job) => (
+        {safeJobs.map((job) => (
           <Card key={job.id}>
             <CardHeader>
               <div className="flex justify-between items-start">
@@ -329,7 +344,7 @@ export const ScheduleManager = () => {
         ))}
       </div>
 
-      {jobs.length === 0 && (
+      {safeJobs.length === 0 && (
         <Alert>
           <AlertDescription>
             No scheduled jobs configured. Create automatic imports to keep your products updated.
