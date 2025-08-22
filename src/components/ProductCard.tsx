@@ -94,7 +94,7 @@ export function ProductCard({ product, className = '' }: ProductCardProps) {
                   -{savingsPercent}%
                 </span>
                 <span className="text-xs text-muted-foreground">
-                  Save {formatCurrency(savings, market)}
+                  {translate('product.save', market)} {formatCurrency(savings, market)}
                 </span>
               </div>
             )}
@@ -116,10 +116,10 @@ export function ProductCard({ product, className = '' }: ProductCardProps) {
             />
             <span className="text-xs text-muted-foreground">
               {product.availability === 'in-stock'
-                ? 'In Stock'
+                ? translate('availability.inStock', market)
                 : product.availability === 'limited'
-                ? 'Limited Stock'
-                : 'Out of Stock'}
+                ? translate('availability.limitedStock', market)
+                : translate('availability.outOfStock', market)}
             </span>
           </div>
 

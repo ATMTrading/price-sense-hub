@@ -56,16 +56,16 @@ export function Footer() {
 
           {/* Market Info */}
           <div>
-            <h3 className="font-semibold mb-4">Market</h3>
+            <h3 className="font-semibold mb-4">{translate('footer.market', market)}</h3>
             <div className="text-sm text-muted-foreground">
               <p>{market.flag} {market.code}</p>
-              <p>Currency: {market.currency}</p>
+              <p>{translate('footer.currency', market)}: {market.currency}</p>
             </div>
           </div>
         </div>
 
         <div className="border-t mt-8 pt-8 text-center text-sm text-muted-foreground">
-          <p>&copy; 2024 PriceComparise. All rights reserved.</p>
+          <p>{translate('footer.copyright', market)}</p>
         </div>
       </div>
     </footer>

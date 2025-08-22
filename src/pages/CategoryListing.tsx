@@ -72,7 +72,7 @@ export default function CategoryListing() {
         <div className="flex items-center justify-between mb-8">
           <div>
             <h1 className="font-heading text-3xl font-bold mb-2">{categoryName}</h1>
-            <p className="text-muted-foreground">{products.length} products found</p>
+            <p className="text-muted-foreground">{products.length} {translate('product.productsFound', market)}</p>
           </div>
           
           <div className="flex items-center space-x-4">
@@ -102,11 +102,11 @@ export default function CategoryListing() {
                 <SelectValue placeholder={translate('filter.sortBy', market)} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="relevance">Relevance</SelectItem>
-                <SelectItem value="price-low">Price: Low to High</SelectItem>
-                <SelectItem value="price-high">Price: High to Low</SelectItem>
-                <SelectItem value="newest">Newest First</SelectItem>
-                <SelectItem value="rating">Highest Rated</SelectItem>
+                <SelectItem value="relevance">{translate('sort.relevance', market)}</SelectItem>
+                <SelectItem value="price-low">{translate('sort.priceLow', market)}</SelectItem>
+                <SelectItem value="price-high">{translate('sort.priceHigh', market)}</SelectItem>
+                <SelectItem value="newest">{translate('sort.newest', market)}</SelectItem>
+                <SelectItem value="rating">{translate('sort.rating', market)}</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -119,7 +119,7 @@ export default function CategoryListing() {
               <CardHeader>
                 <CardTitle className="flex items-center">
                   <SlidersHorizontal className="h-5 w-5 mr-2" />
-                  Filters
+                  {translate('filter.filters', market)}
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-6">
@@ -168,20 +168,20 @@ export default function CategoryListing() {
                     <div className="flex items-center space-x-2">
                       <Checkbox id="in-stock" defaultChecked />
                       <label htmlFor="in-stock" className="text-sm font-medium">
-                        In Stock
+                        {translate('availability.inStock', market)}
                       </label>
                     </div>
                     <div className="flex items-center space-x-2">
                       <Checkbox id="limited-stock" />
                       <label htmlFor="limited-stock" className="text-sm font-medium">
-                        Limited Stock
+                        {translate('availability.limitedStock', market)}
                       </label>
                     </div>
                   </div>
                 </div>
 
                 <Button className="w-full" variant="outline">
-                  Clear Filters
+                  {translate('btn.clearFilters', market)}
                 </Button>
               </CardContent>
             </Card>

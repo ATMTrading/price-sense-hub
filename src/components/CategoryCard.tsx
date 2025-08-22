@@ -1,6 +1,9 @@
 import { Link } from 'react-router-dom';
 import { LucideIcon } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { useMarket } from '@/hooks/useMarket';
+import { translate } from '@/lib/i18n';
 
 interface CategoryCardProps {
   title: string;
@@ -11,6 +14,8 @@ interface CategoryCardProps {
 }
 
 export function CategoryCard({ title, slug, icon: Icon, productCount, className = '' }: CategoryCardProps) {
+  const { market } = useMarket();
+  
   return (
     <Link to={`/c/${slug}`} className={`block group ${className}`}>
       <Card className="h-full transition-smooth hover:shadow-card-hover hover:scale-[1.02] gradient-card border-0">
@@ -21,7 +26,7 @@ export function CategoryCard({ title, slug, icon: Icon, productCount, className 
           <h3 className="font-heading text-lg font-semibold mb-2">{title}</h3>
           {productCount !== undefined && (
             <p className="text-sm text-muted-foreground">
-              {productCount.toLocaleString()} products
+              {productCount.toLocaleString()} {translate('product.products', market)}
             </p>
           )}
         </CardContent>
