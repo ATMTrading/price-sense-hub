@@ -89,7 +89,7 @@ export function Header() {
               <DropdownMenuTrigger asChild>
                 <Button variant="outline" size="sm">
                   <Globe className="h-4 w-4 mr-2" />
-                  {market.flag} {market.code}
+                  {market.flag} {market.code.toUpperCase()} {market.currency}
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
@@ -103,7 +103,7 @@ export function Header() {
                     }}
                     className={market.code === m.code ? 'bg-accent' : ''}
                   >
-                    {m.flag} {m.code} - {m.currency}
+                    {m.flag} {m.code.toUpperCase()} {m.currency}
                   </DropdownMenuItem>
                 ))}
               </DropdownMenuContent>
