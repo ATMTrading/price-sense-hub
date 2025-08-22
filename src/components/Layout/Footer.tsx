@@ -58,7 +58,7 @@ export function Footer() {
           <div>
             <h3 className="font-semibold mb-4">{translate('footer.market', market)}</h3>
             <div className="text-sm text-muted-foreground">
-              <p>{market.flag}</p>
+              <p>{market.flag} {market.currency}</p>
             </div>
           </div>
         </div>
