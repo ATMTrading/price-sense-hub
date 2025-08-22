@@ -1,8 +1,12 @@
+import { Link } from "react-router-dom";
 import { useLocation } from "react-router-dom";
 import { useEffect } from "react";
+import { useMarket } from "@/hooks/useMarket";
+import { translate } from "@/lib/i18n";
 
 const NotFound = () => {
   const location = useLocation();
+  const { market } = useMarket();
 
   useEffect(() => {
     console.error(
@@ -12,13 +16,18 @@ const NotFound = () => {
   }, [location.pathname]);
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-100">
+    <div className="min-h-screen flex items-center justify-center bg-background">
       <div className="text-center">
         <h1 className="text-4xl font-bold mb-4">404</h1>
-        <p className="text-xl text-gray-600 mb-4">Oops! Page not found</p>
-        <a href="/" className="text-blue-500 hover:text-blue-700 underline">
-          Return to Home
-        </a>
+        <p className="text-xl text-muted-foreground mb-4">
+          {translate('msg.noResults', market)}
+        </p>
+        <Link 
+          to="/" 
+          className="text-primary hover:text-primary/80 underline transition-smooth"
+        >
+          {translate('nav.home', market)}
+        </Link>
       </div>
     </div>
   );
