@@ -345,7 +345,27 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      delete_scheduled_job: {
+        Args: { job_id: number }
+        Returns: Json
+      }
+      get_scheduled_jobs: {
+        Args: Record<PropertyKey, never>
+        Returns: Json
+      }
+      schedule_function_call: {
+        Args: {
+          cron_schedule: string
+          function_args?: Json
+          function_name: string
+          job_name: string
+        }
+        Returns: Json
+      }
+      toggle_scheduled_job: {
+        Args: { is_active: boolean; job_id: number }
+        Returns: Json
+      }
     }
     Enums: {
       [_ in never]: never
