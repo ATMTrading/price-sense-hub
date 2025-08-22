@@ -10,6 +10,9 @@ import Contact from "./pages/Contact";
 import Privacy from "./pages/Privacy";
 import NotFound from "./pages/NotFound";
 import { Admin } from "./pages/Admin";
+import { Auth } from "./pages/Auth";
+import { AuthProvider } from "./hooks/useAuth";
+import { ProtectedRoute } from "./components/ProtectedRoute";
 
 import { useMarket } from "./hooks/useMarket";
 
@@ -29,7 +32,15 @@ const AppContent = () => {
       <Route path="/c/:categorySlug" element={<CategoryListing />} />
       <Route path="/contact" element={<Contact />} />
       <Route path="/privacy" element={<Privacy />} />
-      <Route path="/admin" element={<Admin />} />
+      <Route path="/auth" element={<Auth />} />
+      <Route 
+        path="/admin" 
+        element={
+          <ProtectedRoute requireAdmin>
+            <Admin />
+          </ProtectedRoute>
+        } 
+      />
       
       {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
       <Route path="*" element={<NotFound />} />
@@ -43,7 +54,9 @@ const App = () => (
       <Toaster />
       <Sonner />
       <BrowserRouter>
-        <AppContent />
+        <AuthProvider>
+          <AppContent />
+        </AuthProvider>
       </BrowserRouter>
     </TooltipProvider>
   </QueryClientProvider>
