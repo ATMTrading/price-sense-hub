@@ -81,6 +81,59 @@ Deno.serve(async (req) => {
           .eq('id', data.id)
         break
 
+      case 'import_single_product':
+        // Call the process-xml-feed function with single product mode
+        result = await supabase.functions.invoke('process-xml-feed', {
+          body: {
+            single_product_url: data.url,
+            import_type: 'single_product'
+          }
+        })
+        break
+
+      case 'create_scheduled_job':
+        // Create a cron job for scheduled imports
+        const cronExpression = data.schedule
+        const jobName = `${data.name.toLowerCase().replace(/\s+/g, '-')}-${Date.now()}`
+        
+        let functionName = 'process-xml-feed'
+        let functionBody = { feed_id: data.target_id }
+        
+        if (data.job_type === 'network_sync') {
+          functionName = 'affiliate-api-sync'
+          functionBody = { network_id: data.target_id }
+        } else if (data.job_type === 'price_update') {
+          functionName = 'price-updater'
+          functionBody = { update_type: 'all' }
+        }
+
+        // Schedule the cron job
+        result = await supabase.rpc('schedule_function_call', {
+          job_name: jobName,
+          cron_schedule: cronExpression,
+          function_name: functionName,
+          function_args: functionBody
+        })
+        break
+
+      case 'get_scheduled_jobs':
+        // Get all scheduled jobs
+        result = await supabase.rpc('get_scheduled_jobs')
+        break
+
+      case 'toggle_scheduled_job':
+        result = await supabase.rpc('toggle_scheduled_job', {
+          job_id: data.id,
+          is_active: data.is_active
+        })
+        break
+
+      case 'delete_scheduled_job':
+        result = await supabase.rpc('delete_scheduled_job', {
+          job_id: data.id
+        })
+        break
+
       default:
         throw new Error(`Unknown action: ${action}`)
     }
