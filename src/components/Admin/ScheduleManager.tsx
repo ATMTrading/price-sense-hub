@@ -29,7 +29,8 @@ export const ScheduleManager = () => {
     name: "",
     schedule: "0 */6 * * *", // Every 6 hours default
     job_type: "feed_import",
-    target_id: ""
+    target_id: "",
+    update_scope: "all" // For price updates: all, feed, network, category
   });
   const [feeds, setFeeds] = useState([]);
   const [networks, setNetworks] = useState([]);
@@ -114,7 +115,7 @@ export const ScheduleManager = () => {
       });
 
       setShowForm(false);
-      setFormData({ name: "", schedule: "0 */6 * * *", job_type: "feed_import", target_id: "" });
+      setFormData({ name: "", schedule: "0 */6 * * *", job_type: "feed_import", target_id: "", update_scope: "all" });
       loadJobs();
     } catch (error) {
       toast({
@@ -243,7 +244,7 @@ export const ScheduleManager = () => {
                     <SelectTrigger>
                       <SelectValue placeholder="Select a feed" />
                     </SelectTrigger>
-                    <SelectContent>
+                    <SelectContent className="bg-background border shadow-md z-50">
                       {feeds.map((feed: any) => (
                         <SelectItem key={feed.id} value={feed.id}>{feed.name}</SelectItem>
                       ))}
@@ -259,13 +260,63 @@ export const ScheduleManager = () => {
                     <SelectTrigger>
                       <SelectValue placeholder="Select a network" />
                     </SelectTrigger>
-                    <SelectContent>
+                    <SelectContent className="bg-background border shadow-md z-50">
                       {networks.map((network: any) => (
                         <SelectItem key={network.id} value={network.id}>{network.name}</SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
                 </div>
+              )}
+
+              {formData.job_type === 'price_update' && (
+                <>
+                  <div>
+                    <Label htmlFor="update_scope">Update Scope</Label>
+                    <Select value={formData.update_scope} onValueChange={(value) => setFormData({ ...formData, update_scope: value, target_id: "" })}>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent className="bg-background border shadow-md z-50">
+                        <SelectItem value="all">All Products (Default)</SelectItem>
+                        <SelectItem value="feed">Products from Specific XML Feed</SelectItem>
+                        <SelectItem value="network">Products from Specific Affiliate Network</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  {formData.update_scope === 'feed' && (
+                    <div>
+                      <Label htmlFor="target_id">XML Feed</Label>
+                      <Select value={formData.target_id} onValueChange={(value) => setFormData({ ...formData, target_id: value })}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select a feed to update" />
+                        </SelectTrigger>
+                        <SelectContent className="bg-background border shadow-md z-50">
+                          {feeds.map((feed: any) => (
+                            <SelectItem key={feed.id} value={feed.id}>{feed.name}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
+
+                  {formData.update_scope === 'network' && (
+                    <div>
+                      <Label htmlFor="target_id">Affiliate Network</Label>
+                      <Select value={formData.target_id} onValueChange={(value) => setFormData({ ...formData, target_id: value })}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select a network to update" />
+                        </SelectTrigger>
+                        <SelectContent className="bg-background border shadow-md z-50">
+                          {networks.map((network: any) => (
+                            <SelectItem key={network.id} value={network.id}>{network.name}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
+                </>
               )}
 
               <div>

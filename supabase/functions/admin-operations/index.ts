@@ -104,7 +104,13 @@ Deno.serve(async (req) => {
           functionBody = { network_id: data.target_id }
         } else if (data.job_type === 'price_update') {
           functionName = 'price-updater'
-          functionBody = { update_type: 'all' }
+          if (data.update_scope === 'feed') {
+            functionBody = { update_type: 'feed', feed_id: data.target_id }
+          } else if (data.update_scope === 'network') {
+            functionBody = { update_type: 'network', network_id: data.target_id }
+          } else {
+            functionBody = { update_type: 'all' }
+          }
         }
 
         // Schedule the cron job
