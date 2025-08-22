@@ -55,6 +55,45 @@ export type Database = {
           },
         ]
       }
+      affiliate_networks: {
+        Row: {
+          api_endpoint: string
+          api_key_name: string
+          config: Json | null
+          created_at: string
+          id: string
+          is_active: boolean
+          last_sync_at: string | null
+          market_code: string
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          api_endpoint: string
+          api_key_name: string
+          config?: Json | null
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          last_sync_at?: string | null
+          market_code: string
+          name: string
+          updated_at?: string
+        }
+        Update: {
+          api_endpoint?: string
+          api_key_name?: string
+          config?: Json | null
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          last_sync_at?: string | null
+          market_code?: string
+          name?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       categories: {
         Row: {
           created_at: string
@@ -90,6 +129,66 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      import_logs: {
+        Row: {
+          completed_at: string | null
+          created_at: string
+          errors: Json | null
+          feed_id: string | null
+          id: string
+          import_type: string
+          network_id: string | null
+          products_created: number | null
+          products_processed: number | null
+          products_updated: number | null
+          started_at: string
+          status: string
+        }
+        Insert: {
+          completed_at?: string | null
+          created_at?: string
+          errors?: Json | null
+          feed_id?: string | null
+          id?: string
+          import_type: string
+          network_id?: string | null
+          products_created?: number | null
+          products_processed?: number | null
+          products_updated?: number | null
+          started_at?: string
+          status?: string
+        }
+        Update: {
+          completed_at?: string | null
+          created_at?: string
+          errors?: Json | null
+          feed_id?: string | null
+          id?: string
+          import_type?: string
+          network_id?: string | null
+          products_created?: number | null
+          products_processed?: number | null
+          products_updated?: number | null
+          started_at?: string
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "import_logs_feed_id_fkey"
+            columns: ["feed_id"]
+            isOneToOne: false
+            referencedRelation: "xml_feeds"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "import_logs_network_id_fkey"
+            columns: ["network_id"]
+            isOneToOne: false
+            referencedRelation: "affiliate_networks"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       products: {
         Row: {
@@ -196,6 +295,45 @@ export type Database = {
           name?: string
           updated_at?: string
           website_url?: string | null
+        }
+        Relationships: []
+      }
+      xml_feeds: {
+        Row: {
+          created_at: string
+          feed_type: string
+          id: string
+          is_active: boolean
+          last_imported_at: string | null
+          mapping_config: Json | null
+          market_code: string
+          name: string
+          updated_at: string
+          url: string
+        }
+        Insert: {
+          created_at?: string
+          feed_type?: string
+          id?: string
+          is_active?: boolean
+          last_imported_at?: string | null
+          mapping_config?: Json | null
+          market_code: string
+          name: string
+          updated_at?: string
+          url: string
+        }
+        Update: {
+          created_at?: string
+          feed_type?: string
+          id?: string
+          is_active?: boolean
+          last_imported_at?: string | null
+          mapping_config?: Json | null
+          market_code?: string
+          name?: string
+          updated_at?: string
+          url?: string
         }
         Relationships: []
       }

@@ -13,6 +13,9 @@ import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useMarket } from '@/hooks/useMarket';
 import { Plus, Upload, Eye, Edit, Trash } from 'lucide-react';
+import { FeedManager } from '@/components/DataImport/FeedManager';
+import { AffiliateManager } from '@/components/DataImport/AffiliateManager';
+import { ImportHistory } from '@/components/DataImport/ImportHistory';
 
 interface Shop {
   id: string;
@@ -304,10 +307,11 @@ export function Admin() {
         </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="grid w-full grid-cols-4">
+          <TabsList className="grid w-full grid-cols-5">
             <TabsTrigger value="products">Products</TabsTrigger>
             <TabsTrigger value="shops">Shops</TabsTrigger>
             <TabsTrigger value="categories">Categories</TabsTrigger>
+            <TabsTrigger value="data-import">Data Import</TabsTrigger>
             <TabsTrigger value="overview">Overview</TabsTrigger>
           </TabsList>
 
@@ -589,6 +593,28 @@ export function Admin() {
                 </div>
               </CardContent>
             </Card>
+          </TabsContent>
+
+          <TabsContent value="data-import" className="space-y-6">
+            <Tabs defaultValue="feeds" className="space-y-6">
+              <TabsList>
+                <TabsTrigger value="feeds">XML Feeds</TabsTrigger>
+                <TabsTrigger value="affiliates">Affiliate Networks</TabsTrigger>
+                <TabsTrigger value="history">Import History</TabsTrigger>
+              </TabsList>
+              
+              <TabsContent value="feeds">
+                <FeedManager />
+              </TabsContent>
+              
+              <TabsContent value="affiliates">
+                <AffiliateManager />
+              </TabsContent>
+              
+              <TabsContent value="history">
+                <ImportHistory />
+              </TabsContent>
+            </Tabs>
           </TabsContent>
 
           <TabsContent value="overview">
