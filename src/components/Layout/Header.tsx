@@ -89,7 +89,10 @@ export function Header() {
               <DropdownMenuTrigger asChild>
                 <Button variant="outline" size="sm">
                   <Globe className="h-4 w-4 mr-2" />
-                  {market.flag} {market.currency}
+                  <span style={{ fontFamily: '"Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", "Android Emoji", sans-serif' }}>
+                    {market.flag}
+                  </span>
+                  {" "}{market.currency}
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
@@ -103,7 +106,10 @@ export function Header() {
                     }}
                     className={market.code === m.code ? 'bg-accent' : ''}
                   >
-                    {m.flag} {m.currency}
+                    <span style={{ fontFamily: '"Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", "Android Emoji", sans-serif' }}>
+                      {m.flag}
+                    </span>
+                    {" "}{m.currency}
                   </DropdownMenuItem>
                 ))}
               </DropdownMenuContent>
