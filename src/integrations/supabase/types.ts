@@ -14,7 +14,191 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      affiliate_links: {
+        Row: {
+          affiliate_url: string
+          commission_rate: number | null
+          created_at: string
+          id: string
+          is_active: boolean
+          product_id: string
+          tracking_code: string | null
+          updated_at: string
+        }
+        Insert: {
+          affiliate_url: string
+          commission_rate?: number | null
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          product_id: string
+          tracking_code?: string | null
+          updated_at?: string
+        }
+        Update: {
+          affiliate_url?: string
+          commission_rate?: number | null
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          product_id?: string
+          tracking_code?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "affiliate_links_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: true
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      categories: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          image_url: string | null
+          is_active: boolean
+          market_code: string
+          name: string
+          slug: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          image_url?: string | null
+          is_active?: boolean
+          market_code: string
+          name: string
+          slug: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          image_url?: string | null
+          is_active?: boolean
+          market_code?: string
+          name?: string
+          slug?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      products: {
+        Row: {
+          availability: string
+          category_id: string
+          created_at: string
+          currency: string
+          description: string | null
+          id: string
+          image_url: string
+          is_active: boolean
+          is_featured: boolean
+          market_code: string
+          original_price: number | null
+          price: number
+          rating: number | null
+          review_count: number | null
+          shop_id: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          availability?: string
+          category_id: string
+          created_at?: string
+          currency: string
+          description?: string | null
+          id?: string
+          image_url: string
+          is_active?: boolean
+          is_featured?: boolean
+          market_code: string
+          original_price?: number | null
+          price: number
+          rating?: number | null
+          review_count?: number | null
+          shop_id: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          availability?: string
+          category_id?: string
+          created_at?: string
+          currency?: string
+          description?: string | null
+          id?: string
+          image_url?: string
+          is_active?: boolean
+          is_featured?: boolean
+          market_code?: string
+          original_price?: number | null
+          price?: number
+          rating?: number | null
+          review_count?: number | null
+          shop_id?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "products_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "categories"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "products_shop_id_fkey"
+            columns: ["shop_id"]
+            isOneToOne: false
+            referencedRelation: "shops"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      shops: {
+        Row: {
+          created_at: string
+          id: string
+          is_active: boolean
+          logo_url: string | null
+          market_code: string
+          name: string
+          updated_at: string
+          website_url: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          logo_url?: string | null
+          market_code: string
+          name: string
+          updated_at?: string
+          website_url?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          logo_url?: string | null
+          market_code?: string
+          name?: string
+          updated_at?: string
+          website_url?: string | null
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
