@@ -48,8 +48,24 @@ export const ScheduleManager = () => {
       });
 
       if (error) throw error;
-      setJobs(data || []);
+      
+      // Ensure data is always an array, even if the function returns an error object
+      if (data && Array.isArray(data)) {
+        setJobs(data);
+      } else if (data && data.error) {
+        console.error('Database error:', data.error);
+        setJobs([]); // Set empty array if there's a database error
+        toast({
+          title: "Error loading scheduled jobs",
+          description: "Database error: " + data.error,
+          variant: "destructive"
+        });
+      } else {
+        setJobs(data || []);
+      }
     } catch (error) {
+      console.error('Failed to load jobs:', error);
+      setJobs([]); // Always ensure jobs is an array
       toast({
         title: "Error loading scheduled jobs",
         description: error instanceof Error ? error.message : "Unknown error",
