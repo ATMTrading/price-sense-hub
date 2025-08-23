@@ -70,6 +70,16 @@ export function Header() {
                   </Link>
                 </DropdownMenuItem>
                 <DropdownMenuItem asChild>
+                  <Link to="/c/computers">
+                    {translate('categories.computers', market)}
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem asChild>
+                  <Link to="/c/smartphones">
+                    Smartphones
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem asChild>
                   <Link to="/c/health">
                     {translate('categories.health', market)}
                   </Link>

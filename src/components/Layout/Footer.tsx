@@ -29,6 +29,12 @@ export function Footer() {
               <Link to="/c/electronics" className="block text-muted-foreground hover:text-foreground transition-smooth">
                 {translate('categories.electronics', market)}
               </Link>
+              <Link to="/c/computers" className="block text-muted-foreground hover:text-foreground transition-smooth">
+                {translate('categories.computers', market)}
+              </Link>
+              <Link to="/c/smartphones" className="block text-muted-foreground hover:text-foreground transition-smooth">
+                Smartphones
+              </Link>
               <Link to="/c/health" className="block text-muted-foreground hover:text-foreground transition-smooth">
                 {translate('categories.health', market)}
               </Link>
