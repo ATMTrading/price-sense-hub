@@ -115,7 +115,16 @@ serve(async (req) => {
         const description = extractXmlValue(productXml, mappingConfig.description || 'description');
         const price = parseFloat(extractXmlValue(productXml, mappingConfig.price || 'price') || '0');
         const originalPrice = parseFloat(extractXmlValue(productXml, mappingConfig.original_price || 'original_price') || '0');
-        const currency = extractXmlValue(productXml, mappingConfig.currency || 'currency') || 'EUR';
+        // Set currency based on market code
+        let currency = 'EUR'; // default
+        if (marketCode === 'hu') currency = 'HUF';
+        else if (marketCode === 'cz') currency = 'CZK';
+        else if (marketCode === 'sk') currency = 'EUR';
+        else if (marketCode === 'pl') currency = 'PLN';
+        
+        // Override with XML value if available
+        const xmlCurrency = extractXmlValue(productXml, mappingConfig.currency || 'currency');
+        if (xmlCurrency) currency = xmlCurrency;
         const imageUrl = extractXmlValue(productXml, mappingConfig.image_url || 'image_url');
         const categoryName = extractXmlValue(productXml, mappingConfig.category || 'category');
         const shopName = extractXmlValue(productXml, mappingConfig.shop || 'shop');
