@@ -96,6 +96,13 @@ serve(async (req) => {
     const productMatches = xmlText.match(/<item[^>]*>[\s\S]*?<\/item>/g) || 
                           xmlText.match(/<product[^>]*>[\s\S]*?<\/product>/g) || [];
 
+    console.log(`Found ${productMatches.length} products in XML`);
+    
+    // Debug: Log first product structure if available
+    if (productMatches.length > 0) {
+      console.log('First product XML structure:', productMatches[0].substring(0, 500));
+    }
+
     // Limit products for testing
     const productsToProcess = limit ? productMatches.slice(0, limit) : productMatches;
 
@@ -114,6 +121,20 @@ serve(async (req) => {
         const shopName = extractXmlValue(productXml, mappingConfig.shop || 'shop');
         const availability = extractXmlValue(productXml, mappingConfig.availability || 'availability') || 'in_stock';
         const productUrl = extractXmlValue(productXml, mappingConfig.product_url || 'link');
+
+        // Debug logging for first product
+        if (productsProcessed === 1) {
+          console.log('Debug - Extracted values:', {
+            title,
+            description: description?.substring(0, 50),
+            price,
+            currency,
+            imageUrl: imageUrl?.substring(0, 50),
+            categoryName,
+            shopName
+          });
+          console.log('Debug - Mapping config:', mappingConfig);
+        }
 
         // Generate affiliate link using template
         let affiliateUrl = null;
