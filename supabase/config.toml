@@ -36,3 +36,6 @@ verify_jwt = false
 
 [functions.affiliate-api-sync]
 verify_jwt = false
+
+[functions.affiliate-track-click]
+verify_jwt = false

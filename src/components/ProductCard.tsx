@@ -33,12 +33,40 @@ interface ProductCardProps {
 export function ProductCard({ product, className = '' }: ProductCardProps) {
   const { market } = useMarket();
 
-  const handleViewOffer = () => {
-    // Open affiliate link if available
-    if (product.affiliate_links && product.affiliate_links.length > 0) {
-      window.open(product.affiliate_links[0].affiliate_url, '_blank');
-      // TODO: Implement click tracking
-      console.log('Track click:', product.id, product.affiliate_links[0].tracking_code);
+  const handleViewOffer = async () => {
+    try {
+      // Track the click via edge function
+      const response = await fetch('/functions/v1/affiliate-track-click', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          productId: product.id,
+          trackingCode: product.affiliate_links?.[0]?.tracking_code,
+          referrer: window.location.href,
+          userAgent: navigator.userAgent
+        })
+      });
+
+      const result = await response.json();
+      
+      if (result.success && result.redirectUrl) {
+        console.log('✅ Click tracked successfully:', result.trackingCode);
+        window.open(result.redirectUrl, '_blank');
+      } else {
+        console.error('❌ Tracking failed:', result.error);
+        // Fallback - still open the link but without tracking
+        if (product.affiliate_links && product.affiliate_links.length > 0) {
+          window.open(product.affiliate_links[0].affiliate_url, '_blank');
+        }
+      }
+    } catch (error) {
+      console.error('❌ Tracking error:', error);
+      // Fallback - still open the link but without tracking
+      if (product.affiliate_links && product.affiliate_links.length > 0) {
+        window.open(product.affiliate_links[0].affiliate_url, '_blank');
+      }
     }
   };
 
