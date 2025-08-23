@@ -111,6 +111,17 @@ serve(async (req) => {
       try {
         productsProcessed++;
 
+        // Debug: Always log the first product's raw XML structure
+        if (productsProcessed === 1) {
+          console.log('=== FIRST PRODUCT DEBUG ===');
+          console.log('Raw XML (first 2000 chars):', productXml.substring(0, 2000));
+          console.log('Full XML length:', productXml.length);
+          
+          // Find all tags in this product
+          const allTags = [...productXml.matchAll(/<([^\/\s>]+)/g)];
+          console.log('All XML tags found:', allTags.map(m => m[1]).slice(0, 30));
+        }
+
         // Extract data using regex (in production, use proper XML parser)
         const title = extractXmlValue(productXml, mappingConfig.title || 'title');
         const description = extractXmlValue(productXml, mappingConfig.description || 'description');
@@ -134,33 +145,12 @@ serve(async (req) => {
 
         // Debug logging for first product
         if (productsProcessed === 1) {
-          console.log('Debug - Raw XML for first product:', productXml.substring(0, 1500));
-          console.log('Debug - Mapping config:', mappingConfig);
-          
-          // Show all available tags in the XML for debugging
-          const tagMatches = productXml.match(/<([^/>]+)>/g) || [];
-          const availableTags = tagMatches.map(tag => tag.replace(/[<>]/g, '')).slice(0, 20);
-          console.log('Debug - Available XML tags:', availableTags);
-          
-          // Test different potential price fields
-          const priceFields = ['price', 'price_consumer', 'price_vat', 'price_gross', 'cost', 'amount', 'value'];
-          console.log('Debug - Testing price fields:');
-          priceFields.forEach(field => {
-            const testPrice = extractXmlValue(productXml, field);
-            if (testPrice) {
-              console.log(`  ${field}: ${testPrice}`);
-            }
-          });
-          
-          console.log('Debug - Extracted values:', {
-            title,
-            description: description?.substring(0, 50),
-            price,
-            currency,
-            imageUrl: imageUrl?.substring(0, 50),
-            categoryName,
-            shopName
-          });
+          console.log('Debug - Mapping config:', JSON.stringify(mappingConfig, null, 2));
+          console.log('Debug - Extracted title:', title);
+          console.log('Debug - Extracted price:', price);
+          console.log('Debug - Extracted imageUrl:', imageUrl);
+          console.log('Debug - Title field lookup:', mappingConfig.title || 'title');
+          console.log('Debug - Price field lookup:', mappingConfig.price || 'price');
         }
 
         // Generate affiliate link using template
