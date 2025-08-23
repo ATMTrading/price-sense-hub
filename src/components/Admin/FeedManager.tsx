@@ -320,6 +320,30 @@ export const FeedManager = () => {
                     <Play className="w-4 h-4 mr-1" />
                     Test (5)
                   </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={async () => {
+                      try {
+                        const { data, error } = await supabase.functions.invoke('debug-xml');
+                        if (error) throw error;
+                        console.log('XML Debug Result:', data);
+                        toast({
+                          title: "XML structure logged to console",
+                          description: "Check browser console for details"
+                        });
+                      } catch (error) {
+                        console.error('Debug error:', error);
+                        toast({
+                          title: "Debug failed",
+                          description: error instanceof Error ? error.message : "Unknown error",
+                          variant: "destructive"
+                        });
+                      }
+                    }}
+                  >
+                    Debug XML
+                  </Button>
                   <Button size="sm" variant="outline" onClick={() => editFeed(feed)}>
                     <Edit className="w-4 h-4" />
                   </Button>
