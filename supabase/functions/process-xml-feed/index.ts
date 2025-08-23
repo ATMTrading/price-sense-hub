@@ -30,7 +30,34 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
-    const { feedId, feedUrl, marketCode, mappingConfig } = await req.json();
+    // Support both old format (feed_id) and new format (all parameters)
+    let feedId, feedUrl, marketCode, mappingConfig, affiliateLinkTemplate;
+    
+    const requestBody = await req.json();
+    
+    if (requestBody.feed_id) {
+      // Old format - fetch feed details
+      console.log(`Processing XML feed with ID: ${requestBody.feed_id}`);
+      
+      const { data: feed, error: feedError } = await supabaseClient
+        .from('xml_feeds')
+        .select('*')
+        .eq('id', requestBody.feed_id)
+        .single();
+      
+      if (feedError || !feed) {
+        throw new Error('Feed not found');
+      }
+      
+      feedId = feed.id;
+      feedUrl = feed.url;
+      marketCode = feed.market_code;
+      mappingConfig = feed.mapping_config;
+      affiliateLinkTemplate = feed.affiliate_link_template;
+    } else {
+      // New format - use provided parameters
+      ({ feedId, feedUrl, marketCode, mappingConfig, affiliateLinkTemplate } = requestBody);
+    }
 
     console.log(`Processing XML feed: ${feedUrl} for market: ${marketCode}`);
 
@@ -83,7 +110,17 @@ serve(async (req) => {
         const categoryName = extractXmlValue(productXml, mappingConfig.category || 'category');
         const shopName = extractXmlValue(productXml, mappingConfig.shop || 'shop');
         const availability = extractXmlValue(productXml, mappingConfig.availability || 'availability') || 'in_stock';
-        const affiliateUrl = extractXmlValue(productXml, mappingConfig.affiliate_url || 'link');
+        const productUrl = extractXmlValue(productXml, mappingConfig.product_url || 'link');
+
+        // Generate affiliate link using template
+        let affiliateUrl = null;
+        if (productUrl && affiliateLinkTemplate && affiliateLinkTemplate.base_url) {
+          if (affiliateLinkTemplate.url_encode) {
+            affiliateUrl = affiliateLinkTemplate.base_url + encodeURIComponent(productUrl);
+          } else {
+            affiliateUrl = affiliateLinkTemplate.base_url + productUrl;
+          }
+        }
 
         if (!title || !imageUrl || price <= 0) {
           errors.push(`Invalid product data: missing title, image, or price`);
@@ -179,7 +216,7 @@ serve(async (req) => {
             .single();
 
           if (newProduct && affiliateUrl) {
-            // Create affiliate link
+            // Create affiliate link with generated URL
             await supabaseClient
               .from('affiliate_links')
               .insert({

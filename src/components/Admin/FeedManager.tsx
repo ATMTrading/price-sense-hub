@@ -19,6 +19,7 @@ interface XmlFeed {
   is_active: boolean;
   last_imported_at: string | null;
   mapping_config: any;
+  affiliate_link_template: any;
 }
 
 export const FeedManager = () => {
@@ -31,7 +32,8 @@ export const FeedManager = () => {
     url: "",
     feed_type: "xml",
     market_code: "us",
-    mapping_config: "{}"
+    mapping_config: "{}",
+    affiliate_link_template: '{"base_url": "", "url_encode": true}'
   });
   const { toast } = useToast();
 
@@ -68,6 +70,7 @@ export const FeedManager = () => {
           data: {
             ...formData,
             mapping_config: JSON.parse(formData.mapping_config),
+            affiliate_link_template: JSON.parse(formData.affiliate_link_template),
             ...(editingFeed && { id: editingFeed.id })
           }
         }
@@ -81,7 +84,7 @@ export const FeedManager = () => {
 
       setShowForm(false);
       setEditingFeed(null);
-      setFormData({ name: "", url: "", feed_type: "xml", market_code: "us", mapping_config: "{}" });
+      setFormData({ name: "", url: "", feed_type: "xml", market_code: "us", mapping_config: "{}", affiliate_link_template: '{"base_url": "", "url_encode": true}' });
       loadFeeds();
     } catch (error) {
       toast({
@@ -94,8 +97,25 @@ export const FeedManager = () => {
 
   const triggerImport = async (feedId: string) => {
     try {
+      // Get feed details first
+      const { data: feed, error: feedError } = await supabase
+        .from('xml_feeds')
+        .select('*')
+        .eq('id', feedId)
+        .single();
+
+      if (feedError || !feed) {
+        throw new Error('Feed not found');
+      }
+
       const { error } = await supabase.functions.invoke('process-xml-feed', {
-        body: { feed_id: feedId }
+        body: { 
+          feedId: feed.id,
+          feedUrl: feed.url,
+          marketCode: feed.market_code,
+          mappingConfig: feed.mapping_config,
+          affiliateLinkTemplate: feed.affiliate_link_template
+        }
       });
 
       if (error) throw error;
@@ -120,7 +140,8 @@ export const FeedManager = () => {
       url: feed.url,
       feed_type: feed.feed_type,
       market_code: feed.market_code,
-      mapping_config: JSON.stringify(feed.mapping_config, null, 2)
+      mapping_config: JSON.stringify(feed.mapping_config, null, 2),
+      affiliate_link_template: JSON.stringify(feed.affiliate_link_template || {"base_url": "", "url_encode": true}, null, 2)
     });
     setShowForm(true);
   };
@@ -180,8 +201,22 @@ export const FeedManager = () => {
                   id="mapping_config"
                   value={formData.mapping_config}
                   onChange={(e) => setFormData({ ...formData, mapping_config: e.target.value })}
-                  rows={6}
+                  rows={4}
                 />
+              </div>
+              <div>
+                <Label htmlFor="affiliate_link_template">Affiliate Link Template (JSON)</Label>
+                <Textarea
+                  id="affiliate_link_template"
+                  value={formData.affiliate_link_template}
+                  onChange={(e) => setFormData({ ...formData, affiliate_link_template: e.target.value })}
+                  rows={4}
+                  placeholder='{"base_url": "https://go.dognet.com/?chid=YOUR_ID&url=", "url_encode": true}'
+                />
+                <p className="text-sm text-muted-foreground mt-1">
+                  Configure your affiliate link template. The product URL will be appended to base_url. 
+                  Set url_encode to true to URL encode the product link.
+                </p>
               </div>
               <div className="flex gap-2">
                 <Button type="submit">
@@ -190,7 +225,7 @@ export const FeedManager = () => {
                 <Button type="button" variant="outline" onClick={() => {
                   setShowForm(false);
                   setEditingFeed(null);
-                  setFormData({ name: "", url: "", feed_type: "xml", market_code: "us", mapping_config: "{}" });
+                  setFormData({ name: "", url: "", feed_type: "xml", market_code: "us", mapping_config: "{}", affiliate_link_template: '{"base_url": "", "url_encode": true}' });
                 }}>
                   Cancel
                 </Button>

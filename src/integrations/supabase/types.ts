@@ -330,6 +330,7 @@ export type Database = {
       }
       xml_feeds: {
         Row: {
+          affiliate_link_template: Json | null
           created_at: string
           feed_type: string
           id: string
@@ -342,6 +343,7 @@ export type Database = {
           url: string
         }
         Insert: {
+          affiliate_link_template?: Json | null
           created_at?: string
           feed_type?: string
           id?: string
@@ -354,6 +356,7 @@ export type Database = {
           url: string
         }
         Update: {
+          affiliate_link_template?: Json | null
           created_at?: string
           feed_type?: string
           id?: string

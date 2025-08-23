@@ -29,6 +29,7 @@ Deno.serve(async (req) => {
             feed_type: data.feed_type,
             market_code: data.market_code,
             mapping_config: data.mapping_config,
+            affiliate_link_template: data.affiliate_link_template,
             is_active: true
           })
         break
@@ -41,7 +42,8 @@ Deno.serve(async (req) => {
             url: data.url,
             feed_type: data.feed_type,
             market_code: data.market_code,
-            mapping_config: data.mapping_config
+            mapping_config: data.mapping_config,
+            affiliate_link_template: data.affiliate_link_template
           })
           .eq('id', data.id)
         break
