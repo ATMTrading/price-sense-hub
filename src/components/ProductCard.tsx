@@ -3,6 +3,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { useMarket } from '@/hooks/useMarket';
 import { translate, formatCurrency } from '@/lib/i18n';
+import { supabase } from '@/integrations/supabase/client';
 
 interface Product {
   id: string;
@@ -35,31 +36,27 @@ export function ProductCard({ product, className = '' }: ProductCardProps) {
 
   const handleViewOffer = async () => {
     try {
-      // Track the click via edge function
-      const response = await fetch('/functions/v1/affiliate-track-click', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
+      // Track the click via Supabase edge function
+      const { data, error } = await supabase.functions.invoke('affiliate-track-click', {
+        body: {
           productId: product.id,
           trackingCode: product.affiliate_links?.[0]?.tracking_code,
           referrer: window.location.href,
           userAgent: navigator.userAgent
-        })
+        }
       });
 
-      const result = await response.json();
+      if (error) {
+        console.error('❌ Tracking failed:', error);
+      } else if (data?.success && data?.redirectUrl) {
+        console.log('✅ Click tracked successfully:', data.trackingCode);
+        window.open(data.redirectUrl, '_blank');
+        return;
+      }
       
-      if (result.success && result.redirectUrl) {
-        console.log('✅ Click tracked successfully:', result.trackingCode);
-        window.open(result.redirectUrl, '_blank');
-      } else {
-        console.error('❌ Tracking failed:', result.error);
-        // Fallback - still open the link but without tracking
-        if (product.affiliate_links && product.affiliate_links.length > 0) {
-          window.open(product.affiliate_links[0].affiliate_url, '_blank');
-        }
+      // Fallback - still open the link but without tracking
+      if (product.affiliate_links && product.affiliate_links.length > 0) {
+        window.open(product.affiliate_links[0].affiliate_url, '_blank');
       }
     } catch (error) {
       console.error('❌ Tracking error:', error);
