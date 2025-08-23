@@ -94,8 +94,8 @@ serve(async (req) => {
     const errors: string[] = [];
 
     // Basic XML parsing - extract product elements
-    const productMatches = xmlText.match(/<item[^>]*>[\s\S]*?<\/item>/g) || 
-                          xmlText.match(/<product[^>]*>[\s\S]*?<\/product>/g) || [];
+    const productMatches = xmlText.match(/<product[^>]*>[\s\S]*?<\/product>/g) || 
+                          xmlText.match(/<item[^>]*>[\s\S]*?<\/item>/g) || [];
 
     console.log(`Found ${productMatches.length} products in XML`);
     

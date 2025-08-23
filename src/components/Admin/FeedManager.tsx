@@ -150,13 +150,13 @@ export const FeedManager = () => {
       let mappingConfig = feed.mapping_config;
       if (!mappingConfig || Object.keys(mappingConfig).length === 0) {
         mappingConfig = {
-          title: 'name',
-          description: 'description', 
-          price: 'price_consumer',
-          image_url: 'image_url',
-          category: 'categorytext',
-          shop: 'shop',
-          product_url: 'url'
+          title: 'name',           // ✓ Correct
+          description: 'description', // ✓ Correct
+          price: 'price',          // ✓ Changed from price_consumer to price
+          image_url: 'image_url',  // ✓ Correct
+          category: 'category',    // ✓ Correct
+          shop: 'manufacturer',    // ✓ Changed from shop to manufacturer
+          product_url: 'product_url' // ✓ Correct
         };
       }
 
