@@ -35,7 +35,7 @@ serve(async (req) => {
         .from('products')
         .select(`
           *,
-          shops:shop_id(*),
+          shop:shops(*),
           affiliate_links(*)
         `)
         .eq('id', productId)
@@ -55,17 +55,17 @@ serve(async (req) => {
       // Log the click (you can extend this to store in a clicks table)
       console.log('Click tracked for product:', {
         product: product.title,
-        shop: product.shops?.name,
+        shop: product.shop?.name,
         tracking_code: trackingCode
       });
 
-      // Get the affiliate URL
+      // Get the affiliate URL - use the actual affiliate link if available
       const affiliateLink = product.affiliate_links?.[0];
-      let redirectUrl = product.description.match(/<product_url>(.*?)<\/product_url>/)?.[1];
+      let redirectUrl = affiliateLink?.affiliate_url;
       
       if (!redirectUrl) {
         // Fallback: construct URL based on shop
-        redirectUrl = `https://www.${product.shops?.name?.toLowerCase()}.hu/`;
+        redirectUrl = `https://www.${product.shop?.name?.toLowerCase()}.hu/`;
       }
 
       // Create tracking URL with your affiliate parameters
