@@ -124,9 +124,24 @@ serve(async (req) => {
 
         // Debug logging for first product
         if (productsProcessed === 1) {
-          console.log('Debug - Raw XML for first product:', productXml.substring(0, 800));
+          console.log('Debug - Raw XML for first product:', productXml.substring(0, 1500));
           console.log('Debug - Mapping config:', mappingConfig);
-          console.log('Debug - Looking for tag:', mappingConfig.title || 'title');
+          
+          // Show all available tags in the XML for debugging
+          const tagMatches = productXml.match(/<([^/>]+)>/g) || [];
+          const availableTags = tagMatches.map(tag => tag.replace(/[<>]/g, '')).slice(0, 20);
+          console.log('Debug - Available XML tags:', availableTags);
+          
+          // Test different potential price fields
+          const priceFields = ['price', 'price_consumer', 'price_vat', 'price_gross', 'cost', 'amount', 'value'];
+          console.log('Debug - Testing price fields:');
+          priceFields.forEach(field => {
+            const testPrice = extractXmlValue(productXml, field);
+            if (testPrice) {
+              console.log(`  ${field}: ${testPrice}`);
+            }
+          });
+          
           console.log('Debug - Extracted values:', {
             title,
             description: description?.substring(0, 50),
