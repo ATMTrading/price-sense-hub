@@ -35,10 +35,106 @@ const Index = () => {
   const { market } = useMarket();
   const [topDeals, setTopDeals] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
+  const [categories, setCategories] = useState<any[]>([]);
 
   useEffect(() => {
     fetchTopDeals();
+    fetchCategories();
   }, [market]);
+
+  const fetchCategories = async () => {
+    try {
+      // Fetch real categories with product counts
+      const { data: categoriesData, error } = await supabase
+        .from('categories')
+        .select(`
+          *,
+          products:products(count)
+        `)
+        .eq('market_code', market.code)
+        .eq('is_active', true);
+
+      if (error) throw error;
+
+      const processedCategories = (categoriesData || []).map(category => ({
+        title: category.name,
+        slug: category.slug,
+        icon: getIconForCategory(category.slug),
+        productCount: category.products?.[0]?.count || 0
+      }));
+
+      setCategories(processedCategories);
+    } catch (error) {
+      console.error('Error fetching categories:', error);
+      // Fallback to basic categories
+      setCategories([
+        {
+          title: translate('categories.electronics', market),
+          slug: 'electronics',
+          icon: Cpu,
+          productCount: 1
+        }
+      ]);
+    }
+  };
+
+  const getIconForCategory = (slug: string) => {
+    const iconMap: { [key: string]: any } = {
+      electronics: Cpu,
+      elektronika: Cpu,
+      fashion: Shirt,
+      health: Heart,
+      children: Baby,
+      sports: Dumbbell,
+      'home-living': Home
+    };
+    return iconMap[slug.toLowerCase()] || Cpu;
+  };
+
+  const handleSearch = async (searchTerm: string) => {
+    if (!searchTerm.trim()) return;
+    
+    console.log('🔍 Searching for:', searchTerm);
+    try {
+      const { data, error } = await supabase
+        .from('products')
+        .select(`
+          *,
+          shop:shops(*),
+          affiliate_links(*)
+        `)
+        .eq('market_code', market.code)
+        .eq('is_active', true)
+        .ilike('title', `%${searchTerm}%`)
+        .limit(4);
+
+      if (error) throw error;
+
+      const searchResults = (data || []).map(item => ({
+        id: item.id,
+        title: item.title,
+        image_url: item.image_url,
+        price: item.price,
+        original_price: item.original_price,
+        currency: item.currency,
+        shop: item.shop,
+        rating: item.rating,
+        review_count: item.review_count,
+        availability: item.availability as 'in_stock' | 'out_of_stock' | 'limited',
+        affiliate_links: Array.isArray(item.affiliate_links) 
+          ? item.affiliate_links.map(link => ({
+              affiliate_url: link.affiliate_url,
+              tracking_code: link.tracking_code
+            }))
+          : []
+      }));
+
+      console.log('🔍 Search results:', searchResults.length);
+      setTopDeals(searchResults);
+    } catch (error) {
+      console.error('❌ Search error:', error);
+    }
+  };
 
   const fetchTopDeals = async () => {
     console.log('🔍 Fetching top deals for market:', market.code);
@@ -83,105 +179,13 @@ const Index = () => {
       setTopDeals(typedData);
     } catch (error) {
       console.error('❌ Error fetching top deals:', error);
-      // Fallback to mock data
-      console.log('🔄 Using fallback mock data');
-      setTopDeals([
-        {
-          id: '1',
-          title: 'Samsung Galaxy S24 Ultra 256GB',
-          image_url: 'https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?w=300&h=300&fit=crop',
-          price: 1199,
-          original_price: 1399,
-          currency: market.currency,
-          shop: { id: '1', name: 'TechStore' },
-          rating: 4.8,
-          review_count: 234,
-          availability: 'in_stock',
-          affiliate_links: [{ affiliate_url: '#', tracking_code: 'demo' }]
-        },
-        {
-          id: '2',
-          title: 'Apple MacBook Pro 14" M3',
-          image_url: 'https://images.unsplash.com/photo-1517336714731-489689fd1ca8?w=300&h=300&fit=crop',
-          price: 1999,
-          original_price: 2199,
-          currency: market.currency,
-          shop: { id: '2', name: 'AppleStore' },
-          rating: 4.9,
-          review_count: 156,
-          availability: 'limited',
-          affiliate_links: [{ affiliate_url: '#', tracking_code: 'demo' }]
-        },
-        {
-          id: '3',
-          title: 'Sony WH-1000XM5 Headphones',
-          image_url: 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=300&h=300&fit=crop',
-          price: 299,
-          original_price: 399,
-          currency: market.currency,
-          shop: { id: '3', name: 'AudioPro' },
-          rating: 4.7,
-          review_count: 89,
-          availability: 'in_stock',
-          affiliate_links: [{ affiliate_url: '#', tracking_code: 'demo' }]
-        },
-        {
-          id: '4',
-          title: 'Nintendo Switch OLED',
-          image_url: 'https://images.unsplash.com/photo-1606144042614-b2417e99c4e3?w=300&h=300&fit=crop',
-          price: 349,
-          currency: market.currency,
-          shop: { id: '4', name: 'GameWorld' },
-          rating: 4.6,
-          review_count: 201,
-          availability: 'in_stock',
-          affiliate_links: [{ affiliate_url: '#', tracking_code: 'demo' }]
-        }
-      ]);
+      // Show empty array instead of mock data to avoid showing fake products
+      setTopDeals([]);
     } finally {
       setLoading(false);
     }
   };
 
-  // Mock data for demonstration
-  const categories = [
-    {
-      title: translate('categories.electronics', market),
-      slug: 'electronics',
-      icon: Cpu,
-      productCount: 15420
-    },
-    {
-      title: translate('categories.fashion', market),
-      slug: 'fashion',
-      icon: Shirt,
-      productCount: 8930
-    },
-    {
-      title: translate('categories.health', market),
-      slug: 'health',
-      icon: Heart,
-      productCount: 5670
-    },
-    {
-      title: translate('categories.children', market),
-      slug: 'children',
-      icon: Baby,
-      productCount: 3280
-    },
-    {
-      title: translate('categories.sports', market),
-      slug: 'sports',
-      icon: Dumbbell,
-      productCount: 4150
-    },
-    {
-      title: translate('categories.homeLiving', market),
-      slug: 'home-living',
-      icon: Home,
-      productCount: 2890
-    }
-  ];
 
   return (
     <div className="min-h-screen bg-background">
@@ -203,8 +207,7 @@ const Index = () => {
               <form onSubmit={(e) => {
                 e.preventDefault();
                 const searchTerm = (e.currentTarget.search as HTMLInputElement).value;
-                console.log('Search:', searchTerm);
-                // TODO: Implement search functionality
+                handleSearch(searchTerm);
               }}>
                 <div className="relative">
                   <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 h-5 w-5 text-white/70" />
