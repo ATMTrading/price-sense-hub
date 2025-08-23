@@ -124,6 +124,9 @@ serve(async (req) => {
 
         // Debug logging for first product
         if (productsProcessed === 1) {
+          console.log('Debug - Raw XML for first product:', productXml.substring(0, 800));
+          console.log('Debug - Mapping config:', mappingConfig);
+          console.log('Debug - Looking for tag:', mappingConfig.title || 'title');
           console.log('Debug - Extracted values:', {
             title,
             description: description?.substring(0, 50),
@@ -133,7 +136,6 @@ serve(async (req) => {
             categoryName,
             shopName
           });
-          console.log('Debug - Mapping config:', mappingConfig);
         }
 
         // Generate affiliate link using template
@@ -313,7 +315,24 @@ serve(async (req) => {
 });
 
 function extractXmlValue(xml: string, tagName: string): string | null {
+  // Handle CDATA sections and clean the tag content
   const regex = new RegExp(`<${tagName}[^>]*>([\\s\\S]*?)<\\/${tagName}>`, 'i');
   const match = xml.match(regex);
-  return match ? match[1].trim() : null;
+  if (!match) return null;
+  
+  let value = match[1].trim();
+  
+  // Remove CDATA wrapper if present
+  if (value.startsWith('<![CDATA[') && value.endsWith(']]>')) {
+    value = value.slice(9, -3);
+  }
+  
+  // Decode HTML entities
+  value = value.replace(/&amp;/g, '&')
+               .replace(/&lt;/g, '<')
+               .replace(/&gt;/g, '>')
+               .replace(/&quot;/g, '"')
+               .replace(/&#39;/g, "'");
+  
+  return value.trim() || null;
 }
