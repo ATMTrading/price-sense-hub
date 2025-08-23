@@ -111,6 +111,18 @@ const Index = () => {
           slug: 'baby-kids',
           icon: Baby,
           productCount: 0
+        },
+        {
+          title: 'Könyv és Média',
+          slug: 'books-media',
+          icon: Cpu,
+          productCount: 0
+        },
+        {
+          title: 'Autó és Motor',
+          slug: 'automotive',
+          icon: Cpu,
+          productCount: 0
         }
       ]);
     }
@@ -132,7 +144,11 @@ const Index = () => {
   };
 
   const handleSearch = async (searchTerm: string) => {
-    if (!searchTerm.trim()) return;
+    if (!searchTerm.trim()) {
+      // Reset to show all products when search is cleared
+      fetchTopDeals();
+      return;
+    }
     
     console.log('🔍 Searching for:', searchTerm);
     try {
@@ -146,7 +162,7 @@ const Index = () => {
         .eq('market_code', market.code)
         .eq('is_active', true)
         .ilike('title', `%${searchTerm}%`)
-        .limit(4);
+        .limit(8);
 
       if (error) throw error;
 
