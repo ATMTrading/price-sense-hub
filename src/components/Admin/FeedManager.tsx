@@ -133,6 +133,45 @@ export const FeedManager = () => {
     }
   };
 
+  const triggerTestImport = async (feedId: string) => {
+    try {
+      // Get feed details first
+      const { data: feed, error: feedError } = await supabase
+        .from('xml_feeds')
+        .select('*')
+        .eq('id', feedId)
+        .single();
+
+      if (feedError || !feed) {
+        throw new Error('Feed not found');
+      }
+
+      const { error } = await supabase.functions.invoke('process-xml-feed', {
+        body: { 
+          feedId: feed.id,
+          feedUrl: feed.url,
+          marketCode: feed.market_code,
+          mappingConfig: feed.mapping_config,
+          affiliateLinkTemplate: feed.affiliate_link_template,
+          limit: 5
+        }
+      });
+
+      if (error) throw error;
+
+      toast({
+        title: "Test import triggered successfully",
+        description: "Importing first 5 products with affiliate links"
+      });
+    } catch (error) {
+      toast({
+        title: "Error triggering test import",
+        description: error instanceof Error ? error.message : "Unknown error",
+        variant: "destructive"
+      });
+    }
+  };
+
   const editFeed = (feed: XmlFeed) => {
     setEditingFeed(feed);
     setFormData({
@@ -257,6 +296,15 @@ export const FeedManager = () => {
                   >
                     <Play className="w-4 h-4 mr-1" />
                     Import
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => triggerTestImport(feed.id)}
+                    disabled={!feed.is_active}
+                  >
+                    <Play className="w-4 h-4 mr-1" />
+                    Test (5)
                   </Button>
                   <Button size="sm" variant="outline" onClick={() => editFeed(feed)}>
                     <Edit className="w-4 h-4" />

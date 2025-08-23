@@ -31,7 +31,7 @@ serve(async (req) => {
     );
 
     // Support both old format (feed_id) and new format (all parameters)
-    let feedId, feedUrl, marketCode, mappingConfig, affiliateLinkTemplate;
+    let feedId, feedUrl, marketCode, mappingConfig, affiliateLinkTemplate, limit;
     
     const requestBody = await req.json();
     
@@ -56,17 +56,17 @@ serve(async (req) => {
       affiliateLinkTemplate = feed.affiliate_link_template;
     } else {
       // New format - use provided parameters
-      ({ feedId, feedUrl, marketCode, mappingConfig, affiliateLinkTemplate } = requestBody);
+      ({ feedId, feedUrl, marketCode, mappingConfig, affiliateLinkTemplate, limit } = requestBody);
     }
 
-    console.log(`Processing XML feed: ${feedUrl} for market: ${marketCode}`);
-
+    console.log(`Processing XML feed: ${feedUrl} for market: ${marketCode}${limit ? ` (limit: ${limit})` : ''}`);
+    
     // Start import log
     const { data: importLog, error: logError } = await supabaseClient
       .from('import_logs')
       .insert({
         feed_id: feedId,
-        import_type: 'xml_feed',
+        import_type: limit ? 'test_import' : 'xml_feed',
         status: 'processing'
       })
       .select()
@@ -96,7 +96,10 @@ serve(async (req) => {
     const productMatches = xmlText.match(/<item[^>]*>[\s\S]*?<\/item>/g) || 
                           xmlText.match(/<product[^>]*>[\s\S]*?<\/product>/g) || [];
 
-    for (const productXml of productMatches) {
+    // Limit products for testing
+    const productsToProcess = limit ? productMatches.slice(0, limit) : productMatches;
+
+    for (const productXml of productsToProcess) {
       try {
         productsProcessed++;
 
