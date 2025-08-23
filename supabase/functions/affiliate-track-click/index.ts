@@ -60,8 +60,14 @@ serve(async (req) => {
       });
 
       // Get the affiliate URL - use the actual affiliate link if available
-      const affiliateLink = product.affiliate_links?.[0];
+      // Handle both array and single object cases for affiliate_links
+      const affiliateLink = Array.isArray(product.affiliate_links) 
+        ? product.affiliate_links?.[0] 
+        : product.affiliate_links;
       let redirectUrl = affiliateLink?.affiliate_url;
+      
+      console.log('Affiliate link found:', affiliateLink);
+      console.log('Redirect URL:', redirectUrl);
       
       if (!redirectUrl) {
         // Fallback: construct URL based on shop
