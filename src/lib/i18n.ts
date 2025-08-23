@@ -275,7 +275,7 @@ export const TRANSLATIONS = {
 
 export function detectMarket(): Market {
   // In a real app, this would check the actual domain
-  // For demo purposes, default to SK
+  // For demo purposes, default to HU where we have sample products
   const hostname = typeof window !== 'undefined' ? window.location.hostname : '';
   
   if (hostname.includes('.pl')) {
@@ -291,7 +291,7 @@ export function detectMarket(): Market {
     return MARKETS.find(m => m.code === 'RO')!;
   }
   
-  return MARKETS.find(m => m.code === 'SK')!;
+  return MARKETS.find(m => m.code === 'HU')!;
 }
 
 export function translate(key: keyof typeof TRANSLATIONS.SK, market: Market): string {

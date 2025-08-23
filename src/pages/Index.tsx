@@ -41,6 +41,7 @@ const Index = () => {
   }, [market]);
 
   const fetchTopDeals = async () => {
+    console.log('🔍 Fetching top deals for market:', market.code);
     try {
       const { data, error } = await supabase
         .from('products')
@@ -53,6 +54,8 @@ const Index = () => {
         .eq('is_active', true)
         .eq('is_featured', true)
         .limit(4);
+
+      console.log('📊 Query result:', { data, error, marketCode: market.code });
 
       if (error) throw error;
       
@@ -76,10 +79,12 @@ const Index = () => {
           : []
       }));
       
+      console.log('✅ Processed products:', typedData.length);
       setTopDeals(typedData);
     } catch (error) {
-      console.error('Error fetching top deals:', error);
+      console.error('❌ Error fetching top deals:', error);
       // Fallback to mock data
+      console.log('🔄 Using fallback mock data');
       setTopDeals([
         {
           id: '1',
@@ -195,17 +200,25 @@ const Index = () => {
             
             {/* Hero Search */}
             <div className="max-w-2xl mx-auto">
-              <div className="relative">
-                <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 h-5 w-5 text-white/70" />
-                <Input
-                  type="search"
-                  placeholder={translate('nav.searchPlaceholder', market)}
-                  className="pl-12 py-4 text-lg bg-white/10 border-white/20 text-white placeholder:text-white/70 focus:bg-white/20"
-                />
-                <Button className="absolute right-2 top-1/2 transform -translate-y-1/2 bg-white text-primary hover:bg-white/90">
-                  <Search className="h-4 w-4" />
-                </Button>
-              </div>
+              <form onSubmit={(e) => {
+                e.preventDefault();
+                const searchTerm = (e.currentTarget.search as HTMLInputElement).value;
+                console.log('Search:', searchTerm);
+                // TODO: Implement search functionality
+              }}>
+                <div className="relative">
+                  <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 h-5 w-5 text-white/70" />
+                  <Input
+                    name="search"
+                    type="search"
+                    placeholder={translate('nav.searchPlaceholder', market)}
+                    className="pl-12 py-4 text-lg bg-white/10 border-white/20 text-white placeholder:text-white/70 focus:bg-white/20"
+                  />
+                  <Button type="submit" className="absolute right-2 top-1/2 transform -translate-y-1/2 bg-white text-primary hover:bg-white/90">
+                    <Search className="h-4 w-4" />
+                  </Button>
+                </div>
+              </form>
             </div>
           </div>
         </section>
@@ -262,7 +275,14 @@ const Index = () => {
             </div>
 
             <div className="text-center mt-8">
-              <Button variant="outline" size="lg">
+              <Button 
+                variant="outline" 
+                size="lg"
+                onClick={() => {
+                  console.log('Navigate to all deals page');
+                  // TODO: Navigate to deals page
+                }}
+              >
                 View All Deals
               </Button>
             </div>
