@@ -146,12 +146,26 @@ export const FeedManager = () => {
         throw new Error('Feed not found');
       }
 
+      // Use proper mapping for 4home.hu XML structure if mapping config is empty
+      let mappingConfig = feed.mapping_config;
+      if (!mappingConfig || Object.keys(mappingConfig).length === 0) {
+        mappingConfig = {
+          title: 'name',
+          description: 'description', 
+          price: 'price_consumer',
+          image_url: 'image_url',
+          category: 'categorytext',
+          shop: 'shop',
+          product_url: 'url'
+        };
+      }
+
       const { error } = await supabase.functions.invoke('process-xml-feed', {
         body: { 
           feedId: feed.id,
           feedUrl: feed.url,
           marketCode: feed.market_code,
-          mappingConfig: feed.mapping_config,
+          mappingConfig: mappingConfig,
           affiliateLinkTemplate: feed.affiliate_link_template,
           limit: 5
         }
