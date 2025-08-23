@@ -208,7 +208,7 @@ export const TRANSLATIONS = {
     'hero.subtitle': 'Porovnejte ceny z tisíců obchodů a ušetřete při každém nákupu',
     'categories.title': 'Kategorie produktů',
     'categories.electronics': 'Elektronika',
-    'categories.computers': 'Počítače a telefony',
+    'categories.computers': 'Počítačová technika',
     'categories.homeElectronics': 'Domácí spotřebiče',
     'categories.health': 'Zdraví a krása',
     'categories.supplements': 'Výživové doplňky',
