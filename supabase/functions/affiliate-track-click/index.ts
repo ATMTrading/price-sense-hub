@@ -36,10 +36,13 @@ serve(async (req) => {
         .select(`
           *,
           shop:shops(*),
-          affiliate_links(*)
+          affiliate_links!inner(*)
         `)
         .eq('id', productId)
         .single();
+
+      console.log('Product data:', product);
+      console.log('Affiliate links raw:', product?.affiliate_links);
 
       if (productError || !product) {
         console.error('Product not found:', productError);
