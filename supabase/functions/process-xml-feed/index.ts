@@ -34,6 +34,7 @@ serve(async (req) => {
     let feedId, feedUrl, marketCode, mappingConfig, affiliateLinkTemplate, limit;
     
     const requestBody = await req.json();
+    console.log('Request body received:', JSON.stringify(requestBody, null, 2));
     
     if (requestBody.feed_id) {
       // Old format - fetch feed details
