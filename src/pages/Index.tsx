@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Smartphone, Laptop, Heart, Baby, Dumbbell, Zap, Search } from 'lucide-react';
+import { Home, Shirt, Heart, Baby, Dumbbell, Cpu, Search } from 'lucide-react';
 import { Header } from '@/components/Layout/Header';
 import { Footer } from '@/components/Layout/Footer';
 import { CategoryCard } from '@/components/CategoryCard';
@@ -143,13 +143,13 @@ const Index = () => {
     {
       title: translate('categories.electronics', market),
       slug: 'electronics',
-      icon: Zap,
+      icon: Cpu,
       productCount: 15420
     },
     {
-      title: translate('categories.computers', market),
-      slug: 'computers',
-      icon: Laptop,
+      title: translate('categories.fashion', market),
+      slug: 'fashion',
+      icon: Shirt,
       productCount: 8930
     },
     {
@@ -171,9 +171,9 @@ const Index = () => {
       productCount: 4150
     },
     {
-      title: 'Smartphones',
-      slug: 'smartphones',
-      icon: Smartphone,
+      title: translate('categories.homeLiving', market),
+      slug: 'home-living',
+      icon: Home,
       productCount: 2890
     }
   ];
