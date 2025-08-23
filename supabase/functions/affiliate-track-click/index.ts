@@ -68,20 +68,15 @@ serve(async (req) => {
         redirectUrl = `https://www.${product.shop?.name?.toLowerCase()}.hu/`;
       }
 
-      // Create tracking URL with your affiliate parameters
-      const trackingUrl = new URL('https://your-tracking-domain.com/redirect');
-      trackingUrl.searchParams.set('url', encodeURIComponent(redirectUrl));
-      trackingUrl.searchParams.set('source', 'pricecomparise');
-      trackingUrl.searchParams.set('product', productId);
-      trackingUrl.searchParams.set('tracking', trackingCode || '');
-      trackingUrl.searchParams.set('market', product.market_code);
+      // For Dognet network, use the direct affiliate URL without additional tracking wrapper
+      // The affiliate URL from Dognet already contains the proper tracking parameters
+      console.log('Using Dognet affiliate URL:', redirectUrl);
 
       return new Response(
         JSON.stringify({ 
           success: true, 
-          redirectUrl: trackingUrl.toString(),
-          originalUrl: redirectUrl,
-          trackingCode 
+          redirectUrl: redirectUrl,
+          trackingCode: affiliateLink?.tracking_code || trackingCode
         }),
         { 
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
