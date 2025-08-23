@@ -44,35 +44,73 @@ const Index = () => {
 
   const fetchCategories = async () => {
     try {
-      // Fetch real categories with product counts
+      // Fetch all categories with product counts
       const { data: categoriesData, error } = await supabase
         .from('categories')
-        .select(`
-          *,
-          products:products(count)
-        `)
+        .select('*')
         .eq('market_code', market.code)
         .eq('is_active', true);
 
       if (error) throw error;
 
-      const processedCategories = (categoriesData || []).map(category => ({
-        title: category.name,
-        slug: category.slug,
-        icon: getIconForCategory(category.slug),
-        productCount: category.products?.[0]?.count || 0
-      }));
+      // Get product counts for each category
+      const categoriesWithCounts = await Promise.all(
+        (categoriesData || []).map(async (category) => {
+          const { count } = await supabase
+            .from('products')
+            .select('*', { count: 'exact', head: true })
+            .eq('category_id', category.id)
+            .eq('is_active', true);
 
-      setCategories(processedCategories);
+          return {
+            title: category.name,
+            slug: category.slug,
+            icon: getIconForCategory(category.slug),
+            productCount: count || 0
+          };
+        })
+      );
+
+      setCategories(categoriesWithCounts);
     } catch (error) {
       console.error('Error fetching categories:', error);
-      // Fallback to basic categories
+      // Fallback to all main categories
       setCategories([
         {
-          title: translate('categories.electronics', market),
+          title: 'Elektronika',
           slug: 'electronics',
           icon: Cpu,
-          productCount: 1
+          productCount: 0
+        },
+        {
+          title: 'Divat és Ruházat',
+          slug: 'fashion',
+          icon: Shirt,
+          productCount: 0
+        },
+        {
+          title: 'Egészség és Szépség',
+          slug: 'health-beauty',
+          icon: Heart,
+          productCount: 0
+        },
+        {
+          title: 'Otthon és Kert',
+          slug: 'home-garden',
+          icon: Home,
+          productCount: 0
+        },
+        {
+          title: 'Sport és Szabadidő',
+          slug: 'sports',
+          icon: Dumbbell,
+          productCount: 0
+        },
+        {
+          title: 'Gyermek és Baba',
+          slug: 'baby-kids',
+          icon: Baby,
+          productCount: 0
         }
       ]);
     }
@@ -83,10 +121,12 @@ const Index = () => {
       electronics: Cpu,
       elektronika: Cpu,
       fashion: Shirt,
-      health: Heart,
-      children: Baby,
+      'health-beauty': Heart,
+      'home-garden': Home,
+      'baby-kids': Baby,
       sports: Dumbbell,
-      'home-living': Home
+      'books-media': Cpu,
+      automotive: Cpu
     };
     return iconMap[slug.toLowerCase()] || Cpu;
   };
@@ -148,8 +188,7 @@ const Index = () => {
         `)
         .eq('market_code', market.code)
         .eq('is_active', true)
-        .eq('is_featured', true)
-        .limit(4);
+        .limit(8);
 
       console.log('📊 Query result:', { data, error, marketCode: market.code });
 
