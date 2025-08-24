@@ -67,10 +67,6 @@ export function ProductCard({ product, className = '' }: ProductCardProps) {
     }
   };
 
-  const savings = product.original_price ? product.original_price - product.price : 0;
-  const savingsPercent = product.original_price 
-    ? Math.round((savings / product.original_price) * 100)
-    : 0;
 
   return (
     <Card className={`group h-full transition-smooth hover:shadow-card-hover ${className}`}>
@@ -93,26 +89,9 @@ export function ProductCard({ product, className = '' }: ProductCardProps) {
 
           {/* Price */}
           <div className="space-y-1">
-            <div className="flex items-center space-x-2">
-              <span className="font-bold text-lg">
-                {formatCurrency(product.price, market)}
-              </span>
-              {product.original_price && (
-                <span className="text-sm text-muted-foreground line-through">
-                  {formatCurrency(product.original_price, market)}
-                </span>
-              )}
-            </div>
-            {savings > 0 && (
-              <div className="flex items-center space-x-2">
-                <span className="text-xs bg-success text-success-foreground px-2 py-1 rounded-full">
-                  -{savingsPercent}%
-                </span>
-                <span className="text-xs text-muted-foreground">
-                  {translate('product.save', market)} {formatCurrency(savings, market)}
-                </span>
-              </div>
-            )}
+            <span className="font-bold text-lg">
+              {formatCurrency(product.price, market)}
+            </span>
           </div>
 
           {/* Merchant */}
