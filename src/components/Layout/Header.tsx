@@ -100,8 +100,8 @@ export function Header() {
               </DropdownMenuContent>
             </DropdownMenu>
 
-            {/* User Menu */}
-            {user ? (
+            {/* User Menu - Only show for admin */}
+            {user && isAdmin ? (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button variant="ghost" size="sm">
@@ -110,30 +110,19 @@ export function Header() {
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
-                  {isAdmin && (
-                    <>
-                      <DropdownMenuItem asChild>
-                        <Link to="/admin">
-                          Admin Panel
-                        </Link>
-                      </DropdownMenuItem>
-                      <DropdownMenuSeparator />
-                    </>
-                  )}
+                  <DropdownMenuItem asChild>
+                    <Link to="/admin">
+                      Admin Panel
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
                   <DropdownMenuItem onClick={signOut}>
                     <LogOut className="h-4 w-4 mr-2" />
                     Sign Out
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
-            ) : (
-              <Button asChild variant="outline" size="sm">
-                <Link to="/auth">
-                  <User className="h-4 w-4 mr-2" />
-                  Sign In
-                </Link>
-              </Button>
-            )}
+            ) : null}
 
             {/* Market Selector */}
             <DropdownMenu>
