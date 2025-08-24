@@ -85,34 +85,11 @@ export function ProductCard({ product, className = '' }: ProductCardProps) {
           />
         </div>
 
-        {/* Content */}
+          {/* Content */}
         <div className="space-y-3">
           <h3 className="font-medium text-sm line-clamp-2 leading-tight">
             {product.title}
           </h3>
-
-          {/* Rating */}
-          {product.rating && (
-            <div className="flex items-center space-x-1">
-              <div className="flex items-center">
-                {[...Array(5)].map((_, i) => (
-                  <Star
-                    key={i}
-                    className={`h-3 w-3 ${
-                      i < Math.floor(product.rating!)
-                        ? 'text-yellow-400 fill-current'
-                        : 'text-muted-foreground'
-                    }`}
-                  />
-                ))}
-              </div>
-              {product.review_count && (
-                <span className="text-xs text-muted-foreground">
-                  ({product.review_count})
-                </span>
-              )}
-            </div>
-          )}
 
           {/* Price */}
           <div className="space-y-1">
@@ -141,30 +118,9 @@ export function ProductCard({ product, className = '' }: ProductCardProps) {
           {/* Merchant */}
           <p className="text-xs text-muted-foreground">{product.shop.name}</p>
 
-          {/* Availability */}
-          <div className="flex items-center space-x-2">
-            <div
-              className={`h-2 w-2 rounded-full ${
-                product.availability === 'in_stock'
-                  ? 'bg-success'
-                  : product.availability === 'limited'
-                  ? 'bg-warning'
-                  : 'bg-destructive'
-              }`}
-            />
-            <span className="text-xs text-muted-foreground">
-              {product.availability === 'in_stock'
-                ? translate('availability.inStock', market)
-                : product.availability === 'limited'
-                ? translate('availability.limitedStock', market)
-                : translate('availability.outOfStock', market)}
-            </span>
-          </div>
-
           {/* CTA Button */}
           <Button
             onClick={handleViewOffer}
-            disabled={product.availability === 'out_of_stock'}
             className="w-full"
             size="sm"
           >
