@@ -13,9 +13,9 @@ export function Footer() {
           <div className="space-y-4">
             <div className="flex items-center space-x-2">
               <div className="h-6 w-6 rounded gradient-primary flex items-center justify-center">
-                <span className="text-white font-bold text-sm">P</span>
+                <span className="text-white font-bold text-sm">B</span>
               </div>
-              <span className="font-heading font-bold">PriceComparise</span>
+              <span className="font-heading font-bold">bestpric.eu</span>
             </div>
             <p className="text-muted-foreground text-sm">
               {translate('hero.subtitle', market)}

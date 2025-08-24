@@ -32,10 +32,10 @@ export function Header() {
           {/* Logo */}
           <Link to="/" className="flex items-center space-x-2">
             <div className="h-8 w-8 rounded-lg gradient-primary flex items-center justify-center">
-              <span className="text-white font-bold text-lg">P</span>
+              <span className="text-white font-bold text-lg">B</span>
             </div>
             <span className="font-heading text-xl font-bold">
-              PriceComparise
+              bestpric.eu
             </span>
           </Link>
 

@@ -11,7 +11,7 @@ export const MARKETS: Market[] = [
   {
     id: '1',
     code: 'SK',
-    domain: 'pricecomparise.sk',
+    domain: 'bestpric.eu',
     currency: 'EUR',
     locale: 'sk-SK',
     flag: '🇸🇰'
@@ -19,7 +19,7 @@ export const MARKETS: Market[] = [
   {
     id: '2',
     code: 'PL',
-    domain: 'pricecomparise.pl',
+    domain: 'bestpric.eu',
     currency: 'PLN',
     locale: 'pl-PL',
     flag: '🇵🇱'
@@ -27,7 +27,7 @@ export const MARKETS: Market[] = [
   {
     id: '3',
     code: 'HU',
-    domain: 'pricecomparise.hu',
+    domain: 'bestpric.eu',
     currency: 'HUF',
     locale: 'hu-HU',
     flag: '🇭🇺'
@@ -35,7 +35,7 @@ export const MARKETS: Market[] = [
   {
     id: '4',
     code: 'CZ',
-    domain: 'pricecomparise.cz',
+    domain: 'bestpric.eu',
     currency: 'CZK',
     locale: 'cs-CZ',
     flag: '🇨🇿'
@@ -43,7 +43,7 @@ export const MARKETS: Market[] = [
   {
     id: '5',
     code: 'RO',
-    domain: 'pricecomparise.ro',
+    domain: 'bestpric.eu',
     currency: 'RON',
     locale: 'ro-RO',
     flag: '🇷🇴'
@@ -93,7 +93,7 @@ export const TRANSLATIONS = {
     'footer.privacy': 'Ochrana súkromia',
     'footer.market': 'Trh',
     'footer.currency': 'Mena',
-    'footer.copyright': '© 2024 PriceComparise. Všetky práva vyhradené.'
+    'footer.copyright': '© 2024 bestpric.eu. Všetky práva vyhradené.'
   },
   PL: {
     'nav.home': 'Strona główna',
@@ -137,7 +137,7 @@ export const TRANSLATIONS = {
     'footer.privacy': 'Polityka prywatności',
     'footer.market': 'Rynek',
     'footer.currency': 'Waluta',
-    'footer.copyright': '© 2024 PriceComparise. Wszelkie prawa zastrzeżone.'
+    'footer.copyright': '© 2024 bestpric.eu. Wszelkie prawa zastrzeżone.'
   },
   HU: {
     'nav.home': 'Főoldal',
@@ -181,7 +181,7 @@ export const TRANSLATIONS = {
     'footer.privacy': 'Adatvédelem',
     'footer.market': 'Piac',
     'footer.currency': 'Pénznem',
-    'footer.copyright': '© 2024 PriceComparise. Minden jog fenntartva.'
+    'footer.copyright': '© 2024 bestpric.eu. Minden jog fenntartva.'
   },
   CZ: {
     'nav.home': 'Domů',
@@ -225,7 +225,7 @@ export const TRANSLATIONS = {
     'footer.privacy': 'Ochrana soukromí',
     'footer.market': 'Trh',
     'footer.currency': 'Měna',
-    'footer.copyright': '© 2024 PriceComparise. Všechna práva vyhrazena.'
+    'footer.copyright': '© 2024 bestpric.eu. Všechna práva vyhrazena.'
   },
   RO: {
     'nav.home': 'Acasă',
@@ -269,7 +269,7 @@ export const TRANSLATIONS = {
     'footer.privacy': 'Confidențialitate',
     'footer.market': 'Piață',
     'footer.currency': 'Monedă',
-    'footer.copyright': '© 2024 PriceComparise. Toate drepturile rezervate.'
+    'footer.copyright': '© 2024 bestpric.eu. Toate drepturile rezervate.'
   }
 } as const;
 
