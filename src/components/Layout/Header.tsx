@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input';
 import { useMarket } from '@/hooks/useMarket';
 import { useAuth } from '@/hooks/useAuth';
 import { translate, MARKETS } from '@/lib/i18n';
+import logo from '@/assets/logo.png';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -30,10 +31,12 @@ export function Header() {
       <div className="container mx-auto px-4">
         <div className="flex h-16 items-center justify-between">
           {/* Logo */}
-          <Link to="/" className="flex items-center space-x-2">
-            <div className="h-8 w-8 rounded-lg gradient-primary flex items-center justify-center">
-              <span className="text-white font-bold text-lg">B</span>
-            </div>
+          <Link to="/" className="flex items-center space-x-3">
+            <img 
+              src={logo} 
+              alt="bestpric.eu logo" 
+              className="h-10 w-10 object-contain"
+            />
             <span className="font-heading text-xl font-bold">
               bestpric.eu
             </span>
