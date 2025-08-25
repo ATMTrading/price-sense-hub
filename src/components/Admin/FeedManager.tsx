@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { useAuditLog } from "@/hooks/useAuditLog";
 import { Play, Plus, Edit, Trash } from "lucide-react";
 
 interface XmlFeed {
@@ -36,6 +37,7 @@ export const FeedManager = () => {
     affiliate_link_template: '{"base_url": "", "url_encode": true}'
   });
   const { toast } = useToast();
+  const { logDataAccess, logConfigChange } = useAuditLog();
 
   useEffect(() => {
     loadFeeds();
@@ -50,6 +52,9 @@ export const FeedManager = () => {
 
       if (error) throw error;
       setFeeds(data || []);
+      
+      // Log data access
+      await logDataAccess('xml_feeds', 'VIEW', data?.length);
     } catch (error) {
       toast({
         title: "Error loading feeds",
@@ -64,19 +69,30 @@ export const FeedManager = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
+      const oldData = editingFeed ? { ...editingFeed } : null;
+      const newData = {
+        ...formData,
+        mapping_config: JSON.parse(formData.mapping_config),
+        affiliate_link_template: JSON.parse(formData.affiliate_link_template),
+        ...(editingFeed && { id: editingFeed.id })
+      };
+
       const { error } = await supabase.functions.invoke('admin-operations', {
         body: {
           action: editingFeed ? 'update_feed' : 'create_feed',
-          data: {
-            ...formData,
-            mapping_config: JSON.parse(formData.mapping_config),
-            affiliate_link_template: JSON.parse(formData.affiliate_link_template),
-            ...(editingFeed && { id: editingFeed.id })
-          }
+          data: newData
         }
       });
 
       if (error) throw error;
+
+      // Log the configuration change
+      await logConfigChange(
+        editingFeed ? 'update_xml_feed' : 'create_xml_feed',
+        oldData,
+        newData,
+        editingFeed?.id
+      );
 
       toast({
         title: `Feed ${editingFeed ? 'updated' : 'created'} successfully`,

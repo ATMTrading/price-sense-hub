@@ -8,6 +8,7 @@ import { ImportLogs } from "@/components/Admin/ImportLogs";
 import { ProductManager } from "@/components/Admin/ProductManager";
 import { ScheduleManager } from "@/components/Admin/ScheduleManager";
 import { CategoryImport } from "@/components/Admin/CategoryImport";
+import { AuditLogs } from "@/components/Admin/AuditLogs";
 
 export const Admin = () => {
   return (
@@ -19,13 +20,14 @@ export const Admin = () => {
         </div>
 
         <Tabs defaultValue="import" className="w-full">
-          <TabsList className="grid w-full grid-cols-6">
+          <TabsList className="grid w-full grid-cols-7">
             <TabsTrigger value="import">Import</TabsTrigger>
             <TabsTrigger value="feeds">XML Feeds</TabsTrigger>
             <TabsTrigger value="networks">Networks</TabsTrigger>
             <TabsTrigger value="schedule">Schedule</TabsTrigger>
             <TabsTrigger value="products">Products</TabsTrigger>
             <TabsTrigger value="logs">Logs</TabsTrigger>
+            <TabsTrigger value="audit">Security</TabsTrigger>
           </TabsList>
 
           <TabsContent value="import" className="mt-6">
@@ -50,6 +52,10 @@ export const Admin = () => {
 
           <TabsContent value="logs" className="mt-6">
             <ImportLogs />
+          </TabsContent>
+
+          <TabsContent value="audit" className="mt-6">
+            <AuditLogs />
           </TabsContent>
         </Tabs>
       </div>

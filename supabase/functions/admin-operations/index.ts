@@ -4,6 +4,21 @@ import { corsHeaders } from '../_shared/cors.ts'
 const supabaseUrl = Deno.env.get('SUPABASE_URL')!
 const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
 
+// Helper function to log admin operations
+const logAdminOperation = async (supabase: any, action: string, tableName?: string, recordId?: string, oldValues?: any, newValues?: any) => {
+  try {
+    await supabase.rpc('log_admin_operation', {
+      p_action: action,
+      p_table_name: tableName || null,
+      p_record_id: recordId || null,
+      p_old_values: oldValues || null,
+      p_new_values: newValues || null
+    });
+  } catch (error) {
+    console.error('Failed to log admin operation:', error);
+  }
+};
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders })
@@ -18,6 +33,7 @@ Deno.serve(async (req) => {
     console.log('Admin operation:', action, data)
 
     let result
+    let logDetails = { table: '', recordId: '', oldValues: null, newValues: null }
 
     switch (action) {
       case 'create_feed':
@@ -32,9 +48,17 @@ Deno.serve(async (req) => {
             affiliate_link_template: data.affiliate_link_template,
             is_active: true
           })
+        logDetails = { table: 'xml_feeds', recordId: result.data?.[0]?.id, newValues: data }
         break
 
       case 'update_feed':
+        // Get old values first
+        const { data: oldFeed } = await supabase
+          .from('xml_feeds')
+          .select('*')
+          .eq('id', data.id)
+          .single()
+        
         result = await supabase
           .from('xml_feeds')
           .update({
@@ -46,6 +70,7 @@ Deno.serve(async (req) => {
             affiliate_link_template: data.affiliate_link_template
           })
           .eq('id', data.id)
+        logDetails = { table: 'xml_feeds', recordId: data.id, oldValues: oldFeed, newValues: data }
         break
 
       case 'create_network':
@@ -59,9 +84,17 @@ Deno.serve(async (req) => {
             config: data.config,
             is_active: true
           })
+        logDetails = { table: 'affiliate_networks', recordId: result.data?.[0]?.id, newValues: data }
         break
 
       case 'update_network':
+        // Get old values first
+        const { data: oldNetwork } = await supabase
+          .from('affiliate_networks')
+          .select('*')
+          .eq('id', data.id)
+          .single()
+        
         result = await supabase
           .from('affiliate_networks')
           .update({
@@ -72,15 +105,24 @@ Deno.serve(async (req) => {
             config: data.config
           })
           .eq('id', data.id)
+        logDetails = { table: 'affiliate_networks', recordId: data.id, oldValues: oldNetwork, newValues: data }
         break
 
       case 'update_product':
+        // Get old values first
+        const { data: oldProduct } = await supabase
+          .from('products')
+          .select('*')
+          .eq('id', data.id)
+          .single()
+        
         result = await supabase
           .from('products')
           .update({
             is_featured: data.is_featured
           })
           .eq('id', data.id)
+        logDetails = { table: 'products', recordId: data.id, oldValues: oldProduct, newValues: { is_featured: data.is_featured } }
         break
 
       case 'import_single_product':
@@ -91,6 +133,7 @@ Deno.serve(async (req) => {
             import_type: 'single_product'
           }
         })
+        await logAdminOperation(supabase, 'IMPORT_SINGLE_PRODUCT', 'products', null, null, { url: data.url })
         break
 
       case 'create_scheduled_job':
@@ -122,11 +165,13 @@ Deno.serve(async (req) => {
           function_name: functionName,
           function_args: functionBody
         })
+        await logAdminOperation(supabase, 'CREATE_SCHEDULED_JOB', 'scheduled_jobs', null, null, { job_name: jobName, schedule: cronExpression, function: functionName })
         break
 
       case 'get_scheduled_jobs':
         // Get all scheduled jobs
         result = await supabase.rpc('get_scheduled_jobs')
+        await logAdminOperation(supabase, 'VIEW_SCHEDULED_JOBS', 'scheduled_jobs')
         break
 
       case 'toggle_scheduled_job':
@@ -134,12 +179,14 @@ Deno.serve(async (req) => {
           job_id: data.id,
           is_active: data.is_active
         })
+        await logAdminOperation(supabase, 'TOGGLE_SCHEDULED_JOB', 'scheduled_jobs', data.id.toString(), null, { is_active: data.is_active })
         break
 
       case 'delete_scheduled_job':
         result = await supabase.rpc('delete_scheduled_job', {
           job_id: data.id
         })
+        await logAdminOperation(supabase, 'DELETE_SCHEDULED_JOB', 'scheduled_jobs', data.id.toString())
         break
 
       default:
@@ -149,6 +196,11 @@ Deno.serve(async (req) => {
     if (result.error) {
       console.error('Database error:', result.error)
       throw result.error
+    }
+
+    // Log the operation if not already logged
+    if (logDetails.table && !['import_single_product', 'create_scheduled_job', 'get_scheduled_jobs', 'toggle_scheduled_job', 'delete_scheduled_job'].includes(action)) {
+      await logAdminOperation(supabase, action.toUpperCase(), logDetails.table, logDetails.recordId, logDetails.oldValues, logDetails.newValues)
     }
 
     return new Response(

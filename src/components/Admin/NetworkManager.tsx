@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { useAuditLog } from "@/hooks/useAuditLog";
 import { Plus, Edit, RefreshCw } from "lucide-react";
 
 interface AffiliateNetwork {
@@ -34,6 +35,7 @@ export const NetworkManager = () => {
     config: "{}"
   });
   const { toast } = useToast();
+  const { logDataAccess, logConfigChange, logAdminOperation } = useAuditLog();
 
   useEffect(() => {
     loadNetworks();
@@ -48,6 +50,9 @@ export const NetworkManager = () => {
 
       if (error) throw error;
       setNetworks(data || []);
+      
+      // Log data access
+      await logDataAccess('affiliate_networks', 'VIEW', data?.length);
     } catch (error) {
       toast({
         title: "Error loading networks",
@@ -99,6 +104,9 @@ export const NetworkManager = () => {
       });
 
       if (error) throw error;
+
+      // Log the sync operation
+      await logAdminOperation('TRIGGER_NETWORK_SYNC', 'affiliate_networks', networkId);
 
       toast({
         title: "Sync triggered successfully",
