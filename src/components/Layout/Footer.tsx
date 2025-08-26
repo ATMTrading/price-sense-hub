@@ -60,6 +60,9 @@ export function Footer() {
               <Link to="/contact" className="block text-muted-foreground hover:text-foreground transition-smooth">
                 {translate('footer.contact', market)}
               </Link>
+              <Link to="/auth" className="block text-muted-foreground hover:text-foreground transition-smooth">
+                System
+              </Link>
             </div>
           </div>
 
