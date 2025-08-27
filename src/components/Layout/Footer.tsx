@@ -1,3 +1,4 @@
+
 import { Link } from 'react-router-dom';
 import { useMarket } from '@/hooks/useMarket';
 import { translate } from '@/lib/i18n';
@@ -57,11 +58,11 @@ export function Footer() {
               <Link to="/privacy" className="block text-muted-foreground hover:text-foreground transition-smooth">
                 {translate('footer.privacy', market)}
               </Link>
+              <Link to="/terms" className="block text-muted-foreground hover:text-foreground transition-smooth">
+                {translate('footer.terms', market)}
+              </Link>
               <Link to="/contact" className="block text-muted-foreground hover:text-foreground transition-smooth">
                 {translate('footer.contact', market)}
-              </Link>
-              <Link to="/auth" className="block text-muted-foreground hover:text-foreground transition-smooth">
-                System
               </Link>
             </div>
           </div>

@@ -93,7 +93,8 @@ export const TRANSLATIONS = {
     'footer.privacy': 'Ochrana súkromia',
     'footer.market': 'Trh',
     'footer.currency': 'Mena',
-    'footer.copyright': '© 2024 bestpric.eu. Všetky práva vyhradené.'
+    'footer.copyright': '© 2024 bestpric.eu. Všetky práva vyhradené.',
+    'footer.terms': 'Podmienky použitia'
   },
   PL: {
     'nav.home': 'Strona główna',
@@ -137,7 +138,8 @@ export const TRANSLATIONS = {
     'footer.privacy': 'Polityka prywatności',
     'footer.market': 'Rynek',
     'footer.currency': 'Waluta',
-    'footer.copyright': '© 2024 bestpric.eu. Wszelkie prawa zastrzeżone.'
+    'footer.copyright': '© 2024 bestpric.eu. Wszelkie prawa zastrzeżone.',
+    'footer.terms': 'Regulamin'
   },
   HU: {
     'nav.home': 'Főoldal',
@@ -181,7 +183,8 @@ export const TRANSLATIONS = {
     'footer.privacy': 'Adatvédelem',
     'footer.market': 'Piac',
     'footer.currency': 'Pénznem',
-    'footer.copyright': '© 2024 bestpric.eu. Minden jog fenntartva.'
+    'footer.copyright': '© 2024 bestpric.eu. Minden jog fenntartva.',
+    'footer.terms': 'Felhasználási feltételek'
   },
   CZ: {
     'nav.home': 'Domů',
@@ -225,7 +228,8 @@ export const TRANSLATIONS = {
     'footer.privacy': 'Ochrana soukromí',
     'footer.market': 'Trh',
     'footer.currency': 'Měna',
-    'footer.copyright': '© 2024 bestpric.eu. Všechna práva vyhrazena.'
+    'footer.copyright': '© 2024 bestpric.eu. Všechna práva vyhrazena.',
+    'footer.terms': 'Podmínky použití'
   },
   RO: {
     'nav.home': 'Acasă',
@@ -269,7 +273,8 @@ export const TRANSLATIONS = {
     'footer.privacy': 'Confidențialitate',
     'footer.market': 'Piață',
     'footer.currency': 'Monedă',
-    'footer.copyright': '© 2024 bestpric.eu. Toate drepturile rezervate.'
+    'footer.copyright': '© 2024 bestpric.eu. Toate drepturile rezervate.',
+    'footer.terms': 'Termeni de utilizare'
   }
 } as const;
 
