@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { Filter, SlidersHorizontal, Grid, List } from 'lucide-react';
 import { Header } from '@/components/Layout/Header';
@@ -9,8 +9,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Slider } from '@/components/ui/slider';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Skeleton } from '@/components/ui/skeleton';
 import { useMarket } from '@/hooks/useMarket';
 import { translate, formatCurrency } from '@/lib/i18n';
+import { supabase } from '@/integrations/supabase/client';
 
 interface Product {
   id: string;
@@ -39,26 +41,139 @@ export default function CategoryListing() {
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [priceRange, setPriceRange] = useState([0, 2000]);
   const [selectedMerchants, setSelectedMerchants] = useState<string[]>([]);
+  const [products, setProducts] = useState<Product[]>([]);
+  const [merchants, setMerchants] = useState<string[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [sortBy, setSortBy] = useState('relevance');
+  const [availabilityFilters, setAvailabilityFilters] = useState({
+    in_stock: true,
+    limited: false,
+    out_of_stock: false
+  });
 
-  // Mock data
-  const products: Product[] = Array.from({ length: 20 }, (_, i) => ({
-    id: `product-${i + 1}`,
-    title: `Premium Product ${i + 1} - High Quality Electronics`,
-    image_url: `https://images.unsplash.com/photo-${1500000000000 + i * 100000}?w=300&h=300&fit=crop`,
-    price: Math.floor(Math.random() * 1500) + 100,
-    original_price: Math.random() > 0.6 ? Math.floor(Math.random() * 1500) + 200 : undefined,
-    currency: market.currency,
-    shop: {
-      id: `shop-${Math.floor(Math.random() * 4) + 1}`,
-      name: ['TechStore', 'ElectroWorld', 'DigitalHub', 'GadgetPlus'][Math.floor(Math.random() * 4)]
-    },
-    rating: Math.random() * 2 + 3,
-    review_count: Math.floor(Math.random() * 500) + 10,
-    availability: (['in_stock', 'limited', 'out_of_stock'] as const)[Math.floor(Math.random() * 3)],
-    affiliate_links: [{ affiliate_url: '#', tracking_code: 'demo' }]
-  }));
+  useEffect(() => {
+    fetchProducts();
+    fetchMerchants();
+  }, [categorySlug, market, priceRange, selectedMerchants, sortBy, availabilityFilters]);
 
-  const merchants = ['TechStore', 'ElectroWorld', 'DigitalHub', 'GadgetPlus'];
+  const fetchProducts = async () => {
+    setLoading(true);
+    try {
+      let query = supabase
+        .from('products')
+        .select(`
+          *,
+          shop:shops(*),
+          affiliate_links(*),
+          category:categories(*)
+        `)
+        .eq('market_code', market.code)
+        .eq('is_active', true);
+
+      // Filter by category if we have a slug
+      if (categorySlug) {
+        const { data: categoryData } = await supabase
+          .from('categories')
+          .select('id')
+          .eq('slug', categorySlug)
+          .eq('market_code', market.code)
+          .single();
+        
+        if (categoryData) {
+          query = query.eq('category_id', categoryData.id);
+        }
+      }
+
+      // Apply price range filter
+      query = query.gte('price', priceRange[0]).lte('price', priceRange[1]);
+
+      // Apply availability filters
+      const activeAvailability = Object.entries(availabilityFilters)
+        .filter(([_, active]) => active)
+        .map(([status]) => status);
+      
+      if (activeAvailability.length > 0) {
+        query = query.in('availability', activeAvailability);
+      }
+
+      // Apply merchant filters
+      if (selectedMerchants.length > 0) {
+        const { data: shopData } = await supabase
+          .from('shops')
+          .select('id')
+          .in('name', selectedMerchants);
+        
+        if (shopData && shopData.length > 0) {
+          query = query.in('shop_id', shopData.map(shop => shop.id));
+        }
+      }
+
+      // Apply sorting
+      switch (sortBy) {
+        case 'price-low':
+          query = query.order('price', { ascending: true });
+          break;
+        case 'price-high':
+          query = query.order('price', { ascending: false });
+          break;
+        case 'newest':
+          query = query.order('created_at', { ascending: false });
+          break;
+        case 'rating':
+          query = query.order('rating', { ascending: false });
+          break;
+        default:
+          query = query.order('created_at', { ascending: false });
+      }
+
+      const { data, error } = await query.limit(50);
+
+      if (error) throw error;
+
+      const typedData = (data || []).map(item => ({
+        id: item.id,
+        title: item.title,
+        image_url: item.image_url,
+        price: item.price,
+        original_price: item.original_price,
+        currency: item.currency,
+        shop: item.shop,
+        rating: item.rating,
+        review_count: item.review_count,
+        availability: item.availability as 'in_stock' | 'out_of_stock' | 'limited',
+        affiliate_links: Array.isArray(item.affiliate_links) 
+          ? item.affiliate_links.map(link => ({
+              affiliate_url: link.affiliate_url,
+              tracking_code: link.tracking_code
+            }))
+          : []
+      }));
+
+      setProducts(typedData);
+    } catch (error) {
+      console.error('Error fetching products:', error);
+      setProducts([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchMerchants = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('shops')
+        .select('name')
+        .eq('market_code', market.code)
+        .eq('is_active', true);
+
+      if (error) throw error;
+
+      setMerchants(data?.map(shop => shop.name) || []);
+    } catch (error) {
+      console.error('Error fetching merchants:', error);
+      setMerchants([]);
+    }
+  };
   
   const categoryNames: Record<string, { sk: string; pl: string }> = {
     'electronics': { sk: 'Elektronika', pl: 'Elektronika' },
@@ -76,6 +191,23 @@ export default function CategoryListing() {
         ? prev.filter(m => m !== merchant)
         : [...prev, merchant]
     );
+  };
+
+  const toggleAvailability = (availability: keyof typeof availabilityFilters) => {
+    setAvailabilityFilters(prev => ({
+      ...prev,
+      [availability]: !prev[availability]
+    }));
+  };
+
+  const clearFilters = () => {
+    setPriceRange([0, 2000]);
+    setSelectedMerchants([]);
+    setAvailabilityFilters({
+      in_stock: true,
+      limited: false,
+      out_of_stock: false
+    });
   };
 
   return (
@@ -123,7 +255,7 @@ export default function CategoryListing() {
             </div>
 
             {/* Sort */}
-            <Select defaultValue="relevance">
+            <Select value={sortBy} onValueChange={setSortBy}>
               <SelectTrigger className="w-48">
                 <SelectValue placeholder={translate('filter.sortBy', market)} />
               </SelectTrigger>
@@ -192,21 +324,39 @@ export default function CategoryListing() {
                   <h3 className="font-semibold mb-3">{translate('filter.availability', market)}</h3>
                   <div className="space-y-3">
                     <div className="flex items-center space-x-2">
-                      <Checkbox id="in-stock" defaultChecked />
+                      <Checkbox 
+                        id="in-stock" 
+                        checked={availabilityFilters.in_stock}
+                        onCheckedChange={() => toggleAvailability('in_stock')}
+                      />
                       <label htmlFor="in-stock" className="text-sm font-medium">
                         {translate('availability.inStock', market)}
                       </label>
                     </div>
                     <div className="flex items-center space-x-2">
-                      <Checkbox id="limited-stock" />
+                      <Checkbox 
+                        id="limited-stock" 
+                        checked={availabilityFilters.limited}
+                        onCheckedChange={() => toggleAvailability('limited')}
+                      />
                       <label htmlFor="limited-stock" className="text-sm font-medium">
                         {translate('availability.limitedStock', market)}
+                      </label>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <Checkbox 
+                        id="out-of-stock" 
+                        checked={availabilityFilters.out_of_stock}
+                        onCheckedChange={() => toggleAvailability('out_of_stock')}
+                      />
+                      <label htmlFor="out-of-stock" className="text-sm font-medium">
+                        Out of Stock
                       </label>
                     </div>
                   </div>
                 </div>
 
-                <Button className="w-full" variant="outline">
+                <Button className="w-full" variant="outline" onClick={clearFilters}>
                   {translate('btn.clearFilters', market)}
                 </Button>
               </CardContent>
@@ -215,22 +365,46 @@ export default function CategoryListing() {
 
           {/* Products Grid */}
           <div className="flex-1">
-            <div className={
-              viewMode === 'grid'
-                ? 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6'
-                : 'space-y-4'
-            }>
-              {products.map((product) => (
-                <ProductCard key={product.id} product={product} />
-              ))}
-            </div>
+            {loading ? (
+              <div className={
+                viewMode === 'grid'
+                  ? 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6'
+                  : 'space-y-4'
+              }>
+                {[...Array(8)].map((_, i) => (
+                  <Skeleton key={i} className="h-80 w-full" />
+                ))}
+              </div>
+            ) : products.length > 0 ? (
+              <>
+                <div className={
+                  viewMode === 'grid'
+                    ? 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6'
+                    : 'space-y-4'
+                }>
+                  {products.map((product) => (
+                    <ProductCard key={product.id} product={product} />
+                  ))}
+                </div>
 
-            {/* Load More */}
-            <div className="flex justify-center mt-12">
-              <Button size="lg" variant="outline">
-                {translate('btn.loadMore', market)}
-              </Button>
-            </div>
+                {/* Load More */}
+                <div className="flex justify-center mt-12">
+                  <Button size="lg" variant="outline">
+                    {translate('btn.loadMore', market)}
+                  </Button>
+                </div>
+              </>
+            ) : (
+              <div className="text-center py-12">
+                <h3 className="text-lg font-semibold mb-2">No products found</h3>
+                <p className="text-muted-foreground mb-4">
+                  Try adjusting your filters or browse other categories
+                </p>
+                <Button variant="outline" onClick={clearFilters}>
+                  Clear All Filters
+                </Button>
+              </div>
+            )}
           </div>
         </div>
       </main>
