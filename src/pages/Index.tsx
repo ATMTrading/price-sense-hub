@@ -44,22 +44,34 @@ const Index = () => {
 
   const fetchCategories = async () => {
     try {
-      // Fetch all categories with product counts
+      // Fetch only parent categories (main categories)
       const { data: categoriesData, error } = await supabase
         .from('categories')
         .select('*')
         .eq('market_code', market.code)
-        .eq('is_active', true);
+        .eq('is_active', true)
+        .is('parent_id', null);
 
       if (error) throw error;
 
-      // Get product counts for each category
+      // Get product counts for each main category (including products from subcategories)
       const categoriesWithCounts = await Promise.all(
         (categoriesData || []).map(async (category) => {
+          // Get all subcategories for this main category
+          const { data: subcategories } = await supabase
+            .from('categories')
+            .select('id')
+            .eq('parent_id', category.id)
+            .eq('is_active', true);
+
+          // Get all category IDs (main + subcategories)
+          const categoryIds = [category.id, ...(subcategories || []).map(sub => sub.id)];
+
+          // Count products in main category and all its subcategories
           const { count } = await supabase
             .from('products')
             .select('*', { count: 'exact', head: true })
-            .eq('category_id', category.id)
+            .in('category_id', categoryIds)
             .eq('is_active', true);
 
           return {
@@ -132,12 +144,19 @@ const Index = () => {
     const iconMap: { [key: string]: any } = {
       electronics: Cpu,
       elektronika: Cpu,
+      'moda-oblecenie': Shirt,
       fashion: Shirt,
+      'zdravie-krasa': Heart,
       'health-beauty': Heart,
+      'domov-zahrada': Home,
       'home-garden': Home,
+      'deti-babatka': Baby,
       'baby-kids': Baby,
+      'sport-volny-cas': Dumbbell,
       sports: Dumbbell,
+      'knihy-media': Cpu,
       'books-media': Cpu,
+      'auto-motocykle': Cpu,
       automotive: Cpu
     };
     return iconMap[slug.toLowerCase()] || Cpu;

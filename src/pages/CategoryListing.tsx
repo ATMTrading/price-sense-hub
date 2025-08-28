@@ -4,6 +4,7 @@ import { Filter, SlidersHorizontal, Grid, List } from 'lucide-react';
 import { Header } from '@/components/Layout/Header';
 import { Footer } from '@/components/Layout/Footer';
 import { ProductCard } from '@/components/ProductCard';
+import { SubcategoryNav } from '@/components/SubcategoryNav';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Slider } from '@/components/ui/slider';
@@ -45,6 +46,8 @@ export default function CategoryListing() {
   const [merchants, setMerchants] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [sortBy, setSortBy] = useState('relevance');
+  const [currentCategory, setCurrentCategory] = useState<any>(null);
+  const [parentCategory, setParentCategory] = useState<any>(null);
   const [availabilityFilters, setAvailabilityFilters] = useState({
     in_stock: true,
     limited: false,
@@ -52,9 +55,43 @@ export default function CategoryListing() {
   });
 
   useEffect(() => {
+    fetchCurrentCategory();
     fetchProducts();
     fetchMerchants();
   }, [categorySlug, market, priceRange, selectedMerchants, sortBy, availabilityFilters]);
+
+  const fetchCurrentCategory = async () => {
+    if (!categorySlug) return;
+
+    try {
+      const { data: categoryData, error } = await supabase
+        .from('categories')
+        .select('*')
+        .eq('slug', categorySlug)
+        .eq('market_code', market.code)
+        .single();
+
+      if (error) throw error;
+
+      setCurrentCategory(categoryData);
+
+      // If this is a subcategory, fetch its parent
+      if (categoryData.parent_id) {
+        const { data: parentData } = await supabase
+          .from('categories')
+          .select('*')
+          .eq('id', categoryData.parent_id)
+          .single();
+        
+        setParentCategory(parentData);
+      } else {
+        // This is a main category, so it's also the parent
+        setParentCategory(categoryData);
+      }
+    } catch (error) {
+      console.error('Error fetching category:', error);
+    }
+  };
 
   const fetchProducts = async () => {
     setLoading(true);
@@ -71,17 +108,8 @@ export default function CategoryListing() {
         .eq('is_active', true);
 
       // Filter by category if we have a slug
-      if (categorySlug) {
-        const { data: categoryData } = await supabase
-          .from('categories')
-          .select('id')
-          .eq('slug', categorySlug)
-          .eq('market_code', market.code)
-          .single();
-        
-        if (categoryData) {
-          query = query.eq('category_id', categoryData.id);
-        }
+      if (categorySlug && currentCategory) {
+        query = query.eq('category_id', currentCategory.id);
       }
 
       // Apply price range filter
@@ -175,15 +203,7 @@ export default function CategoryListing() {
     }
   };
   
-  const categoryNames: Record<string, { sk: string; pl: string }> = {
-    'electronics': { sk: 'Elektronika', pl: 'Elektronika' },
-    'computers': { sk: 'Počítače a telefóny', pl: 'Komputery i telefony' },
-    'health': { sk: 'Zdravie a krása', pl: 'Zdrowie i uroda' },
-    'children': { sk: 'Detské potreby', pl: 'Artykuły dziecięce' },
-    'sports': { sk: 'Šport a fitness', pl: 'Sport i fitness' }
-  };
-
-  const categoryName = categoryNames[categorySlug || 'electronics']?.[market.code.toLowerCase() as 'sk' | 'pl'] || 'Category';
+  const categoryName = currentCategory?.name || 'Category';
 
   const toggleMerchant = (merchant: string) => {
     setSelectedMerchants(prev =>
@@ -221,10 +241,21 @@ export default function CategoryListing() {
             <span>{translate('nav.home', market)}</span>
             <span>/</span>
             <span>{translate('nav.categories', market)}</span>
+            {parentCategory && currentCategory?.parent_id && (
+              <>
+                <span>/</span>
+                <span>{parentCategory.name}</span>
+              </>
+            )}
             <span>/</span>
             <span className="text-foreground">{categoryName}</span>
           </div>
         </nav>
+
+        {/* Subcategory Navigation */}
+        {parentCategory && (
+          <SubcategoryNav parentCategory={parentCategory} />
+        )}
 
         {/* Header */}
         <div className="flex items-center justify-between mb-8">
