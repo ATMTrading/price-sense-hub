@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Import</title>
+</head>
+<body>
+    <button onclick="triggerImport()">Trigger Import</button>
+    <div id="result"></div>
+    
+    <script>
+        async function triggerImport() {
+            try {
+                const response = await fetch('https://xxplocdervsfftnnalah.supabase.co/functions/v1/process-xml-feed', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inh4cGxvY2RlcnZzZmZ0bm5hbGFoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTU4OTIyODYsImV4cCI6MjA3MTQ2ODI4Nn0.Gh8AShwePYUuiJjj_G1qFuMaTRC_6HZOSERifIvjZro'
+                    },
+                    body: JSON.stringify({
+                        feed_id: 'b00199e7-a680-497f-972c-28c74d6fc594',
+                        import_type: 'targeted_import',
+                        products_per_category: 5,
+                        market_code: 'SK',
+                        category_filter: ['404a63ee-a181-43ce-8311-82c92f25f81c']
+                    })
+                });
+                
+                const result = await response.text();
+                document.getElementById('result').innerHTML = result;
+                console.log('Import result:', result);
+            } catch (error) {
+                console.error('Error:', error);
+                document.getElementById('result').innerHTML = 'Error: ' + error.message;
+            }
+        }
+    </script>
+</body>
+</html>
