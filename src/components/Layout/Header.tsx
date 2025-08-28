@@ -1,6 +1,6 @@
 import { Search, Menu, Globe, User, LogOut } from 'lucide-react';
 import { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useMarket } from '@/hooks/useMarket';
@@ -19,11 +19,22 @@ export function Header() {
   const { market, setMarket } = useMarket();
   const { user, profile, isAdmin, signOut } = useAuth();
   const [searchQuery, setSearchQuery] = useState('');
+  const navigate = useNavigate();
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
-    // TODO: Implement search functionality
-    console.log('Search:', searchQuery);
+    if (!searchQuery.trim()) return;
+    
+    // Navigate to homepage with search results
+    // The search will be handled by updating the URL and using search params
+    const params = new URLSearchParams();
+    params.set('search', searchQuery.trim());
+    navigate(`/?${params.toString()}`);
+    
+    // Dispatch a custom event that the Index page can listen to
+    window.dispatchEvent(new CustomEvent('header-search', { 
+      detail: { query: searchQuery.trim() } 
+    }));
   };
 
   return (

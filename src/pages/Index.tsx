@@ -1,11 +1,10 @@
 import { useState, useEffect } from 'react';
-import { Home, Shirt, Heart, Baby, Dumbbell, Cpu, Search } from 'lucide-react';
+import { Home, Shirt, Heart, Baby, Dumbbell, Cpu } from 'lucide-react';
 import { Header } from '@/components/Layout/Header';
 import { Footer } from '@/components/Layout/Footer';
 import { CategoryCard } from '@/components/CategoryCard';
 import { ProductCard } from '@/components/ProductCard';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { useMarket } from '@/hooks/useMarket';
 import { translate } from '@/lib/i18n';
 import { supabase } from '@/integrations/supabase/client';
@@ -37,11 +36,84 @@ const Index = () => {
   const [topDeals, setTopDeals] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [categories, setCategories] = useState<any[]>([]);
+  const [searchQuery, setSearchQuery] = useState<string>('');
 
   useEffect(() => {
     fetchTopDeals();
     fetchCategories();
   }, [market]);
+
+  // Listen for search events from header
+  useEffect(() => {
+    const handleHeaderSearch = (event: CustomEvent) => {
+      const query = event.detail.query;
+      setSearchQuery(query);
+      handleSearch(query);
+    };
+
+    // Check URL params for search on page load
+    const params = new URLSearchParams(window.location.search);
+    const searchParam = params.get('search');
+    if (searchParam) {
+      setSearchQuery(searchParam);
+      handleSearch(searchParam);
+    }
+
+    window.addEventListener('header-search', handleHeaderSearch as EventListener);
+    return () => {
+      window.removeEventListener('header-search', handleHeaderSearch as EventListener);
+    };
+  }, [market]);
+
+  const handleSearch = async (searchTerm: string) => {
+    if (!searchTerm.trim()) {
+      fetchTopDeals();
+      return;
+    }
+    
+    setLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from('products')
+        .select(`
+          *,
+          shop:shops(*),
+          affiliate_links(*)
+        `)
+        .eq('market_code', market.code)
+        .eq('is_active', true)
+        .ilike('title', `%${searchTerm}%`)
+        .limit(8);
+
+      if (error) throw error;
+
+      const searchResults = (data || []).map(item => ({
+        id: item.id,
+        title: item.title,
+        image_url: item.image_url,
+        price: item.price,
+        original_price: item.original_price,
+        currency: item.currency,
+        shop: item.shop,
+        rating: item.rating,
+        review_count: item.review_count,
+        availability: item.availability as 'in_stock' | 'out_of_stock' | 'limited',
+        affiliate_links: Array.isArray(item.affiliate_links) 
+          ? item.affiliate_links.map(link => ({
+              affiliate_url: link.affiliate_url,
+              tracking_code: link.tracking_code
+            }))
+          : []
+      }));
+
+      setTopDeals(searchResults);
+    } catch (error) {
+      console.error('❌ Search error:', error);
+      setTopDeals([]);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const fetchCategories = async () => {
     try {
@@ -164,54 +236,6 @@ const Index = () => {
     return iconMap[slug.toLowerCase()] || Cpu;
   };
 
-  const handleSearch = async (searchTerm: string) => {
-    if (!searchTerm.trim()) {
-      // Reset to show all products when search is cleared
-      fetchTopDeals();
-      return;
-    }
-    
-    console.log('🔍 Searching for:', searchTerm);
-    try {
-      const { data, error } = await supabase
-        .from('products')
-        .select(`
-          *,
-          shop:shops(*),
-          affiliate_links(*)
-        `)
-        .eq('market_code', market.code)
-        .eq('is_active', true)
-        .ilike('title', `%${searchTerm}%`)
-        .limit(8);
-
-      if (error) throw error;
-
-      const searchResults = (data || []).map(item => ({
-        id: item.id,
-        title: item.title,
-        image_url: item.image_url,
-        price: item.price,
-        original_price: item.original_price,
-        currency: item.currency,
-        shop: item.shop,
-        rating: item.rating,
-        review_count: item.review_count,
-        availability: item.availability as 'in_stock' | 'out_of_stock' | 'limited',
-        affiliate_links: Array.isArray(item.affiliate_links) 
-          ? item.affiliate_links.map(link => ({
-              affiliate_url: link.affiliate_url,
-              tracking_code: link.tracking_code
-            }))
-          : []
-      }));
-
-      console.log('🔍 Search results:', searchResults.length);
-      setTopDeals(searchResults);
-    } catch (error) {
-      console.error('❌ Search error:', error);
-    }
-  };
 
   const fetchTopDeals = async () => {
     console.log('🔍 Fetching top deals for market:', market.code);
@@ -282,28 +306,6 @@ const Index = () => {
             <p className="text-xl md:text-2xl mb-8 text-white/90 max-w-3xl mx-auto">
               Porovnajte ceny a nájdite najlepšie ponuky z tisícov slovenských e-shopov
             </p>
-            
-            {/* Hero Search */}
-            <div className="max-w-2xl mx-auto">
-              <form onSubmit={(e) => {
-                e.preventDefault();
-                const searchTerm = (e.currentTarget.search as HTMLInputElement).value;
-                handleSearch(searchTerm);
-              }}>
-                <div className="relative">
-                  <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 h-5 w-5 text-white/70" />
-                  <Input
-                    name="search"
-                    type="search"
-                    placeholder="Hľadajte produkty..."
-                    className="pl-12 py-4 text-lg bg-white/10 border-white/20 text-white placeholder:text-white/70 focus:bg-white/20"
-                  />
-                  <Button type="submit" className="absolute right-2 top-1/2 transform -translate-y-1/2 bg-white text-primary hover:bg-white/90">
-                    <Search className="h-4 w-4" />
-                  </Button>
-                </div>
-              </form>
-            </div>
           </div>
         </section>
 
@@ -338,10 +340,13 @@ const Index = () => {
           <div className="container mx-auto">
             <div className="text-center mb-12">
               <h2 className="font-heading text-3xl md:text-4xl font-bold mb-4">
-                Najlepšie ponuky
+                {searchQuery ? `Výsledky vyhľadávania pre "${searchQuery}"` : 'Najlepšie ponuky'}
               </h2>
               <p className="text-muted-foreground text-lg max-w-2xl mx-auto">
-                Objavte najlepšie zľavy a akciové ponuky od overených predajcov
+                {searchQuery 
+                  ? `Našli sme ${topDeals.length} produktov pre váš výber`
+                  : 'Objavte najlepšie zľavy a akciové ponuky od overených predajcov'
+                }
               </p>
             </div>
             
