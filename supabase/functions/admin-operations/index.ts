@@ -215,6 +215,28 @@ Deno.serve(async (req) => {
           .eq('id', data.id)
         logDetails = { table: 'xml_feeds', recordId: data.id, oldValues: feedToDelete, newValues: { is_active: false } }
         break
+        
+      case 'update_feed_structure':
+        // Update feed with structure analysis and category mapping
+        const updatedMapping = {
+          ...data.structure_analysis.suggestedMapping,
+          category_mapping: data.category_mapping
+        }
+        
+        result = await supabase
+          .from('xml_feeds')
+          .update({ 
+            mapping_config: updatedMapping,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', data.feed_id)
+        
+        logDetails = { 
+          table: 'xml_feeds', 
+          recordId: data.feed_id, 
+          newValues: { mapping_config: updatedMapping } 
+        }
+        break
 
       default:
         throw new Error(`Unknown action: ${action}`)

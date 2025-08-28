@@ -157,42 +157,70 @@ serve(async (req) => {
     // Get sample of XML for analysis
     const sampleXml = xmlText.substring(0, 3000);
     
-    // Analysis summary
+    // Create auto-category mapping based on detected categories in XML
+    const autoCategoryMapping: Record<string, string> = {};
+    
+    // Extract category values from sample products to suggest mappings
+    const categoryFieldValue = firstProductXml.match(/<category[^>]*>([^<]+)<\/category>/i)?.[1] || '';
+    const sampleCategories = categoryFieldValue.toLowerCase().split(/[>|/,]/).map(c => c.trim()).filter(c => c);
+    
+    // Common Slovak book categories mapping
+    const categoryPatterns = {
+      'beletria': ['beletria', 'román', 'poézia', 'dráma', 'novela', 'literatúra'],
+      'historia': ['história', 'dejiny', 'biografia', 'historické', 'pamäti'],
+      'nabozenstvo': ['kresťanské', 'náboženské', 'spirituálne', 'biblia', 'teológia'],
+      'vzdelavanie': ['učebnica', 'slovník', 'jazyk', 'kurzovník', 'gramatika'],
+      'detske-knihy': ['detské', 'rozprávka', 'mládež', 'omaľovánky', 'básne'],
+      'odborna-literatura': ['ekonómia', 'právo', 'medicína', 'technika', 'informatika', 'veda']
+    };
+
+    // Analysis summary matching UniversalImport FeedStructure interface
     const analysis = {
+      isValid: productCount > 0 && suggestedMapping.title && suggestedMapping.price,
+      warnings: [] as string[],
+      feedOverview: {
+        rootElement,
+        namespaces,
+        productElements: [detectedProductElement].filter(Boolean),
+        totalProducts: productCount
+      },
+      detectedFields: allFields,
+      suggestedMapping,
+      sampleProductXml: firstProductXml.substring(0, 2000),
+      categoryMapping: autoCategoryMapping,
+      // Additional data for compatibility
       feedUrl,
       xmlLength: xmlText.length,
-      rootElement,
-      namespaces,
-      detectedProductElement,
-      productCount,
-      allFields,
-      suggestedMapping,
       mappingConfigSuggestion,
-      sampleXml,
-      firstProductXml: firstProductXml.substring(0, 2000), // Limit size
+      firstProductXml: firstProductXml.substring(0, 2000),
       secondProductXml: secondProductXml.substring(0, 2000),
       validation: {
         hasProducts: productCount > 0,
         hasRequiredFields: ['title', 'price'].every(field => 
           allFields.some(f => f.toLowerCase().includes(field) || suggestedMapping[field])
         ),
-        warnings: []
+        warnings: [] as string[]
       }
     };
     
     // Add validation warnings
+    const warnings: string[] = [];
     if (productCount === 0) {
-      analysis.validation.warnings.push('No product elements detected');
+      warnings.push('No product elements detected');
     }
     if (!suggestedMapping.title) {
-      analysis.validation.warnings.push('No title field detected');
+      warnings.push('No title field detected');
     }
     if (!suggestedMapping.price) {
-      analysis.validation.warnings.push('No price field detected');
+      warnings.push('No price field detected');
     }
     if (!suggestedMapping.image_url) {
-      analysis.validation.warnings.push('No image field detected');
+      warnings.push('No image field detected');
     }
+    
+    // Update analysis with warnings
+    analysis.warnings = warnings;
+    analysis.validation.warnings = warnings;
     
     return new Response(JSON.stringify(analysis, null, 2), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },

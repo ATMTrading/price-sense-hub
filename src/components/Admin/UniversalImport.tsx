@@ -72,7 +72,7 @@ export const UniversalImport = () => {
       const { data, error } = await supabase
         .from('categories')
         .select('id, name, slug, parent_id')
-        .eq('market_code', market.code)
+        .ilike('market_code', market.code) // Use ilike for case-insensitive matching
         .eq('is_active', true)
         .order('name');
 
@@ -95,7 +95,7 @@ export const UniversalImport = () => {
         .from('xml_feeds')
         .select('id, name, url, market_code, mapping_config, affiliate_link_template')
         .eq('is_active', true)
-        .eq('market_code', market.code);
+        .ilike('market_code', market.code); // Use ilike for case-insensitive matching
 
       if (error) throw error;
       setFeeds(data || []);
@@ -107,6 +107,11 @@ export const UniversalImport = () => {
       }
     } catch (error) {
       console.error('Error loading feeds:', error);
+      toast({
+        title: "Error loading feeds",
+        description: "Could not load XML feeds for this market",
+        variant: "destructive"
+      });
     }
   };
 
@@ -115,28 +120,52 @@ export const UniversalImport = () => {
     if (!feed) return;
 
     try {
+      toast({
+        title: "Analyzing feed structure...",
+        description: "Please wait while we analyze the XML feed",
+        duration: 2000
+      });
+
       // Get stored structure or analyze the feed
       const { data, error } = await supabase.functions.invoke('debug-xml', {
-        body: { feed_url: feed.url }
+        body: { feedUrl: feed.url } // Use feedUrl as expected by debug-xml function
       });
 
       if (error) throw error;
 
+      console.log('Feed structure analysis:', data);
       setFeedStructure(data);
-      setAffiliateTemplate(feed.affiliate_link_template ? JSON.stringify(feed.affiliate_link_template, null, 2) : "");
-      setCustomAffiliateTemplate(feed.affiliate_link_template ? JSON.stringify(feed.affiliate_link_template, null, 2) : "");
       
-      // Extract category mapping from feed config
-      const mapping = feed.mapping_config?.category_mapping || {};
-      setCategoryMapping(mapping);
+      // Generate proper affiliate template structure from base affiliate link
+      const affiliateTemplate = generateAffiliateTemplate(feed.affiliate_link_template);
+      setAffiliateTemplate(JSON.stringify(affiliateTemplate, null, 2));
+      setCustomAffiliateTemplate(JSON.stringify(affiliateTemplate, null, 2));
+      
+      // Extract category mapping from feed config or use suggested mapping
+      const existingMapping = feed.mapping_config?.category_mapping || {};
+      const suggestedMapping = data.categoryMapping || {};
+      const finalMapping = { ...existingMapping, ...suggestedMapping };
+      
+      setCategoryMapping(finalMapping);
+      
+      // Update feed with new mapping if we have suggestions
+      if (Object.keys(suggestedMapping).length > 0) {
+        await updateFeedStructure(feedId, data, finalMapping);
+      }
       
       // Auto-select categories that have XML mappings
-      autoSelectMappedCategories(mapping);
+      autoSelectMappedCategories(finalMapping);
+      
+      toast({
+        title: "Feed analysis complete",
+        description: `Found ${data.detectedFields.length} fields and ${data.feedOverview.totalProducts} products`,
+        duration: 3000
+      });
     } catch (error) {
       console.error('Error loading feed structure:', error);
       toast({
         title: "Error analyzing feed structure",
-        description: "Could not analyze the XML feed structure",
+        description: error instanceof Error ? error.message : "Could not analyze the XML feed structure",
         variant: "destructive"
       });
     }
@@ -295,6 +324,43 @@ export const UniversalImport = () => {
         variant: "destructive"
       });
       setImporting(false);
+    }
+  };
+
+  const generateAffiliateTemplate = (templateConfig: any) => {
+    if (!templateConfig) return { base_url: "", url_encode: true, append_product_url: true };
+    
+    // If it's already in proper format, return as is
+    if (templateConfig.base_url) {
+      return {
+        base_url: templateConfig.base_url,
+        url_encode: templateConfig.url_encode !== false,
+        append_product_url: templateConfig.append_product_url !== false
+      };
+    }
+    
+    // Convert from simple URL to proper template format
+    return {
+      base_url: templateConfig.toString(),
+      url_encode: true,
+      append_product_url: true
+    };
+  };
+  
+  const updateFeedStructure = async (feedId: string, structureData: any, categoryMapping: Record<string, string>) => {
+    try {
+      await supabase.functions.invoke('admin-operations', {
+        body: {
+          action: 'update_feed_structure',
+          data: {
+            feed_id: feedId,
+            structure_analysis: structureData,
+            category_mapping: categoryMapping
+          }
+        }
+      });
+    } catch (error) {
+      console.error('Error updating feed structure:', error);
     }
   };
 
