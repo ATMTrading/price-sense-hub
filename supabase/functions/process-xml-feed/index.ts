@@ -189,30 +189,44 @@ serve(async (req) => {
           }
         }
 
-        // Generate affiliate URL with shop-specific parameters
+        // Generate affiliate URL using feed's affiliate_link_template or shop params
         let affiliateUrl = null;
-        if (productUrl && shop && shop.affiliate_params) {
-          const shopAffiliateParams = shop.affiliate_params || {};
-          const utmSource = shopAffiliateParams.utm_source || 'dognet'; // Default to dognet
-          const aCid = shopAffiliateParams.a_cid || '908fbcd7'; // Default value
-          
-          // Global affiliate parameters
-          const globalParams = {
-            utm_medium: 'affiliate',
-            utm_campaign: '68b053b92fff1',
-            a_aid: '68b053b92fff1',
-            chan: 'KZKBlu6j'
-          };
-          
-          // Build complete affiliate URL with all required parameters
-          const separator = productUrl.includes('?') ? '&' : '?';
-          const affiliateParams = `utm_source=${utmSource}&utm_medium=${globalParams.utm_medium}&utm_campaign=${globalParams.utm_campaign}&a_aid=${globalParams.a_aid}&a_cid=${aCid}&chan=${globalParams.chan}`;
-          affiliateUrl = `${productUrl}${separator}${affiliateParams}`;
-          
+        if (productUrl) {
           // Debug logging for first product
           if (productsProcessed === 1) {
-            console.log('Debug - Shop affiliate params:', JSON.stringify(shopAffiliateParams, null, 2));
-            console.log('Debug - Generated affiliate URL:', affiliateUrl);
+            console.log('Debug - Affiliate Link Template:', JSON.stringify(affiliateLinkTemplate, null, 2));
+          }
+          
+          // Use feed's affiliate_link_template if available, otherwise fallback to shop params
+          if (affiliateLinkTemplate && Object.keys(affiliateLinkTemplate).length > 0) {
+            affiliateUrl = generateAffiliateUrl(productUrl, affiliateLinkTemplate);
+            
+            if (productsProcessed === 1) {
+              console.log('Debug - Using affiliate_link_template from feed');
+              console.log('Debug - Generated affiliate URL from template:', affiliateUrl);
+            }
+          } else if (shop && shop.affiliate_params) {
+            // Fallback to legacy shop affiliate params for backward compatibility
+            const shopAffiliateParams = shop.affiliate_params || {};
+            const utmSource = shopAffiliateParams.utm_source || 'dognet';
+            const aCid = shopAffiliateParams.a_cid || '908fbcd7';
+            
+            const globalParams = {
+              utm_medium: 'affiliate',
+              utm_campaign: '68b053b92fff1',
+              a_aid: '68b053b92fff1',
+              chan: 'KZKBlu6j'
+            };
+            
+            const separator = productUrl.includes('?') ? '&' : '?';
+            const affiliateParams = `utm_source=${utmSource}&utm_medium=${globalParams.utm_medium}&utm_campaign=${globalParams.utm_campaign}&a_aid=${globalParams.a_aid}&a_cid=${aCid}&chan=${globalParams.chan}`;
+            affiliateUrl = `${productUrl}${separator}${affiliateParams}`;
+            
+            if (productsProcessed === 1) {
+              console.log('Debug - Using legacy shop affiliate params');
+              console.log('Debug - Shop affiliate params:', JSON.stringify(shopAffiliateParams, null, 2));
+              console.log('Debug - Generated affiliate URL from shop params:', affiliateUrl);
+            }
           }
         }
 
@@ -446,4 +460,48 @@ async function findBookCategory(supabaseClient: any, title: string, description:
     .single();
     
   return booksCategory?.id || null;
+}
+
+// Helper function to generate affiliate URL from template
+function generateAffiliateUrl(productUrl: string, template: any): string {
+  let affiliateUrl = productUrl;
+  
+  try {
+    // Handle different template structures
+    if (template.base_url && template.append_product_url) {
+      // Template with base_url and append_product_url
+      affiliateUrl = template.base_url;
+      if (template.append_product_url && productUrl) {
+        const encodedProductUrl = template.url_encode ? encodeURIComponent(productUrl) : productUrl;
+        affiliateUrl = `${affiliateUrl}${encodedProductUrl}`;
+      }
+    } else if (!template.base_url) {
+      // Template without base_url - use original product URL
+      affiliateUrl = productUrl;
+    } else {
+      // Template with base_url but no append_product_url
+      affiliateUrl = template.base_url;
+    }
+    
+    // Add UTM parameters if provided
+    if (template.utm_params && Object.keys(template.utm_params).length > 0) {
+      const separator = affiliateUrl.includes('?') ? '&' : '?';
+      const utmParams = new URLSearchParams(template.utm_params).toString();
+      affiliateUrl = `${affiliateUrl}${separator}${utmParams}`;
+    }
+    
+    // Add custom parameters if provided (legacy support)
+    if (template.parameters && Object.keys(template.parameters).length > 0) {
+      const separator = affiliateUrl.includes('?') ? '&' : '?';
+      const customParams = new URLSearchParams(template.parameters).toString();
+      affiliateUrl = `${affiliateUrl}${separator}${customParams}`;
+    }
+    
+  } catch (error) {
+    console.error('Error generating affiliate URL:', error);
+    // Return original URL on error
+    affiliateUrl = productUrl;
+  }
+  
+  return affiliateUrl;
 }

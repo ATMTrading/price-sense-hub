@@ -181,18 +181,40 @@ serve(async (req) => {
       '783': ['časopisy', 'magazines', 'periodicals', 'časopis']
     };
 
-    // Extract category values from XML feed
+    // Extract category values from XML feed - enhanced for namespaced tags
     const categoryField = suggestedMapping.category || 'category';
-    const googleCategoryRegex = new RegExp(`<${categoryField}[^>]*>([^<]+)</${categoryField}>`, 'gi');
     const detectedCategories = new Set<string>();
     
-    let match;
-    while ((match = googleCategoryRegex.exec(xmlText)) !== null && detectedCategories.size < 50) {
-      const categoryValue = match[1].trim();
-      if (categoryValue) {
-        detectedCategories.add(categoryValue);
+    console.log(`Debug: Looking for category field "${categoryField}" in XML`);
+    
+    // Try multiple regex patterns for better category extraction
+    const regexPatterns = [
+      // Standard pattern
+      new RegExp(`<${categoryField}[^>]*>([^<]+)<\\/${categoryField}>`, 'gi'),
+      // Namespaced pattern (e.g., g:google_product_category)
+      new RegExp(`<[^:]*:${categoryField.replace(/^[^:]*:/, '')}[^>]*>([^<]+)<\\/[^:]*:${categoryField.replace(/^[^:]*:/, '')}>`, 'gi'),
+      // Google Shopping specific pattern
+      new RegExp(`<g:google_product_category[^>]*>([^<]+)<\\/g:google_product_category>`, 'gi'),
+      // CDATA pattern
+      new RegExp(`<${categoryField}[^>]*><!\\[CDATA\\[([^\\]]+)\\]\\]><\\/${categoryField}>`, 'gi')
+    ];
+    
+    // Try each regex pattern
+    for (const regex of regexPatterns) {
+      let match;
+      const patternName = regex.toString().substring(0, 50) + '...';
+      console.log(`Debug: Trying regex pattern: ${patternName}`);
+      
+      while ((match = regex.exec(xmlText)) !== null && detectedCategories.size < 50) {
+        const categoryValue = match[1].trim();
+        if (categoryValue) {
+          console.log(`Debug: Found category value "${categoryValue}" using pattern ${patternName}`);
+          detectedCategories.add(categoryValue);
+        }
       }
     }
+    
+    console.log(`Debug: Total detected categories: ${detectedCategories.size}`, Array.from(detectedCategories));
 
     // Create mapping from XML categories to database category IDs
     const autoCategoryMapping: Record<string, string> = {};
