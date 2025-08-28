@@ -6,10 +6,13 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Separator } from "@/components/ui/separator";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useAuditLog } from "@/hooks/useAuditLog";
-import { Play, Plus, Edit, Trash } from "lucide-react";
+import { Play, Plus, Edit, Trash, Search, Copy, CheckCircle, AlertTriangle } from "lucide-react";
 
 interface XmlFeed {
   id: string;
@@ -28,6 +31,8 @@ export const FeedManager = () => {
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [editingFeed, setEditingFeed] = useState<XmlFeed | null>(null);
+  const [debugResult, setDebugResult] = useState<any>(null);
+  const [debugLoading, setDebugLoading] = useState(false);
   const [formData, setFormData] = useState({
     name: "",
     url: "",
@@ -336,31 +341,171 @@ export const FeedManager = () => {
                     <Play className="w-4 h-4 mr-1" />
                     Test (5)
                   </Button>
-                   <Button
-                     size="sm"
-                     variant="outline"
-                     onClick={async () => {
-                       try {
-                         const { data, error } = await supabase.functions.invoke('debug-xml');
-                         if (error) throw error;
-                         console.log('XML Debug Result:', data);
-                         toast({
-                           title: "XML structure logged to console",
-                           description: "Check browser console for details"
-                         });
-                       } catch (error) {
-                         console.error('Debug error:', error);
-                         toast({
-                           title: "Debug failed",
-                           description: error instanceof Error ? error.message : "Unknown error",
-                           variant: "destructive"
-                         });
-                       }
-                     }}
-                     className="bg-blue-500 hover:bg-blue-600 text-white"
-                   >
-                     🔍 Debug XML
-                   </Button>
+                   <Dialog>
+                     <DialogTrigger asChild>
+                       <Button
+                         size="sm"
+                         variant="outline"
+                         onClick={async () => {
+                           setDebugLoading(true);
+                           try {
+                             const { data, error } = await supabase.functions.invoke('debug-xml', {
+                               body: { feedUrl: feed.url }
+                             });
+                             if (error) throw error;
+                             setDebugResult(data);
+                           } catch (error) {
+                             console.error('Debug error:', error);
+                             toast({
+                               title: "Debug failed",
+                               description: error instanceof Error ? error.message : "Unknown error",
+                               variant: "destructive"
+                             });
+                           } finally {
+                             setDebugLoading(false);
+                           }
+                         }}
+                         disabled={debugLoading}
+                       >
+                         <Search className="w-4 h-4 mr-1" />
+                         {debugLoading ? 'Analyzing...' : 'Debug XML'}
+                       </Button>
+                     </DialogTrigger>
+                     <DialogContent className="max-w-4xl max-h-[80vh]">
+                       <DialogHeader>
+                         <DialogTitle>XML Feed Analysis: {feed.name}</DialogTitle>
+                         <DialogDescription>
+                           Comprehensive analysis of XML structure and suggested field mappings
+                         </DialogDescription>
+                       </DialogHeader>
+                       {debugResult && (
+                         <ScrollArea className="h-[60vh]">
+                           <div className="space-y-6">
+                             {/* Validation Status */}
+                             <div className="flex items-center gap-2">
+                               {debugResult.validation?.hasProducts ? (
+                                 <CheckCircle className="w-5 h-5 text-green-500" />
+                               ) : (
+                                 <AlertTriangle className="w-5 h-5 text-red-500" />
+                               )}
+                               <span className="font-semibold">
+                                 {debugResult.validation?.hasProducts ? 'Valid XML Feed' : 'Issues Detected'}
+                               </span>
+                             </div>
+
+                             {/* Warnings */}
+                             {debugResult.validation?.warnings?.length > 0 && (
+                               <Alert>
+                                 <AlertTriangle className="w-4 h-4" />
+                                 <AlertDescription>
+                                   <strong>Warnings:</strong>
+                                   <ul className="list-disc list-inside mt-2">
+                                     {debugResult.validation.warnings.map((warning: string, i: number) => (
+                                       <li key={i}>{warning}</li>
+                                     ))}
+                                   </ul>
+                                 </AlertDescription>
+                               </Alert>
+                             )}
+
+                             {/* Feed Overview */}
+                             <div>
+                               <h3 className="font-semibold mb-3">Feed Overview</h3>
+                               <div className="grid grid-cols-2 gap-4 text-sm">
+                                 <div>
+                                   <strong>Root Element:</strong> {debugResult.rootElement}
+                                 </div>
+                                 <div>
+                                   <strong>Product Element:</strong> {debugResult.detectedProductElement}
+                                 </div>
+                                 <div>
+                                   <strong>Product Count:</strong> {debugResult.productCount?.toLocaleString()}
+                                 </div>
+                                 <div>
+                                   <strong>XML Size:</strong> {Math.round(debugResult.xmlLength / 1024)} KB
+                                 </div>
+                               </div>
+                             </div>
+
+                             {/* Namespaces */}
+                             {debugResult.namespaces && Object.keys(debugResult.namespaces).length > 0 && (
+                               <div>
+                                 <h3 className="font-semibold mb-3">XML Namespaces</h3>
+                                 <div className="text-sm space-y-1">
+                                   {Object.entries(debugResult.namespaces).map(([prefix, uri]: [string, any]) => (
+                                     <div key={prefix}>
+                                       <code className="bg-muted px-1 rounded">{prefix}:</code> {uri}
+                                     </div>
+                                   ))}
+                                 </div>
+                               </div>
+                             )}
+
+                             {/* Detected Fields */}
+                             <div>
+                               <h3 className="font-semibold mb-3">Detected Fields ({debugResult.allFields?.length})</h3>
+                               <div className="flex flex-wrap gap-2">
+                                 {debugResult.allFields?.map((field: string) => (
+                                   <Badge key={field} variant="outline" className="text-xs">
+                                     {field}
+                                   </Badge>
+                                 ))}
+                               </div>
+                             </div>
+
+                             {/* Suggested Mapping */}
+                             <div>
+                               <div className="flex items-center justify-between mb-3">
+                                 <h3 className="font-semibold">Suggested Field Mapping</h3>
+                                 <Button
+                                   size="sm"
+                                   variant="outline"
+                                   onClick={() => {
+                                     navigator.clipboard.writeText(JSON.stringify(debugResult.mappingConfigSuggestion, null, 2));
+                                     toast({
+                                       title: "Mapping copied to clipboard",
+                                       description: "You can paste this into the mapping configuration"
+                                     });
+                                   }}
+                                 >
+                                   <Copy className="w-4 h-4 mr-1" />
+                                   Copy Config
+                                 </Button>
+                               </div>
+                               <pre className="bg-muted p-4 rounded text-xs overflow-x-auto">
+{JSON.stringify(debugResult.mappingConfigSuggestion, null, 2)}
+                               </pre>
+                             </div>
+
+                             <Separator />
+
+                             {/* Sample Products */}
+                             <div>
+                               <h3 className="font-semibold mb-3">Sample Products</h3>
+                               <div className="space-y-4">
+                                 {debugResult.firstProductXml && (
+                                   <div>
+                                     <h4 className="text-sm font-medium mb-2">First Product:</h4>
+                                     <pre className="bg-muted p-3 rounded text-xs overflow-x-auto max-h-40 overflow-y-auto">
+{debugResult.firstProductXml}
+                                     </pre>
+                                   </div>
+                                 )}
+                                 {debugResult.secondProductXml && (
+                                   <div>
+                                     <h4 className="text-sm font-medium mb-2">Second Product:</h4>
+                                     <pre className="bg-muted p-3 rounded text-xs overflow-x-auto max-h-40 overflow-y-auto">
+{debugResult.secondProductXml}
+                                     </pre>
+                                   </div>
+                                 )}
+                               </div>
+                             </div>
+                           </div>
+                         </ScrollArea>
+                       )}
+                     </DialogContent>
+                   </Dialog>
                    <Button size="sm" variant="outline" onClick={() => editFeed(feed)}>
                      <Edit className="w-4 h-4" />
                    </Button>
