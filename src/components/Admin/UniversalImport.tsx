@@ -58,6 +58,8 @@ export const UniversalImport = () => {
   const [feedStructure, setFeedStructure] = useState<FeedStructure | null>(null);
   const [showStructure, setShowStructure] = useState(false);
   const [affiliateTemplate, setAffiliateTemplate] = useState("");
+  const [customAffiliateTemplate, setCustomAffiliateTemplate] = useState("");
+  const [categoryMapping, setCategoryMapping] = useState<Record<string, string>>({});
   const { toast } = useToast();
 
   useEffect(() => {
@@ -122,6 +124,14 @@ export const UniversalImport = () => {
 
       setFeedStructure(data);
       setAffiliateTemplate(feed.affiliate_link_template ? JSON.stringify(feed.affiliate_link_template, null, 2) : "");
+      setCustomAffiliateTemplate(feed.affiliate_link_template ? JSON.stringify(feed.affiliate_link_template, null, 2) : "");
+      
+      // Extract category mapping from feed config
+      const mapping = feed.mapping_config?.category_mapping || {};
+      setCategoryMapping(mapping);
+      
+      // Auto-select categories that have XML mappings
+      autoSelectMappedCategories(mapping);
     } catch (error) {
       console.error('Error loading feed structure:', error);
       toast({
@@ -132,9 +142,31 @@ export const UniversalImport = () => {
     }
   };
 
+  const autoSelectMappedCategories = (mapping: Record<string, string>) => {
+    // Find categories that have XML mappings and auto-select them
+    const mappedCategoryIds = Object.values(mapping);
+    const validMappedIds = mappedCategoryIds.filter(id => 
+      categories.some(cat => cat.id === id)
+    );
+    setSelectedCategories(validMappedIds);
+    
+    if (validMappedIds.length > 0) {
+      toast({
+        title: "Auto-selected categories",
+        description: `${validMappedIds.length} categories with XML mappings were automatically selected`,
+        duration: 3000
+      });
+    }
+  };
+
   const handleFeedChange = (feedId: string) => {
     setSelectedFeed(feedId);
+    setSelectedCategories([]); // Reset selection when changing feeds
     loadFeedStructure(feedId);
+  };
+
+  const handleAutoSelectMapped = () => {
+    autoSelectMappedCategories(categoryMapping);
   };
 
   const handleCategoryToggle = (categoryId: string) => {
@@ -181,7 +213,8 @@ export const UniversalImport = () => {
           category_filter: selectedCategories,
           import_type: 'targeted_import',
           products_per_category: productsPerCategory,
-          market_code: market.code
+          market_code: market.code,
+          custom_affiliate_template: customAffiliateTemplate || undefined
         }
       });
 
@@ -242,7 +275,8 @@ export const UniversalImport = () => {
           feed_id: selectedFeed,
           import_type: 'full_catalog',
           max_products: maxProducts,
-          market_code: market.code
+          market_code: market.code,
+          custom_affiliate_template: customAffiliateTemplate || undefined
         }
       });
 
@@ -328,168 +362,198 @@ export const UniversalImport = () => {
             </div>
           </div>
 
-          {/* Feed Structure Info */}
-          {feedStructure && selectedFeedData && (
-            <div className="border rounded-lg p-4 bg-muted/50">
-              <div className="flex items-center justify-between mb-2">
-                <h4 className="font-medium">Feed Structure Analysis</h4>
-                <Dialog open={showStructure} onOpenChange={setShowStructure}>
-                  <DialogTrigger asChild>
-                    <Button variant="outline" size="sm">
-                      <Eye className="w-4 h-4 mr-1" />
-                      View Details
-                    </Button>
-                  </DialogTrigger>
-                  <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
-                    <DialogHeader>
-                      <DialogTitle>Feed Structure: {selectedFeedData.name}</DialogTitle>
-                      <DialogDescription>
-                        Detailed analysis of XML feed structure and configuration
-                      </DialogDescription>
-                    </DialogHeader>
-                    
-                    <div className="space-y-6">
-                      {/* Validation Status */}
-                      <div className="flex items-center space-x-2">
-                        {feedStructure.isValid ? (
-                          <CheckCircle className="w-5 h-5 text-green-500" />
-                        ) : (
-                          <AlertCircle className="w-5 h-5 text-red-500" />
-                        )}
-                        <span className={feedStructure.isValid ? "text-green-600" : "text-red-600"}>
-                          {feedStructure.isValid ? "Valid XML Feed" : "Invalid XML Feed"}
-                        </span>
-                      </div>
-
-                      {/* Feed Overview */}
-                      <div>
-                        <h4 className="font-semibold mb-2">Feed Overview</h4>
-                        <div className="bg-muted p-3 rounded">
-                          <p><strong>Root Element:</strong> {feedStructure.feedOverview.rootElement}</p>
-                          <p><strong>Product Elements:</strong> {feedStructure.feedOverview.productElements.join(", ")}</p>
-                          <p><strong>Total Products:</strong> {feedStructure.feedOverview.totalProducts}</p>
-                          {Object.keys(feedStructure.feedOverview.namespaces).length > 0 && (
-                            <p><strong>Namespaces:</strong> {Object.entries(feedStructure.feedOverview.namespaces).map(([prefix, uri]) => `${prefix}: ${uri}`).join(", ")}</p>
-                          )}
-                        </div>
-                      </div>
-
-                      {/* Detected Fields */}
-                      <div>
-                        <h4 className="font-semibold mb-2">Detected Fields ({feedStructure.detectedFields.length})</h4>
-                        <div className="flex flex-wrap gap-1">
-                          {feedStructure.detectedFields.map(field => (
-                            <Badge key={field} variant="outline" className="text-xs">
-                              {field}
-                            </Badge>
-                          ))}
-                        </div>
-                      </div>
-
-                      {/* Suggested Mapping */}
-                      <div>
-                        <div className="flex items-center justify-between mb-2">
-                          <h4 className="font-semibold">Suggested Field Mapping</h4>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => copyToClipboard(JSON.stringify(feedStructure.suggestedMapping, null, 2))}
-                          >
-                            <Copy className="w-4 h-4 mr-1" />
-                            Copy
-                          </Button>
-                        </div>
-                        <Textarea
-                          value={JSON.stringify(feedStructure.suggestedMapping, null, 2)}
-                          readOnly
-                          className="font-mono text-sm"
-                          rows={8}
-                        />
-                      </div>
-
-                      {/* Affiliate Template */}
-                      <div>
-                        <div className="flex items-center justify-between mb-2">
-                          <h4 className="font-semibold">Affiliate Link Template</h4>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => copyToClipboard(affiliateTemplate)}
-                          >
-                            <Copy className="w-4 h-4 mr-1" />
-                            Copy
-                          </Button>
-                        </div>
-                        <Textarea
-                          value={affiliateTemplate}
-                          readOnly
-                          placeholder="No affiliate template configured"
-                          className="font-mono text-sm"
-                          rows={6}
-                        />
-                      </div>
-
-                      {/* Sample Product XML */}
-                      {feedStructure.sampleProductXml && (
-                        <div>
-                          <h4 className="font-semibold mb-2">Sample Product XML</h4>
-                          <Textarea
-                            value={feedStructure.sampleProductXml}
-                            readOnly
-                            className="font-mono text-sm"
-                            rows={10}
-                          />
-                        </div>
-                      )}
-                    </div>
-                  </DialogContent>
-                </Dialog>
+          {/* Affiliate Link Configuration */}
+          <div>
+            <Label htmlFor="affiliate-template">Affiliate Link Structure</Label>
+            <div className="space-y-2">
+              <Textarea
+                id="affiliate-template"
+                value={customAffiliateTemplate}
+                onChange={(e) => setCustomAffiliateTemplate(e.target.value)}
+                placeholder="Enter custom affiliate link structure template..."
+                className="font-mono text-sm"
+                rows={4}
+              />
+              <div className="text-sm text-muted-foreground">
+                Use variables like {'{product_url}'}, {'{utm_source}'}, {'{utm_campaign}'} in your template
               </div>
-
-              <div className="grid grid-cols-3 gap-4 text-sm">
-                <div>
-                  <span className="font-medium">Status: </span>
-                  {feedStructure.isValid ? (
-                    <Badge variant="default" className="bg-green-100 text-green-800">Valid</Badge>
-                  ) : (
-                    <Badge variant="destructive">Invalid</Badge>
-                  )}
-                </div>
-                <div>
-                  <span className="font-medium">Fields: </span>
-                  {feedStructure.detectedFields.length}
-                </div>
-                <div>
-                  <span className="font-medium">Products: </span>
-                  {feedStructure.feedOverview?.totalProducts || 0}
-                </div>
-              </div>
-
-              {feedStructure.warnings.length > 0 && (
-                <div className="mt-3 p-2 bg-yellow-50 rounded border-l-4 border-yellow-400">
-                  <p className="text-sm font-medium text-yellow-800">Warnings:</p>
-                  <ul className="text-sm text-yellow-700 list-disc list-inside">
-                    {feedStructure.warnings.map((warning, index) => (
-                      <li key={index}>{warning}</li>
-                    ))}
-                  </ul>
+              {customAffiliateTemplate && (
+                <div className="p-2 bg-blue-50 rounded text-sm">
+                  <strong>Preview:</strong> {customAffiliateTemplate.replace('{product_url}', 'https://example.com/product')}
                 </div>
               )}
             </div>
-          )}
+          </div>
         </CardContent>
       </Card>
 
-      {/* Category Selection */}
+      {/* Feed Structure Overview - Always Visible */}
+      {feedStructure && selectedFeedData && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center justify-between">
+              <div className="flex items-center space-x-2">
+                <Settings className="w-5 h-5" />
+                <span>Feed Structure: {selectedFeedData.name}</span>
+              </div>
+              <Dialog open={showStructure} onOpenChange={setShowStructure}>
+                <DialogTrigger asChild>
+                  <Button variant="outline" size="sm">
+                    <Eye className="w-4 h-4 mr-1" />
+                    Full Analysis
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+                  <DialogHeader>
+                    <DialogTitle>Complete Feed Analysis: {selectedFeedData.name}</DialogTitle>
+                    <DialogDescription>
+                      Detailed XML structure, field mappings, and configuration
+                    </DialogDescription>
+                  </DialogHeader>
+                  
+                  <div className="space-y-6">
+                    {/* Feed Overview */}
+                    <div>
+                      <h4 className="font-semibold mb-2">Feed Overview</h4>
+                      <div className="bg-muted p-3 rounded">
+                        <p><strong>Root Element:</strong> {feedStructure.feedOverview.rootElement}</p>
+                        <p><strong>Product Elements:</strong> {feedStructure.feedOverview.productElements.join(", ")}</p>
+                        <p><strong>Total Products:</strong> {feedStructure.feedOverview.totalProducts}</p>
+                        {Object.keys(feedStructure.feedOverview.namespaces).length > 0 && (
+                          <p><strong>Namespaces:</strong> {Object.entries(feedStructure.feedOverview.namespaces).map(([prefix, uri]) => `${prefix}: ${uri}`).join(", ")}</p>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Detected Fields */}
+                    <div>
+                      <h4 className="font-semibold mb-2">All Detected Fields ({feedStructure.detectedFields.length})</h4>
+                      <div className="flex flex-wrap gap-1">
+                        {feedStructure.detectedFields.map(field => (
+                          <Badge key={field} variant="outline" className="text-xs">
+                            {field}
+                          </Badge>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Category Mapping */}
+                    {Object.keys(categoryMapping).length > 0 && (
+                      <div>
+                        <h4 className="font-semibold mb-2">Category Mappings</h4>
+                        <div className="space-y-2">
+                          {Object.entries(categoryMapping).map(([xmlCategory, dbCategoryId]) => {
+                            const dbCategory = categories.find(c => c.id === dbCategoryId);
+                            return (
+                              <div key={xmlCategory} className="flex justify-between items-center p-2 bg-muted rounded">
+                                <span className="font-mono text-sm">"{xmlCategory}"</span>
+                                <span>→</span>
+                                <span className="font-medium">{dbCategory?.name || 'Unknown Category'}</span>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Sample Product XML */}
+                    {feedStructure.sampleProductXml && (
+                      <div>
+                        <h4 className="font-semibold mb-2">Sample Product XML</h4>
+                        <Textarea
+                          value={feedStructure.sampleProductXml}
+                          readOnly
+                          className="font-mono text-sm"
+                          rows={10}
+                        />
+                      </div>
+                    )}
+                  </div>
+                </DialogContent>
+              </Dialog>
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {/* Key Structure Info */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <div className="text-center">
+                <div className="flex items-center justify-center space-x-1 mb-1">
+                  {feedStructure.isValid ? (
+                    <CheckCircle className="w-4 h-4 text-green-500" />
+                  ) : (
+                    <AlertCircle className="w-4 h-4 text-red-500" />
+                  )}
+                  <span className="font-medium">Status</span>
+                </div>
+                <Badge variant={feedStructure.isValid ? "default" : "destructive"} className={feedStructure.isValid ? "bg-green-100 text-green-800" : ""}>
+                  {feedStructure.isValid ? "Valid" : "Invalid"}
+                </Badge>
+              </div>
+              <div className="text-center">
+                <div className="font-medium mb-1">Products</div>
+                <Badge variant="outline">{feedStructure.feedOverview?.totalProducts || 0}</Badge>
+              </div>
+              <div className="text-center">
+                <div className="font-medium mb-1">Fields</div>
+                <Badge variant="outline">{feedStructure.detectedFields.length}</Badge>
+              </div>
+              <div className="text-center">
+                <div className="font-medium mb-1">Mappings</div>
+                <Badge variant="outline">{Object.keys(categoryMapping).length}</Badge>
+              </div>
+            </div>
+
+            {/* Key Fields Preview */}
+            <div>
+              <h5 className="font-medium mb-2">Key Fields Detected:</h5>
+              <div className="flex flex-wrap gap-1">
+                {feedStructure.detectedFields.slice(0, 8).map(field => (
+                  <Badge key={field} variant="secondary" className="text-xs">
+                    {field}
+                  </Badge>
+                ))}
+                {feedStructure.detectedFields.length > 8 && (
+                  <Badge variant="outline" className="text-xs">
+                    +{feedStructure.detectedFields.length - 8} more
+                  </Badge>
+                )}
+              </div>
+            </div>
+
+            {/* Warnings */}
+            {feedStructure.warnings.length > 0 && (
+              <div className="p-3 bg-yellow-50 rounded border-l-4 border-yellow-400">
+                <p className="text-sm font-medium text-yellow-800 mb-1">⚠️ Warnings ({feedStructure.warnings.length}):</p>
+                <ul className="text-sm text-yellow-700 space-y-1">
+                  {feedStructure.warnings.slice(0, 3).map((warning, index) => (
+                    <li key={index}>• {warning}</li>
+                  ))}
+                  {feedStructure.warnings.length > 3 && (
+                    <li className="italic">... and {feedStructure.warnings.length - 3} more (see full analysis)</li>
+                  )}
+                </ul>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Category Selection with Smart Mapping */}
       <Card>
         <CardHeader>
-          <CardTitle>Category Selection</CardTitle>
-          <CardDescription>Select categories to import products into</CardDescription>
+          <CardTitle>Category Selection & Mapping</CardTitle>
+          <CardDescription>Select categories to import products into with automatic XML mapping</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="flex justify-between items-center">
             <Label>Available Categories ({categories.length})</Label>
-            <div className="space-x-2">
+            <div className="flex space-x-2">
+              {Object.keys(categoryMapping).length > 0 && (
+                <Button size="sm" variant="default" onClick={handleAutoSelectMapped}>
+                  <Target className="w-4 h-4 mr-1" />
+                  Auto-select Mapped ({Object.keys(categoryMapping).length})
+                </Button>
+              )}
               <Button size="sm" variant="outline" onClick={handleSelectAll}>
                 {categories.every(cat => selectedCategories.includes(cat.id)) ? 'Deselect All' : 'Select All'}
               </Button>
@@ -499,28 +563,83 @@ export const UniversalImport = () => {
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-2 max-h-48 overflow-y-auto border rounded-md p-4">
-            {categories.map(category => (
-              <div
-                key={category.id}
-                className={`flex items-center space-x-2 p-3 rounded-lg cursor-pointer hover:bg-muted transition-colors ${
-                  selectedCategories.includes(category.id) 
-                    ? 'bg-primary/10 border border-primary' 
-                    : 'border'
-                }`}
-                onClick={() => handleCategoryToggle(category.id)}
-              >
-                <input
-                  type="checkbox"
-                  checked={selectedCategories.includes(category.id)}
-                  onChange={() => {}}
-                  className="mr-2"
-                />
-                <span className="flex-1 font-medium">{category.name}</span>
-                <Target className="w-4 h-4 text-muted-foreground" />
+          {/* Category Mapping Info */}
+          {Object.keys(categoryMapping).length > 0 && (
+            <div className="p-3 bg-blue-50 rounded-lg border">
+              <h5 className="font-medium text-blue-800 mb-2">XML Category Mappings:</h5>
+              <div className="grid grid-cols-1 gap-2">
+                {Object.entries(categoryMapping).slice(0, 5).map(([xmlCategory, dbCategoryId]) => {
+                  const dbCategory = categories.find(c => c.id === dbCategoryId);
+                  const isSelected = selectedCategories.includes(dbCategoryId);
+                  return (
+                    <div key={xmlCategory} className="flex items-center justify-between text-sm">
+                      <span className="font-mono text-blue-700">"{xmlCategory}"</span>
+                      <span>→</span>
+                      <div className="flex items-center space-x-2">
+                        <span className={`font-medium ${isSelected ? 'text-green-600' : 'text-gray-600'}`}>
+                          {dbCategory?.name || 'Unknown'}
+                        </span>
+                        {isSelected && <CheckCircle className="w-4 h-4 text-green-500" />}
+                      </div>
+                    </div>
+                  );
+                })}
+                {Object.keys(categoryMapping).length > 5 && (
+                  <div className="text-sm text-blue-600 italic">
+                    ... and {Object.keys(categoryMapping).length - 5} more mappings
+                  </div>
+                )}
               </div>
-            ))}
+            </div>
+          )}
+
+          <div className="grid grid-cols-2 gap-2 max-h-48 overflow-y-auto border rounded-md p-4">
+            {categories.map(category => {
+              const hasMapping = Object.values(categoryMapping).includes(category.id);
+              const isSelected = selectedCategories.includes(category.id);
+              
+              return (
+                <div
+                  key={category.id}
+                  className={`flex items-center space-x-2 p-3 rounded-lg cursor-pointer hover:bg-muted transition-colors ${
+                    isSelected 
+                      ? 'bg-primary/10 border border-primary' 
+                      : hasMapping 
+                        ? 'border border-blue-200 bg-blue-50' 
+                        : 'border'
+                  }`}
+                  onClick={() => handleCategoryToggle(category.id)}
+                >
+                  <input
+                    type="checkbox"
+                    checked={isSelected}
+                    onChange={() => {}}
+                    className="mr-2"
+                  />
+                  <span className="flex-1 font-medium">{category.name}</span>
+                  {hasMapping && (
+                    <Badge variant="outline" className="text-xs bg-blue-100 text-blue-700 border-blue-300">
+                      Mapped
+                    </Badge>
+                  )}
+                  <Target className="w-4 h-4 text-muted-foreground" />
+                </div>
+              );
+            })}
           </div>
+
+          {/* Import Preview */}
+          {selectedCategories.length > 0 && (
+            <div className="p-3 bg-green-50 rounded-lg border border-green-200">
+              <h5 className="font-medium text-green-800 mb-2">📋 Import Preview:</h5>
+              <div className="text-sm text-green-700 space-y-1">
+                <div>• <strong>{selectedCategories.length}</strong> categories selected</div>
+                <div>• <strong>{productsPerCategory}</strong> products per category</div>
+                <div>• Total estimated products: <strong>~{selectedCategories.length * productsPerCategory}</strong></div>
+                <div>• Affiliate links: <strong>{customAffiliateTemplate ? 'Custom template' : 'Feed default'}</strong></div>
+              </div>
+            </div>
+          )}
         </CardContent>
       </Card>
 
