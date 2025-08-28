@@ -138,17 +138,17 @@ serve(async (req) => {
         }
 
         // Extract data using mapping config or fallback to defaults
-        const fields = mappingConfig?.fields || {};
-        const title = extractXmlValue(productXml, fields.title || 'PRODUCTNAME') || extractXmlValue(productXml, 'title');
-        const description = extractXmlValue(productXml, fields.description || 'DESCRIPTION') || extractXmlValue(productXml, 'description');
-        const price = parseFloat(extractXmlValue(productXml, fields.price || 'PRICE_VAT') || extractXmlValue(productXml, 'price') || '0');
-        const originalPrice = parseFloat(extractXmlValue(productXml, fields.original_price || 'PRICE') || extractXmlValue(productXml, 'original_price') || '0');
+        const fields = mappingConfig || {};
+        const title = extractXmlValue(productXml, fields.title || 'title') || extractXmlValue(productXml, 'PRODUCTNAME');
+        const description = extractXmlValue(productXml, fields.description || 'g:description') || extractXmlValue(productXml, 'DESCRIPTION');
+        const price = parseFloat(extractXmlValue(productXml, fields.price || 'g:price') || extractXmlValue(productXml, 'PRICE_VAT') || '0');
+        const originalPrice = parseFloat(extractXmlValue(productXml, fields.original_price || 'g:price') || extractXmlValue(productXml, 'PRICE') || '0');
         
         // Book-specific fields
         const author = extractXmlValue(productXml, fields.author || 'AUTHOR');
-        const publisher = extractXmlValue(productXml, fields.publisher || 'MANUFACTURER');
-        const isbn = extractXmlValue(productXml, fields.isbn || 'EAN');
-        const externalId = extractXmlValue(productXml, fields.external_id || 'ITEM_ID');
+        const publisher = extractXmlValue(productXml, fields.publisher || 'g:brand') || extractXmlValue(productXml, 'MANUFACTURER');
+        const isbn = extractXmlValue(productXml, fields.isbn || 'g:gtin') || extractXmlValue(productXml, 'EAN');
+        const externalId = extractXmlValue(productXml, fields.external_id || 'g:id') || extractXmlValue(productXml, 'ITEM_ID');
         // Set currency based on market code
         let currency = 'EUR'; // default
         if (marketCode === 'hu') currency = 'HUF';
@@ -159,11 +159,11 @@ serve(async (req) => {
         // Override with XML value if available
         const xmlCurrency = extractXmlValue(productXml, fields.currency || 'currency');
         if (xmlCurrency) currency = xmlCurrency;
-        const imageUrl = extractXmlValue(productXml, fields.image_url || 'IMGURL') || extractXmlValue(productXml, 'image_url');
-        const categoryName = extractXmlValue(productXml, fields.category || 'CATEGORYTEXT') || extractXmlValue(productXml, 'category');
+        const imageUrl = extractXmlValue(productXml, fields.image_url || 'g:image_link') || extractXmlValue(productXml, 'IMGURL');
+        const categoryName = extractXmlValue(productXml, fields.category || 'g:google_product_category') || extractXmlValue(productXml, 'CATEGORYTEXT');
         const shopName = extractXmlValue(productXml, fields.shop || 'shop') || 'Restorio.sk'; // Default for books
-        const availability = extractXmlValue(productXml, fields.availability || 'DELIVERY_DATE') || extractXmlValue(productXml, 'availability') || 'in_stock';
-        const productUrl = extractXmlValue(productXml, fields.product_url || 'URL') || extractXmlValue(productXml, 'link');
+        const availability = extractXmlValue(productXml, fields.availability || 'g:availability') || extractXmlValue(productXml, 'DELIVERY_DATE') || 'in_stock';
+        const productUrl = extractXmlValue(productXml, fields.product_url || 'link') || extractXmlValue(productXml, 'URL');
 
         // Debug logging for first product
         if (productsProcessed === 1) {
@@ -442,28 +442,50 @@ serve(async (req) => {
 });
 
 function extractXmlValue(xml: string, tagName: string): string | null {
-  // Handle CDATA sections and clean the tag content
-  // Escape special regex characters in tagName for namespaced tags
-  const escapedTagName = tagName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-  const regex = new RegExp(`<${escapedTagName}[^>]*>([\\s\\S]*?)<\\/${escapedTagName}>`, 'i');
-  const match = xml.match(regex);
-  if (!match) return null;
+  // Handle namespaced XML tags (like g:price, g:image_link) and CDATA sections
+  // Don't escape the colon in namespaced tags, but escape other special regex characters
+  const escapedTagName = tagName.replace(/[.*+?^${}()|[\]\\]/g, (match) => {
+    // Don't escape colons as they're part of XML namespaces
+    return match === ':' ? match : '\\' + match;
+  });
   
-  let value = match[1].trim();
+  // Try multiple regex patterns to handle different XML formats
+  const patterns = [
+    // Pattern 1: Handle CDATA within namespaced tags like <g:price><![CDATA[1.56]]></g:price>
+    new RegExp(`<${escapedTagName}[^>]*>\\s*<!\\[CDATA\\[([^\\]]*?)\\]\\]>\\s*<\\/${escapedTagName}>`, 'i'),
+    // Pattern 2: Handle regular content within namespaced tags like <g:price>1.56</g:price>
+    new RegExp(`<${escapedTagName}[^>]*>([\\s\\S]*?)<\\/${escapedTagName}>`, 'i'),
+    // Pattern 3: Handle self-closing or empty tags
+    new RegExp(`<${escapedTagName}[^>]*\\/>`, 'i')
+  ];
   
-  // Remove CDATA wrapper if present
-  if (value.startsWith('<![CDATA[') && value.endsWith(']]>')) {
-    value = value.slice(9, -3);
+  for (const regex of patterns) {
+    const match = xml.match(regex);
+    if (match && match[1] !== undefined) {
+      let value = match[1].trim();
+      
+      // Additional CDATA cleanup if needed
+      if (value.startsWith('<![CDATA[') && value.endsWith(']]>')) {
+        value = value.slice(9, -3);
+      }
+      
+      // Decode HTML entities
+      value = value.replace(/&amp;/g, '&')
+                   .replace(/&lt;/g, '<')
+                   .replace(/&gt;/g, '>')
+                   .replace(/&quot;/g, '"')
+                   .replace(/&#39;/g, "'");
+      
+      const cleanValue = value.trim();
+      if (cleanValue) {
+        console.log(`Debug: Successfully extracted "${cleanValue}" for tag "${tagName}"`);
+        return cleanValue;
+      }
+    }
   }
   
-  // Decode HTML entities
-  value = value.replace(/&amp;/g, '&')
-               .replace(/&lt;/g, '<')
-               .replace(/&gt;/g, '>')
-               .replace(/&quot;/g, '"')
-               .replace(/&#39;/g, "'");
-  
-  return value.trim() || null;
+  console.log(`Debug: Failed to extract value for tag "${tagName}"`);
+  return null;
 }
 
 // Smart book categorization function
