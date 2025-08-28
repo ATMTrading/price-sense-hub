@@ -111,8 +111,14 @@ serve(async (req) => {
       console.log('First product XML structure:', productMatches[0].substring(0, 500));
     }
 
+    // Add processing limits to prevent timeouts
+    const maxProducts = importType === 'targeted_import' ? 
+      (categoryFilter?.length || 1) * (productsPerCategory || 10) : 
+      limit || 100; // Default limit of 100 products to prevent timeouts
+
     // Limit products for testing or targeted import
-    let productsToProcess = limit ? productMatches.slice(0, limit) : productMatches;
+    let productsToProcess = productMatches.slice(0, Math.min(productMatches.length, maxProducts));
+    console.log(`Processing ${productsToProcess.length} products (limited from ${productMatches.length} for performance)`);
     
     // For targeted import, we need to track products per category
     const categoryProductCounts: { [key: string]: number } = {};
@@ -244,27 +250,67 @@ serve(async (req) => {
           }
         }
 
-        if (!title || !imageUrl || price <= 0) {
-          errors.push(`Invalid product data: missing title, image, or price`);
+        // Validate required product data
+        if (!title) {
+          errors.push(`Skipping product: missing title`);
+          continue;
+        }
+        
+        if (!imageUrl) {
+          errors.push(`Skipping product "${title}": missing image URL`);
+          continue;
+        }
+        
+        if (price <= 0) {
+          errors.push(`Skipping product "${title}": invalid price (${price})`);
           continue;
         }
 
         // Smart book categorization
         let categoryId = await findBookCategory(supabaseClient, title, description, categoryName, author, marketCode, mappingConfig);
         
-        // If no category found and we have category name from XML, create it
+        // If no category found and we have category name from XML, try to create it
         if (!categoryId && categoryName) {
           const categorySlug = categoryName.toLowerCase().replace(/[^a-z0-9]+/g, '-');
-          const { data: newCategory } = await supabaseClient
+          
+          // First check if category already exists to avoid duplicate key errors
+          const { data: existingCategory } = await supabaseClient
             .from('categories')
-            .insert({
-              name: categoryName,
-              slug: categorySlug,
-              market_code: marketCode
-            })
             .select('id')
-            .single();
-          categoryId = newCategory?.id;
+            .eq('slug', categorySlug)
+            .eq('market_code', marketCode)
+            .maybeSingle();
+            
+          if (existingCategory) {
+            categoryId = existingCategory.id;
+          } else {
+            try {
+              const { data: newCategory, error: categoryError } = await supabaseClient
+                .from('categories')
+                .insert({
+                  name: categoryName,
+                  slug: categorySlug,
+                  market_code: marketCode
+                })
+                .select('id')
+                .maybeSingle();
+              
+              if (!categoryError && newCategory) {
+                categoryId = newCategory.id;
+              } else {
+                console.warn(`Failed to create category "${categoryName}":`, categoryError?.message);
+              }
+            } catch (error) {
+              console.warn(`Error creating category "${categoryName}":`, error.message);
+            }
+          }
+        }
+        
+        // If still no category found, skip this product to avoid constraint violations
+        if (!categoryId) {
+          errors.push(`Skipping product "${title}": No valid category found`);
+          console.log(`Skipping product "${title}" - no category found`);
+          continue;
         }
 
         // Handle targeted import filtering
