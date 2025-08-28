@@ -675,22 +675,23 @@ export const UniversalImport = () => {
             </div>
           )}
 
-          <div className="grid grid-cols-2 gap-2 max-h-48 overflow-y-auto border rounded-md p-4">
-            {categories.map(category => {
-              const hasMapping = Object.values(categoryMapping).includes(category.id);
-              const isSelected = selectedCategories.includes(category.id);
+          <div className="grid grid-cols-1 gap-2 max-h-48 overflow-y-auto border rounded-md p-4">
+            {/* Show mapped categories first */}
+            {Object.entries(categoryMapping).map(([xmlCategory, dbCategoryId]) => {
+              const dbCategory = categories.find(c => c.id === dbCategoryId);
+              if (!dbCategory) return null;
+              
+              const isSelected = selectedCategories.includes(dbCategoryId);
               
               return (
                 <div
-                  key={category.id}
-                  className={`flex items-center space-x-2 p-3 rounded-lg cursor-pointer hover:bg-muted transition-colors ${
+                  key={dbCategoryId}
+                  className={`flex items-center space-x-3 p-3 rounded-lg cursor-pointer hover:bg-muted transition-colors ${
                     isSelected 
                       ? 'bg-primary/10 border border-primary' 
-                      : hasMapping 
-                        ? 'border border-blue-200 bg-blue-50' 
-                        : 'border'
+                      : 'border border-blue-200 bg-blue-50'
                   }`}
-                  onClick={() => handleCategoryToggle(category.id)}
+                  onClick={() => handleCategoryToggle(dbCategoryId)}
                 >
                   <input
                     type="checkbox"
@@ -698,16 +699,59 @@ export const UniversalImport = () => {
                     onChange={() => {}}
                     className="mr-2"
                   />
-                  <span className="flex-1 font-medium">{category.name}</span>
-                  {hasMapping && (
-                    <Badge variant="outline" className="text-xs bg-blue-100 text-blue-700 border-blue-300">
-                      Mapped
-                    </Badge>
-                  )}
-                  <Target className="w-4 h-4 text-muted-foreground" />
+                  <div className="flex-1">
+                    <div className="flex items-center justify-between">
+                      <span className="font-medium">{dbCategory.name}</span>
+                      <Badge variant="secondary" className="text-xs bg-blue-100 text-blue-800">
+                        XML: {xmlCategory}
+                      </Badge>
+                    </div>
+                  </div>
                 </div>
               );
             })}
+            
+            {/* Show message if no mappings found */}
+            {Object.keys(categoryMapping).length === 0 && (
+              <div className="text-center py-8 text-muted-foreground">
+                <AlertCircle className="w-12 h-12 mx-auto mb-2 opacity-50" />
+                <p className="font-medium">No category mappings detected</p>
+                <p className="text-sm">This feed may not contain recognizable category information</p>
+                <p className="text-xs mt-2">You can still select categories manually, but products may not be automatically categorized</p>
+                
+                {/* Show all categories as fallback */}
+                <div className="mt-4 pt-4 border-t">
+                  <p className="text-sm font-medium mb-2">All Available Categories:</p>
+                  <div className="grid grid-cols-2 gap-2">
+                    {categories.slice(0, 6).map(category => {
+                      const isSelected = selectedCategories.includes(category.id);
+                      return (
+                        <div
+                          key={category.id}
+                          className={`flex items-center space-x-2 p-2 rounded cursor-pointer hover:bg-muted transition-colors ${
+                            isSelected ? 'bg-primary/10 border border-primary' : 'border'
+                          }`}
+                          onClick={() => handleCategoryToggle(category.id)}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={isSelected}
+                            onChange={() => {}}
+                            className="mr-1"
+                          />
+                          <span className="text-sm">{category.name}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                  {categories.length > 6 && (
+                    <p className="text-xs text-muted-foreground mt-2">
+                      ... and {categories.length - 6} more categories
+                    </p>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Import Preview */}
