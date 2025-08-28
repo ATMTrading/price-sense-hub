@@ -120,13 +120,34 @@ export const UniversalImport = () => {
     if (!feed) return;
 
     try {
+      // First check if we have stored category mappings
+      const storedCategoryMapping = feed.mapping_config?.category_mapping || {};
+      
+      if (Object.keys(storedCategoryMapping).length > 0) {
+        console.log('Using stored category mappings:', storedCategoryMapping);
+        setCategoryMapping(storedCategoryMapping);
+        autoSelectMappedCategories(storedCategoryMapping);
+        
+        // Set affiliate template from feed config
+        const affiliateTemplate = feed.affiliate_link_template || {};
+        setAffiliateTemplate(JSON.stringify(affiliateTemplate, null, 2));
+        setCustomAffiliateTemplate(JSON.stringify(affiliateTemplate, null, 2));
+        
+        toast({
+          title: "Feed configuration loaded",
+          description: `Found ${Object.keys(storedCategoryMapping).length} stored category mappings`,
+          duration: 3000
+        });
+        return;
+      }
+
+      // If no stored mappings, analyze the feed
       toast({
         title: "Analyzing feed structure...",
         description: "Please wait while we analyze the XML feed",
         duration: 2000
       });
 
-      // Get stored structure or analyze the feed with market context
       const { data, error } = await supabase.functions.invoke('debug-xml', {
         body: { 
           feedUrl: feed.url,
@@ -138,8 +159,6 @@ export const UniversalImport = () => {
 
       console.log('Feed structure analysis:', data);
       console.log('Received categoryMapping:', data.categoryMapping);
-      console.log('CategoryMapping keys:', Object.keys(data.categoryMapping || {}));
-      console.log('CategoryMapping entries:', Object.entries(data.categoryMapping || {}));
       setFeedStructure(data);
       
       // Use the feed's pre-configured affiliate template
@@ -153,7 +172,6 @@ export const UniversalImport = () => {
       
       // The XML analysis now returns direct category ID mappings
       setCategoryMapping(xmlCategoryMapping);
-      
       
       // Update feed with new mapping if we have suggestions
       if (Object.keys(xmlCategoryMapping).length > 0) {
