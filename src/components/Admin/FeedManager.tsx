@@ -54,6 +54,7 @@ export const FeedManager = () => {
       const { data, error } = await supabase
         .from('xml_feeds')
         .select('*')
+        .eq('is_active', true)
         .order('created_at', { ascending: false });
 
       if (error) throw error;
