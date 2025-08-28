@@ -80,8 +80,8 @@ serve(async (req) => {
   }
 
   try {
-    let feedUrl = 'https://www.4home.hu/export/feed-arukereso.xml'; // Default fallback
-    let marketCode = 'us'; // Default market
+    let feedUrl = 'https://yaby.eu/pythonProject/projekt/antik/feedy_tvorba_antik/trhknih/dognetsk.xml'; // Updated default
+    let marketCode = 'SK'; // Default to SK market
     
     // Try to get URL from request body or query parameters
     if (req.method === 'POST') {
@@ -90,7 +90,7 @@ serve(async (req) => {
         feedUrl = body.feedUrl || body.url;
       }
       if (body.marketCode) {
-        marketCode = body.marketCode.toLowerCase();
+        marketCode = body.marketCode.toUpperCase();
       }
     } else if (req.method === 'GET') {
       const url = new URL(req.url);
@@ -100,11 +100,12 @@ serve(async (req) => {
       }
       const marketParam = url.searchParams.get('marketCode');
       if (marketParam) {
-        marketCode = marketParam.toLowerCase();
+        marketCode = marketParam.toUpperCase();
       }
     }
 
     console.log(`Analyzing XML feed: ${feedUrl} for market: ${marketCode}`);
+    console.log(`Debug: Loading categories for market code: ${marketCode}`);
     
     // Fetch the XML feed
     const response = await fetch(feedUrl);
@@ -157,24 +158,27 @@ serve(async (req) => {
     // Get sample of XML for analysis
     const sampleXml = xmlText.substring(0, 3000);
     
-    // Load actual database categories for mapping
+    // Load actual database categories for mapping - fix market code matching
     const { data: dbCategories, error: categoryError } = await supabase
       .from('categories')
       .select('id, name, slug')
-      .ilike('market_code', marketCode)
+      .eq('market_code', marketCode.toUpperCase())
       .eq('is_active', true);
 
     if (categoryError) {
       console.warn('Error loading database categories:', categoryError);
+    } else {
+      console.log(`Debug: Loaded ${dbCategories?.length || 0} categories for market ${marketCode}:`, 
+        dbCategories?.map(c => `${c.name} (${c.slug})`).join(', '));
     }
 
-    // Create Google Shopping category ID mapping
+    // Create Google Shopping category ID mapping - enhanced for Slovak market
     const googleShoppingCategories = {
-      '784': ['knihy', 'books', 'literature', 'book'],
-      '1025': ['beletria', 'fiction', 'novel'],
-      '1420': ['detské knihy', 'children books', 'kids'],
-      '499886': ['učebnice', 'textbooks', 'education'],
-      '783': ['časopisy', 'magazines', 'periodicals']
+      '784': ['knihy', 'books', 'literature', 'book', 'kniha'],
+      '1025': ['beletria', 'fiction', 'novel', 'román'],
+      '1420': ['detské knihy', 'children books', 'kids', 'detske-knihy'],
+      '499886': ['učebnice', 'textbooks', 'education', 'odborna-literatura'],
+      '783': ['časopisy', 'magazines', 'periodicals', 'časopis']
     };
 
     // Extract category values from XML feed
@@ -195,17 +199,33 @@ serve(async (req) => {
     
     detectedCategories.forEach(xmlCategoryValue => {
       let mappedCategory = null;
+      console.log(`Debug: Processing XML category "${xmlCategoryValue}"`);
 
-      // First, check if it's a Google Shopping category ID
+      // First, check if it's a Google Shopping category ID - enhanced matching
       if (googleShoppingCategories[xmlCategoryValue]) {
+        console.log(`Debug: Found Google Shopping category mapping for "${xmlCategoryValue}"`);
         const keywords = googleShoppingCategories[xmlCategoryValue];
         mappedCategory = dbCategories?.find(cat => 
           keywords.some(keyword => 
-            cat.name.toLowerCase().includes(keyword) || 
-            cat.slug.includes(keyword) ||
-            keyword.includes(cat.slug)
+            cat.name.toLowerCase().includes(keyword.toLowerCase()) || 
+            cat.slug.toLowerCase().includes(keyword.toLowerCase()) ||
+            keyword.toLowerCase().includes(cat.slug.toLowerCase()) ||
+            cat.name.toLowerCase() === keyword.toLowerCase() ||
+            cat.slug.toLowerCase() === keyword.toLowerCase()
           )
         );
+        
+        // If no exact match, for category 784 (books), specifically look for "Knihy" category
+        if (!mappedCategory && xmlCategoryValue === '784') {
+          console.log(`Debug: Looking specifically for "Knihy" category for Google category 784`);
+          mappedCategory = dbCategories?.find(cat => 
+            cat.name.toLowerCase() === 'knihy' || cat.slug.toLowerCase() === 'knihy'
+          );
+        }
+        
+        if (mappedCategory) {
+          console.log(`Debug: Mapped Google category "${xmlCategoryValue}" to database category "${mappedCategory.name}" (${mappedCategory.id})`);
+        }
       }
 
       // If no Google Shopping match, try fuzzy matching with category names
@@ -221,7 +241,7 @@ serve(async (req) => {
         );
 
         // Pattern-based matching for Slovak market
-        if (!mappedCategory && marketCode === 'sk') {
+        if (!mappedCategory && marketCode === 'SK') {
           const patterns = {
             'knihy': ['knihy', 'kniha', 'books', 'book', 'literature', 'literatúra'],
             'beletria': ['beletria', 'román', 'fiction', 'novel', 'poézia'],
@@ -241,9 +261,14 @@ serve(async (req) => {
       }
 
       if (mappedCategory) {
+        console.log(`Debug: Final mapping: "${xmlCategoryValue}" → "${mappedCategory.name}" (${mappedCategory.id})`);
         autoCategoryMapping[xmlCategoryValue] = mappedCategory.id;
+      } else {
+        console.log(`Debug: No mapping found for XML category "${xmlCategoryValue}"`);
       }
     });
+    
+    console.log(`Debug: Final category mappings:`, JSON.stringify(autoCategoryMapping, null, 2));
     
     // Create comprehensive mapping config suggestion
     const mappingConfigSuggestion = {
