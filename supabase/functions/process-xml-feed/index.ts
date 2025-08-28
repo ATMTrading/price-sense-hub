@@ -267,6 +267,33 @@ serve(async (req) => {
             .from('products')
             .update(productData)
             .eq('id', existingProduct.id);
+          
+          // Create or update affiliate link for existing product if we have an affiliate URL  
+          if (affiliateUrl) {
+            const { data: existingAffiliateLink } = await supabaseClient
+              .from('affiliate_links')
+              .select('id')
+              .eq('product_id', existingProduct.id)
+              .single();
+              
+            if (existingAffiliateLink) {
+              // Update existing affiliate link
+              await supabaseClient
+                .from('affiliate_links')
+                .update({
+                  affiliate_url: affiliateUrl
+                })
+                .eq('product_id', existingProduct.id);
+            } else {
+              // Create new affiliate link
+              await supabaseClient
+                .from('affiliate_links')
+                .insert({
+                  product_id: existingProduct.id,
+                  affiliate_url: affiliateUrl
+                });
+            }
+          }
           productsUpdated++;
         } else {
           // Create new product

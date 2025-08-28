@@ -35,7 +35,7 @@ serve(async (req) => {
         .from('products')
         .select(`
           *,
-          shop:shops(*),
+          shop:shops(*, affiliate_params),
           affiliate_links!inner(*)
         `)
         .eq('id', productId)
@@ -73,13 +73,28 @@ serve(async (req) => {
       console.log('Redirect URL:', redirectUrl);
       
       if (!redirectUrl) {
-        // Fallback: construct URL based on shop
-        redirectUrl = `https://www.${product.shop?.name?.toLowerCase()}.hu/`;
+        // Fallback: construct URL based on shop website with affiliate parameters
+        if (product.shop?.website_url) {
+          const shopAffiliateParams = product.shop.affiliate_params || {};
+          const utmSource = shopAffiliateParams.utm_source || 'dognet';
+          const aCid = shopAffiliateParams.a_cid || '908fbcd7';
+          
+          const globalParams = {
+            utm_medium: 'affiliate',
+            utm_campaign: '68b053b92fff1',
+            a_aid: '68b053b92fff1',
+            chan: 'KZKBlu6j'
+          };
+          
+          const separator = product.shop.website_url.includes('?') ? '&' : '?';
+          const affiliateParams = `utm_source=${utmSource}&utm_medium=${globalParams.utm_medium}&utm_campaign=${globalParams.utm_campaign}&a_aid=${globalParams.a_aid}&a_cid=${aCid}&chan=${globalParams.chan}`;
+          redirectUrl = `${product.shop.website_url}${separator}${affiliateParams}`;
+        } else {
+          redirectUrl = `https://www.${product.shop?.name?.toLowerCase()}.com/`;
+        }
       }
 
-      // For Dognet network, use the direct affiliate URL without additional tracking wrapper
-      // The affiliate URL from Dognet already contains the proper tracking parameters
-      console.log('Using Dognet affiliate URL:', redirectUrl);
+      console.log('Using affiliate URL from database:', redirectUrl);
 
       return new Response(
         JSON.stringify({ 
