@@ -37,6 +37,17 @@ Deno.serve(async (req) => {
 
     switch (action) {
       case 'create_feed':
+        // Auto-analyze feed and create configurations
+        let analysisData = null
+        try {
+          const analysisResult = await supabase.functions.invoke('debug-xml', {
+            body: { feedUrl: data.url }
+          })
+          analysisData = analysisResult.data
+        } catch (error) {
+          console.warn('Feed analysis failed during creation:', error)
+        }
+
         result = await supabase
           .from('xml_feeds')
           .insert({
@@ -44,7 +55,7 @@ Deno.serve(async (req) => {
             url: data.url,
             feed_type: data.feed_type,
             market_code: data.market_code,
-            mapping_config: data.mapping_config,
+            mapping_config: analysisData?.suggestedMapping || data.mapping_config || {},
             affiliate_link_template: data.affiliate_link_template,
             is_active: true
           })

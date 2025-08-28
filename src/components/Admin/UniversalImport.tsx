@@ -243,7 +243,7 @@ export const UniversalImport = () => {
           import_type: 'targeted_import',
           products_per_category: productsPerCategory,
           market_code: market.code,
-          custom_affiliate_template: customAffiliateTemplate || undefined
+          // Use pre-configured affiliate template from feed
         }
       });
 
@@ -305,7 +305,7 @@ export const UniversalImport = () => {
           import_type: 'full_catalog',
           max_products: maxProducts,
           market_code: market.code,
-          custom_affiliate_template: customAffiliateTemplate || undefined
+          // Use pre-configured affiliate template from feed
         }
       });
 
@@ -428,28 +428,30 @@ export const UniversalImport = () => {
             </div>
           </div>
 
-          {/* Affiliate Link Configuration */}
-          <div>
-            <Label htmlFor="affiliate-template">Affiliate Link Structure</Label>
-            <div className="space-y-2">
-              <Textarea
-                id="affiliate-template"
-                value={customAffiliateTemplate}
-                onChange={(e) => setCustomAffiliateTemplate(e.target.value)}
-                placeholder="Enter custom affiliate link structure template..."
-                className="font-mono text-sm"
-                rows={4}
-              />
-              <div className="text-sm text-muted-foreground">
-                Use variables like {'{product_url}'}, {'{utm_source}'}, {'{utm_campaign}'} in your template
-              </div>
-              {customAffiliateTemplate && (
-                <div className="p-2 bg-blue-50 rounded text-sm">
-                  <strong>Preview:</strong> {customAffiliateTemplate.replace('{product_url}', 'https://example.com/product')}
+          {/* Pre-configured Feed Information */}
+          {selectedFeedData && (
+            <div>
+              <Label>Pre-configured Affiliate Settings</Label>
+              <div className="p-3 bg-muted rounded-lg space-y-2">
+                <div className="text-sm">
+                  <strong>Feed:</strong> {selectedFeedData.name}
                 </div>
-              )}
+                {selectedFeedData.affiliate_link_template?.base_url && (
+                  <div className="text-sm">
+                    <strong>Affiliate Base URL:</strong> {selectedFeedData.affiliate_link_template.base_url}
+                  </div>
+                )}
+                {selectedFeedData.mapping_config && Object.keys(selectedFeedData.mapping_config).length > 0 && (
+                  <div className="text-sm">
+                    <strong>Field Mappings:</strong> {Object.keys(selectedFeedData.mapping_config).length} fields configured
+                  </div>
+                )}
+                <div className="text-xs text-muted-foreground">
+                  This feed has been pre-configured with automatic analysis. All settings are ready for import.
+                </div>
+              </div>
             </div>
-          </div>
+          )}
         </CardContent>
       </Card>
 

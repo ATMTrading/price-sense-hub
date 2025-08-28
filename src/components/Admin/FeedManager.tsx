@@ -39,9 +39,10 @@ export const FeedManager = () => {
     url: "",
     feed_type: "xml",
     market_code: "us",
-    mapping_config: "{}",
-    affiliate_link_template: '{"base_url": "", "url_encode": true}'
+    affiliate_link: ""
   });
+  const [analyzingFeed, setAnalyzingFeed] = useState(false);
+  const [feedAnalysis, setFeedAnalysis] = useState<any>(null);
   const { toast } = useToast();
   const { logDataAccess, logConfigChange } = useAuditLog();
 
@@ -73,48 +74,86 @@ export const FeedManager = () => {
     }
   };
 
+  const analyzeFeed = async (url: string) => {
+    if (!url) return;
+    
+    setAnalyzingFeed(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('debug-xml', {
+        body: { feedUrl: url }
+      });
+
+      if (error) throw error;
+      
+      setFeedAnalysis(data);
+      toast({
+        title: "Feed analyzed successfully",
+        description: `Found ${data.detectedFields.length} fields and ${data.feedOverview.totalProducts} products`,
+      });
+    } catch (error) {
+      toast({
+        title: "Feed analysis failed",
+        description: error instanceof Error ? error.message : "Could not analyze feed",
+        variant: "destructive"
+      });
+    } finally {
+      setAnalyzingFeed(false);
+    }
+  };
+
+  const parseAffiliateLink = (affiliateUrl: string) => {
+    if (!affiliateUrl) return { base_url: "", url_encode: true };
+    
+    try {
+      const url = new URL(affiliateUrl);
+      const params = new URLSearchParams(url.search);
+      
+      // Extract UTM parameters and other tracking parameters
+      const utmParams: any = {};
+      params.forEach((value, key) => {
+        if (key.startsWith('utm_') || ['chid', 'source', 'campaign', 'medium'].includes(key)) {
+          utmParams[key] = value;
+        }
+      });
+      
+      // Create base URL without product URL parameter
+      const baseUrl = `${url.protocol}//${url.host}${url.pathname}`;
+      
+      return {
+        base_url: baseUrl,
+        url_encode: true,
+        utm_params: utmParams,
+        append_product_url: true
+      };
+    } catch (error) {
+      // If parsing fails, treat as simple base URL
+      return {
+        base_url: affiliateUrl,
+        url_encode: true,
+        append_product_url: true
+      };
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     
     try {
-      let mappingConfig = {};
-      let affiliateLinkTemplate = {};
+      // Auto-generate mapping configuration from analysis
+      const mappingConfig = feedAnalysis?.suggestedMapping || {};
       
-      // Parse JSON configs if provided
-      if (formData.mapping_config) {
-        try {
-          mappingConfig = JSON.parse(formData.mapping_config);
-        } catch (error) {
-          toast({
-            title: "Invalid mapping configuration",
-            description: "Please provide valid JSON format",
-            variant: "destructive"
-          });
-          setLoading(false);
-          return;
-        }
-      }
-      
-      if (formData.affiliate_link_template) {
-        try {
-          affiliateLinkTemplate = JSON.parse(formData.affiliate_link_template);
-        } catch (error) {
-          toast({
-            title: "Invalid affiliate link template", 
-            description: "Please provide valid JSON format",
-            variant: "destructive"
-          });
-          setLoading(false);
-          return;
-        }
-      }
+      // Auto-generate affiliate link template from simple URL
+      const affiliateLinkTemplate = parseAffiliateLink(formData.affiliate_link);
 
       const action = editingFeed ? 'update_feed' : 'create_feed';
       const requestData = {
         action,
         data: {
-          ...formData,
+          name: formData.name,
+          url: formData.url,
+          feed_type: formData.feed_type,
+          market_code: formData.market_code,
           mapping_config: mappingConfig,
           affiliate_link_template: affiliateLinkTemplate,
           ...(editingFeed && { id: editingFeed.id })
@@ -127,42 +166,10 @@ export const FeedManager = () => {
 
       if (error) throw error;
 
-      // If creating a new feed, automatically analyze its XML structure
-      if (!editingFeed && formData.url) {
-        try {
-          setDebugLoading(true);
-          const { data: debugData, error: debugError } = await supabase.functions.invoke('debug-xml', {
-            body: { feed_url: formData.url }
-          });
-
-          if (debugError) {
-            console.warn('Could not analyze feed structure:', debugError);
-          } else {
-            // Update the feed with the analyzed structure and suggested mapping
-            const updateRequestData = {
-              action: 'update_feed_structure',
-              data: {
-                feed_url: formData.url,
-                structure_analysis: debugData,
-                suggested_mapping: debugData.suggestedMapping
-              }
-            };
-
-            await supabase.functions.invoke('admin-operations', {
-              body: updateRequestData
-            });
-
-            toast({
-              title: "Feed analyzed",
-              description: "XML structure has been automatically analyzed and mapping suggestions generated",
-            });
-          }
-        } catch (debugError) {
-          console.warn('Feed analysis failed:', debugError);
-        } finally {
-          setDebugLoading(false);
-        }
-      }
+      toast({
+        title: editingFeed ? "Feed updated" : "Feed created",
+        description: editingFeed ? "XML feed has been successfully updated" : "XML feed has been created with automatic analysis and configuration",
+      });
 
       // Log the configuration change
       await logConfigChange(
@@ -172,21 +179,16 @@ export const FeedManager = () => {
         editingFeed?.id
       );
 
-      toast({
-        title: editingFeed ? "Feed updated" : "Feed created",
-        description: editingFeed ? "XML feed has been successfully updated" : "XML feed has been created and analyzed",
-      });
-
       // Reset form and reload feeds
       setShowForm(false);
       setEditingFeed(null);
+      setFeedAnalysis(null);
       setFormData({
         name: '',
         url: '',
         feed_type: 'xml',
         market_code: 'us',
-        mapping_config: '{}',
-        affiliate_link_template: '{"base_url": "", "url_encode": true}'
+        affiliate_link: ''
       });
       
       await loadFeeds();
@@ -295,15 +297,19 @@ export const FeedManager = () => {
 
   const editFeed = (feed: XmlFeed) => {
     setEditingFeed(feed);
+    const affiliateLink = feed.affiliate_link_template?.base_url || '';
     setFormData({
       name: feed.name,
       url: feed.url,
       feed_type: feed.feed_type,
       market_code: feed.market_code,
-      mapping_config: JSON.stringify(feed.mapping_config, null, 2),
-      affiliate_link_template: JSON.stringify(feed.affiliate_link_template || {"base_url": "", "url_encode": true}, null, 2)
+      affiliate_link: affiliateLink
     });
     setShowForm(true);
+    // Trigger analysis for existing feed
+    if (feed.url) {
+      analyzeFeed(feed.url);
+    }
   };
 
   const deleteFeed = async (feedId: string, feedName: string) => {
@@ -363,15 +369,26 @@ export const FeedManager = () => {
                 />
               </div>
               <div>
-                <Label htmlFor="url">URL</Label>
-                <Input
-                  id="url"
-                  type="url"
-                  value={formData.url}
-                  onChange={(e) => setFormData({ ...formData, url: e.target.value })}
-                  required
-                />
+                <Label htmlFor="url">XML Feed URL</Label>
+                <div className="flex gap-2">
+                  <Input
+                    id="url"
+                    type="url"
+                    value={formData.url}
+                    onChange={(e) => setFormData({ ...formData, url: e.target.value })}
+                    required
+                  />
+                  <Button 
+                    type="button" 
+                    variant="outline" 
+                    onClick={() => analyzeFeed(formData.url)}
+                    disabled={!formData.url || analyzingFeed}
+                  >
+                    {analyzingFeed ? 'Analyzing...' : 'Analyze'}
+                  </Button>
+                </div>
               </div>
+              
               <div>
                 <Label htmlFor="market_code">Market Code</Label>
                 <Input
@@ -381,29 +398,32 @@ export const FeedManager = () => {
                   required
                 />
               </div>
+              
               <div>
-                <Label htmlFor="mapping_config">Mapping Configuration (JSON)</Label>
-                <Textarea
-                  id="mapping_config"
-                  value={formData.mapping_config}
-                  onChange={(e) => setFormData({ ...formData, mapping_config: e.target.value })}
-                  rows={4}
-                />
-              </div>
-              <div>
-                <Label htmlFor="affiliate_link_template">Affiliate Link Template (JSON)</Label>
-                <Textarea
-                  id="affiliate_link_template"
-                  value={formData.affiliate_link_template}
-                  onChange={(e) => setFormData({ ...formData, affiliate_link_template: e.target.value })}
-                  rows={4}
-                  placeholder='{"base_url": "https://go.dognet.com/?chid=YOUR_ID&url=", "url_encode": true}'
+                <Label htmlFor="affiliate_link">Affiliate Link with UTM Parameters</Label>
+                <Input
+                  id="affiliate_link"
+                  type="url"
+                  value={formData.affiliate_link}
+                  onChange={(e) => setFormData({ ...formData, affiliate_link: e.target.value })}
+                  placeholder="https://go.dognet.com/?chid=YOUR_ID&utm_source=your_site&utm_campaign=product_links"
+                  required
                 />
                 <p className="text-sm text-muted-foreground mt-1">
-                  Configure your affiliate link template. The product URL will be appended to base_url. 
-                  Set url_encode to true to URL encode the product link.
+                  Enter your complete affiliate link with UTM parameters. The system will automatically parse and configure it for product URLs.
                 </p>
               </div>
+
+              {feedAnalysis && (
+                <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
+                  <h4 className="font-semibold text-green-800 mb-2">Feed Analysis Complete</h4>
+                  <div className="text-sm text-green-700 space-y-1">
+                    <p><strong>Products Found:</strong> {feedAnalysis.feedOverview?.totalProducts || 0}</p>
+                    <p><strong>Fields Detected:</strong> {feedAnalysis.detectedFields?.length || 0}</p>
+                    <p><strong>Mapping Suggestions:</strong> {Object.keys(feedAnalysis.suggestedMapping || {}).length} field mappings generated</p>
+                  </div>
+                </div>
+              )}
               <div className="flex gap-2">
                 <Button type="submit">
                   {editingFeed ? 'Update' : 'Create'} Feed
@@ -411,7 +431,8 @@ export const FeedManager = () => {
                 <Button type="button" variant="outline" onClick={() => {
                   setShowForm(false);
                   setEditingFeed(null);
-                  setFormData({ name: "", url: "", feed_type: "xml", market_code: "us", mapping_config: "{}", affiliate_link_template: '{"base_url": "", "url_encode": true}' });
+                  setFeedAnalysis(null);
+                  setFormData({ name: "", url: "", feed_type: "xml", market_code: "us", affiliate_link: "" });
                 }}>
                   Cancel
                 </Button>
