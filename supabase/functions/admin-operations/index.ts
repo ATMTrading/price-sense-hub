@@ -37,9 +37,12 @@ Deno.serve(async (req) => {
 
     switch (action) {
       case 'create_feed':
-        // Parse affiliate link template from simple URL
-        const parseAffiliateLink = (affiliateUrl: string) => {
-          if (!affiliateUrl) return { base_url: "", url_encode: true };
+        // Parse affiliate link template from URL with UTM parameters
+        const parseAffiliateLink = (affiliateInput: string | any) => {
+          if (!affiliateInput) return { base_url: "", url_encode: true };
+          
+          // Handle both string URLs and object inputs
+          const affiliateUrl = typeof affiliateInput === 'string' ? affiliateInput : affiliateInput.base_url || affiliateInput;
           
           try {
             const url = new URL(affiliateUrl);
@@ -48,24 +51,31 @@ Deno.serve(async (req) => {
             // Extract UTM parameters and other tracking parameters
             const utmParams: any = {};
             params.forEach((value, key) => {
-              if (key.startsWith('utm_') || ['chid', 'source', 'campaign', 'medium', 'a_aid', 'a_cid', 'chan'].includes(key)) {
+              if (key.startsWith('utm_') || ['chid', 'source', 'campaign', 'medium', 'a_aid', 'a_cid', 'chan', 'ref', 'partner'].includes(key)) {
                 utmParams[key] = value;
               }
             });
             
-            // Create base URL without parameters
-            const baseUrl = `${url.protocol}//${url.host}${url.pathname}`;
+            // Create base URL without parameters for clean affiliate links
+            const baseUrl = `${url.protocol}//${url.host}${url.pathname !== '/' ? url.pathname : ''}`;
             
-            return {
-              base_url: baseUrl,
+            const result = {
+              base_url: baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl,
               url_encode: true,
-              utm_params: utmParams,
               append_product_url: true
             };
+
+            // Only add utm_params if we found any
+            if (Object.keys(utmParams).length > 0) {
+              result.utm_params = utmParams;
+            }
+
+            return result;
           } catch (error) {
+            console.warn('Failed to parse affiliate URL:', affiliateUrl, error);
             // If parsing fails, treat as simple base URL
             return {
-              base_url: affiliateUrl,
+              base_url: String(affiliateUrl),
               url_encode: true,
               append_product_url: true
             };

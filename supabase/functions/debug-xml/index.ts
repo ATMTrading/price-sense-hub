@@ -1,9 +1,15 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.3';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
+
+// Initialize Supabase client for category lookups
+const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
 // Helper function to extract field names from XML element
 function extractFieldsFromElement(element: string): string[] {
@@ -151,33 +157,27 @@ serve(async (req) => {
     // Get sample of XML for analysis
     const sampleXml = xmlText.substring(0, 3000);
     
-    // Create auto-category mapping based on actual XML categories
-    const autoCategoryMapping: Record<string, string> = {};
-    
-    // Extract category values from first few products to get actual XML categories
-    const categoryPatterns = new Map<string, string[]>();
-    
-    // Set up category patterns based on market
-    if (marketCode === 'sk') {
-      categoryPatterns.set('knihy', ['knihy', 'kniha', 'book', 'books', 'literature', 'literatúra']);
-      categoryPatterns.set('beletria', ['beletria', 'román', 'poézia', 'dráma', 'novela', 'fiction']);
-      categoryPatterns.set('historia', ['história', 'dejiny', 'biografia', 'historické', 'pamäti', 'history']);
-      categoryPatterns.set('nabozenstvo', ['kresťanské', 'náboženské', 'spirituálne', 'biblia', 'teológia', 'religion']);
-      categoryPatterns.set('vzdelavanie', ['učebnica', 'slovník', 'jazyk', 'kurzovník', 'gramatika', 'education']);
-      categoryPatterns.set('detske-knihy', ['detské', 'rozprávka', 'mládež', 'omaľovánky', 'básne', 'children']);
-      categoryPatterns.set('odborna-literatura', ['ekonómia', 'právo', 'medicína', 'technika', 'informatika', 'veda', 'professional']);
-    } else {
-      // Default English patterns
-      categoryPatterns.set('books', ['books', 'book', 'literatura', 'literature']);
-      categoryPatterns.set('fiction', ['fiction', 'novel', 'poetry', 'drama', 'beletria']);
-      categoryPatterns.set('history', ['history', 'biography', 'historical', 'memoir', 'historia']);
-      categoryPatterns.set('religion', ['religion', 'christian', 'spiritual', 'bible', 'theology']);
-      categoryPatterns.set('education', ['education', 'textbook', 'dictionary', 'language', 'grammar']);
-      categoryPatterns.set('children', ['children', 'kids', 'fairy tale', 'coloring', 'young adult']);
-      categoryPatterns.set('professional', ['professional', 'economics', 'law', 'medicine', 'technology', 'science']);
+    // Load actual database categories for mapping
+    const { data: dbCategories, error: categoryError } = await supabase
+      .from('categories')
+      .select('id, name, slug')
+      .ilike('market_code', marketCode)
+      .eq('is_active', true);
+
+    if (categoryError) {
+      console.warn('Error loading database categories:', categoryError);
     }
-    
-    // Extract Google Shopping category IDs or category names from XML
+
+    // Create Google Shopping category ID mapping
+    const googleShoppingCategories = {
+      '784': ['knihy', 'books', 'literature', 'book'],
+      '1025': ['beletria', 'fiction', 'novel'],
+      '1420': ['detské knihy', 'children books', 'kids'],
+      '499886': ['učebnice', 'textbooks', 'education'],
+      '783': ['časopisy', 'magazines', 'periodicals']
+    };
+
+    // Extract category values from XML feed
     const categoryField = suggestedMapping.category || 'category';
     const googleCategoryRegex = new RegExp(`<${categoryField}[^>]*>([^<]+)</${categoryField}>`, 'gi');
     const detectedCategories = new Set<string>();
@@ -185,21 +185,64 @@ serve(async (req) => {
     let match;
     while ((match = googleCategoryRegex.exec(xmlText)) !== null && detectedCategories.size < 50) {
       const categoryValue = match[1].trim();
-      if (categoryValue && categoryValue !== '784') { // Skip generic Google category ID
-        detectedCategories.add(categoryValue.toLowerCase());
+      if (categoryValue) {
+        detectedCategories.add(categoryValue);
       }
     }
+
+    // Create mapping from XML categories to database category IDs
+    const autoCategoryMapping: Record<string, string> = {};
     
-    // Map detected XML categories to our database categories
-    categoryPatterns.forEach((keywords, dbCategory) => {
-      detectedCategories.forEach(xmlCategory => {
-        if (keywords.some(keyword => 
-          xmlCategory.includes(keyword.toLowerCase()) || 
-          keyword.toLowerCase().includes(xmlCategory)
-        )) {
-          autoCategoryMapping[xmlCategory] = dbCategory;
+    detectedCategories.forEach(xmlCategoryValue => {
+      let mappedCategory = null;
+
+      // First, check if it's a Google Shopping category ID
+      if (googleShoppingCategories[xmlCategoryValue]) {
+        const keywords = googleShoppingCategories[xmlCategoryValue];
+        mappedCategory = dbCategories?.find(cat => 
+          keywords.some(keyword => 
+            cat.name.toLowerCase().includes(keyword) || 
+            cat.slug.includes(keyword) ||
+            keyword.includes(cat.slug)
+          )
+        );
+      }
+
+      // If no Google Shopping match, try fuzzy matching with category names
+      if (!mappedCategory && dbCategories) {
+        const xmlCategoryLower = xmlCategoryValue.toLowerCase();
+        
+        // Direct name/slug matching
+        mappedCategory = dbCategories.find(cat => 
+          cat.name.toLowerCase() === xmlCategoryLower ||
+          cat.slug === xmlCategoryLower ||
+          cat.name.toLowerCase().includes(xmlCategoryLower) ||
+          xmlCategoryLower.includes(cat.name.toLowerCase())
+        );
+
+        // Pattern-based matching for Slovak market
+        if (!mappedCategory && marketCode === 'sk') {
+          const patterns = {
+            'knihy': ['knihy', 'kniha', 'books', 'book', 'literature', 'literatúra'],
+            'beletria': ['beletria', 'román', 'fiction', 'novel', 'poézia'],
+            'detske-knihy': ['detské', 'children', 'kids', 'rozprávka', 'mladez'],
+            'historia': ['história', 'history', 'dejiny', 'biografia'],
+            'nabozenstvo': ['náboženské', 'religion', 'kresťanské', 'biblia'],
+            'odborna-literatura': ['odborná', 'professional', 'technika', 'veda', 'medicína']
+          };
+
+          for (const [slug, keywords] of Object.entries(patterns)) {
+            if (keywords.some(keyword => xmlCategoryLower.includes(keyword.toLowerCase()))) {
+              mappedCategory = dbCategories.find(cat => cat.slug === slug);
+              break;
+            }
+          }
         }
-      });
+      }
+
+      if (mappedCategory) {
+        autoCategoryMapping[xmlCategoryValue] = mappedCategory.id;
+      }
     });
     
     // Create comprehensive mapping config suggestion
