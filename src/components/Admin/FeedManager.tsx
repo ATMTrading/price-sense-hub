@@ -13,6 +13,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useAuditLog } from "@/hooks/useAuditLog";
 import { Play, Plus, Edit, Trash, Search, Copy, CheckCircle, AlertTriangle } from "lucide-react";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 
 interface XmlFeed {
   id: string;
@@ -304,6 +305,32 @@ export const FeedManager = () => {
     setShowForm(true);
   };
 
+  const deleteFeed = async (feedId: string, feedName: string) => {
+    try {
+      const { error } = await supabase.functions.invoke('admin-operations', {
+        body: {
+          action: 'delete_feed',
+          data: { id: feedId }
+        }
+      });
+
+      if (error) throw error;
+
+      toast({
+        title: "Feed deleted",
+        description: `${feedName} has been successfully deleted`,
+      });
+
+      await loadFeeds();
+    } catch (error) {
+      toast({
+        title: "Error deleting feed",
+        description: error instanceof Error ? error.message : "Unknown error",
+        variant: "destructive"
+      });
+    }
+  };
+
   if (loading) {
     return <div>Loading feeds...</div>;
   }
@@ -590,9 +617,33 @@ export const FeedManager = () => {
                        )}
                      </DialogContent>
                    </Dialog>
-                   <Button size="sm" variant="outline" onClick={() => editFeed(feed)}>
-                     <Edit className="w-4 h-4" />
-                   </Button>
+                    <Button size="sm" variant="outline" onClick={() => editFeed(feed)}>
+                      <Edit className="w-4 h-4" />
+                    </Button>
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <Button
+                          size="sm"
+                          variant="destructive"
+                        >
+                          <Trash className="w-4 h-4" />
+                        </Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>Delete XML Feed</AlertDialogTitle>
+                          <AlertDialogDescription>
+                            Are you sure you want to delete "{feed.name}"? This will deactivate the feed and preserve all import history. This action cannot be undone.
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Cancel</AlertDialogCancel>
+                          <AlertDialogAction onClick={() => deleteFeed(feed.id, feed.name)}>
+                            Delete Feed
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
                 </div>
               </div>
             </CardHeader>

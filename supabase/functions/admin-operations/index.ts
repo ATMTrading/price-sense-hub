@@ -200,6 +200,22 @@ Deno.serve(async (req) => {
         await logAdminOperation(supabase, 'DELETE_SCHEDULED_JOB', 'scheduled_jobs', data.id.toString())
         break
 
+      case 'delete_feed':
+        // Get old values first for audit log
+        const { data: feedToDelete } = await supabase
+          .from('xml_feeds')
+          .select('*')
+          .eq('id', data.id)
+          .single()
+        
+        // Soft delete by setting is_active to false (preserves audit trail)
+        result = await supabase
+          .from('xml_feeds')
+          .update({ is_active: false })
+          .eq('id', data.id)
+        logDetails = { table: 'xml_feeds', recordId: data.id, oldValues: feedToDelete, newValues: { is_active: false } }
+        break
+
       default:
         throw new Error(`Unknown action: ${action}`)
     }
