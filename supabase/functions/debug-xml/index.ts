@@ -159,17 +159,20 @@ serve(async (req) => {
     const sampleXml = xmlText.substring(0, 3000);
     
     // Load actual database categories for mapping - fix market code matching
+    console.log(`Debug: Querying categories with market_code: "${marketCode}" (length: ${marketCode.length})`);
+    
     const { data: dbCategories, error: categoryError } = await supabase
       .from('categories')
-      .select('id, name, slug')
-      .eq('market_code', marketCode.toUpperCase())
+      .select('id, name, slug, market_code')
+      .or(`market_code.eq.${marketCode.toUpperCase()},market_code.eq.${marketCode.toLowerCase()},market_code.ilike.${marketCode}`)
       .eq('is_active', true);
 
+    console.log(`Debug: Category query result - Found ${dbCategories?.length || 0} categories`);
     if (categoryError) {
       console.warn('Error loading database categories:', categoryError);
     } else {
-      console.log(`Debug: Loaded ${dbCategories?.length || 0} categories for market ${marketCode}:`, 
-        dbCategories?.map(c => `${c.name} (${c.slug})`).join(', '));
+      console.log(`Debug: Loaded categories:`, 
+        dbCategories?.map(c => `"${c.name}" (ID: ${c.id}, slug: ${c.slug}, market: ${c.market_code})`).join(', ') || 'None');
     }
 
     // Create Google Shopping category ID mapping - enhanced for Slovak market
@@ -291,6 +294,16 @@ serve(async (req) => {
     });
     
     console.log(`Debug: Final category mappings:`, JSON.stringify(autoCategoryMapping, null, 2));
+    console.log(`Debug: About to return response with categoryMapping size: ${Object.keys(autoCategoryMapping).length}`);
+    console.log(`Debug: Database categories available:`, dbCategories?.map(c => `"${c.name}" (${c.id}, slug: ${c.slug})`).join(', ') || 'None loaded');
+    
+    // Verify the "Knihy" category exists specifically
+    if (dbCategories) {
+      const knihyCategory = dbCategories.find(cat => 
+        cat.name.toLowerCase() === 'knihy' || cat.slug.toLowerCase() === 'knihy'
+      );
+      console.log(`Debug: Knihy category found:`, knihyCategory ? `"${knihyCategory.name}" (${knihyCategory.id})` : 'NOT FOUND');
+    }
     
     // Create comprehensive mapping config suggestion
     const mappingConfigSuggestion = {

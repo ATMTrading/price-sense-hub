@@ -137,6 +137,9 @@ export const UniversalImport = () => {
       if (error) throw error;
 
       console.log('Feed structure analysis:', data);
+      console.log('Received categoryMapping:', data.categoryMapping);
+      console.log('CategoryMapping keys:', Object.keys(data.categoryMapping || {}));
+      console.log('CategoryMapping entries:', Object.entries(data.categoryMapping || {}));
       setFeedStructure(data);
       
       // Use the feed's pre-configured affiliate template
@@ -146,6 +149,7 @@ export const UniversalImport = () => {
       
       // Use the detected category mappings from XML analysis
       const xmlCategoryMapping = data.categoryMapping || {};
+      console.log('Processing xmlCategoryMapping:', xmlCategoryMapping);
       
       // The XML analysis now returns direct category ID mappings
       setCategoryMapping(xmlCategoryMapping);
