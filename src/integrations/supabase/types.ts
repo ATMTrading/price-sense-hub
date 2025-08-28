@@ -347,6 +347,7 @@ export type Database = {
       }
       shops: {
         Row: {
+          affiliate_params: Json | null
           created_at: string
           id: string
           is_active: boolean
@@ -357,6 +358,7 @@ export type Database = {
           website_url: string | null
         }
         Insert: {
+          affiliate_params?: Json | null
           created_at?: string
           id?: string
           is_active?: boolean
@@ -367,6 +369,7 @@ export type Database = {
           website_url?: string | null
         }
         Update: {
+          affiliate_params?: Json | null
           created_at?: string
           id?: string
           is_active?: boolean

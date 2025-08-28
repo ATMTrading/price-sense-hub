@@ -153,33 +153,20 @@ serve(async (req) => {
           console.log('Debug - Price field lookup:', mappingConfig.price || 'price');
         }
 
-        // Generate affiliate link using template
-        let affiliateUrl = null;
-        if (productUrl && affiliateLinkTemplate && affiliateLinkTemplate.base_url) {
-          if (affiliateLinkTemplate.url_encode) {
-            affiliateUrl = affiliateLinkTemplate.base_url + encodeURIComponent(productUrl);
-          } else {
-            affiliateUrl = affiliateLinkTemplate.base_url + productUrl;
-          }
-        }
-
-        if (!title || !imageUrl || price <= 0) {
-          errors.push(`Invalid product data: missing title, image, or price`);
-          continue;
-        }
-
-        // Find or create shop
+         // Find or create shop with affiliate parameters
         let shopId = null;
+        let shop = null;
         if (shopName) {
           const { data: existingShop } = await supabaseClient
             .from('shops')
-            .select('id')
+            .select('id, affiliate_params')
             .eq('name', shopName)
             .eq('market_code', marketCode)
             .single();
 
           if (existingShop) {
             shopId = existingShop.id;
+            shop = existingShop;
           } else {
             const { data: newShop } = await supabaseClient
               .from('shops')
@@ -187,10 +174,43 @@ serve(async (req) => {
                 name: shopName,
                 market_code: marketCode
               })
-              .select('id')
+              .select('id, affiliate_params')
               .single();
             shopId = newShop?.id;
+            shop = newShop;
           }
+        }
+
+        // Generate affiliate URL with shop-specific parameters
+        let affiliateUrl = null;
+        if (productUrl && shop && shop.affiliate_params) {
+          const shopAffiliateParams = shop.affiliate_params || {};
+          const utmSource = shopAffiliateParams.utm_source || 'dognet'; // Default to dognet
+          const aCid = shopAffiliateParams.a_cid || '908fbcd7'; // Default value
+          
+          // Global affiliate parameters
+          const globalParams = {
+            utm_medium: 'affiliate',
+            utm_campaign: '68b053b92fff1',
+            a_aid: '68b053b92fff1',
+            chan: 'KZKBlu6j'
+          };
+          
+          // Build complete affiliate URL with all required parameters
+          const separator = productUrl.includes('?') ? '&' : '?';
+          const affiliateParams = `utm_source=${utmSource}&utm_medium=${globalParams.utm_medium}&utm_campaign=${globalParams.utm_campaign}&a_aid=${globalParams.a_aid}&a_cid=${aCid}&chan=${globalParams.chan}`;
+          affiliateUrl = `${productUrl}${separator}${affiliateParams}`;
+          
+          // Debug logging for first product
+          if (productsProcessed === 1) {
+            console.log('Debug - Shop affiliate params:', JSON.stringify(shopAffiliateParams, null, 2));
+            console.log('Debug - Generated affiliate URL:', affiliateUrl);
+          }
+        }
+
+        if (!title || !imageUrl || price <= 0) {
+          errors.push(`Invalid product data: missing title, image, or price`);
+          continue;
         }
 
         // Find or create category
