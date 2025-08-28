@@ -8,6 +8,7 @@ import { ImportLogs } from "@/components/Admin/ImportLogs";
 import { ProductManager } from "@/components/Admin/ProductManager";
 import { ScheduleManager } from "@/components/Admin/ScheduleManager";
 import { CategoryImport } from "@/components/Admin/CategoryImport";
+import { BookImport } from "@/components/Admin/BookImport";
 import { AuditLogs } from "@/components/Admin/AuditLogs";
 
 export const Admin = () => {
@@ -31,7 +32,10 @@ export const Admin = () => {
           </TabsList>
 
           <TabsContent value="import" className="mt-6">
-            <CategoryImport />
+            <div className="space-y-6">
+              <BookImport />
+              <CategoryImport />
+            </div>
           </TabsContent>
 
           <TabsContent value="feeds" className="mt-6">

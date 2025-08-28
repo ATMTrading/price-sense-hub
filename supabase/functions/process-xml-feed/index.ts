@@ -93,9 +93,10 @@ serve(async (req) => {
     let productsUpdated = 0;
     const errors: string[] = [];
 
-    // Basic XML parsing - extract product elements
+    // Basic XML parsing - extract product elements (handles multiple XML formats including books)
     const productMatches = xmlText.match(/<product[^>]*>[\s\S]*?<\/product>/g) || 
-                          xmlText.match(/<item[^>]*>[\s\S]*?<\/item>/g) || [];
+                          xmlText.match(/<item[^>]*>[\s\S]*?<\/item>/g) ||
+                          xmlText.match(/<SHOPITEM[^>]*>[\s\S]*?<\/SHOPITEM>/g) || [];
 
     console.log(`Found ${productMatches.length} products in XML`);
     
@@ -122,11 +123,18 @@ serve(async (req) => {
           console.log('All XML tags found:', allTags.map(m => m[1]).slice(0, 30));
         }
 
-        // Extract data using regex (in production, use proper XML parser)
-        const title = extractXmlValue(productXml, mappingConfig.title || 'title');
-        const description = extractXmlValue(productXml, mappingConfig.description || 'description');
-        const price = parseFloat(extractXmlValue(productXml, mappingConfig.price || 'price') || '0');
-        const originalPrice = parseFloat(extractXmlValue(productXml, mappingConfig.original_price || 'original_price') || '0');
+        // Extract data using mapping config or fallback to defaults
+        const fields = mappingConfig?.fields || {};
+        const title = extractXmlValue(productXml, fields.title || 'PRODUCTNAME') || extractXmlValue(productXml, 'title');
+        const description = extractXmlValue(productXml, fields.description || 'DESCRIPTION') || extractXmlValue(productXml, 'description');
+        const price = parseFloat(extractXmlValue(productXml, fields.price || 'PRICE_VAT') || extractXmlValue(productXml, 'price') || '0');
+        const originalPrice = parseFloat(extractXmlValue(productXml, fields.original_price || 'PRICE') || extractXmlValue(productXml, 'original_price') || '0');
+        
+        // Book-specific fields
+        const author = extractXmlValue(productXml, fields.author || 'AUTHOR');
+        const publisher = extractXmlValue(productXml, fields.publisher || 'MANUFACTURER');
+        const isbn = extractXmlValue(productXml, fields.isbn || 'EAN');
+        const externalId = extractXmlValue(productXml, fields.external_id || 'ITEM_ID');
         // Set currency based on market code
         let currency = 'EUR'; // default
         if (marketCode === 'hu') currency = 'HUF';
@@ -135,13 +143,13 @@ serve(async (req) => {
         else if (marketCode === 'pl') currency = 'PLN';
         
         // Override with XML value if available
-        const xmlCurrency = extractXmlValue(productXml, mappingConfig.currency || 'currency');
+        const xmlCurrency = extractXmlValue(productXml, fields.currency || 'currency');
         if (xmlCurrency) currency = xmlCurrency;
-        const imageUrl = extractXmlValue(productXml, mappingConfig.image_url || 'image_url');
-        const categoryName = extractXmlValue(productXml, mappingConfig.category || 'category');
-        const shopName = extractXmlValue(productXml, mappingConfig.shop || 'shop');
-        const availability = extractXmlValue(productXml, mappingConfig.availability || 'availability') || 'in_stock';
-        const productUrl = extractXmlValue(productXml, mappingConfig.product_url || 'link');
+        const imageUrl = extractXmlValue(productXml, fields.image_url || 'IMGURL') || extractXmlValue(productXml, 'image_url');
+        const categoryName = extractXmlValue(productXml, fields.category || 'CATEGORYTEXT') || extractXmlValue(productXml, 'category');
+        const shopName = extractXmlValue(productXml, fields.shop || 'shop') || 'Restorio.sk'; // Default for books
+        const availability = extractXmlValue(productXml, fields.availability || 'DELIVERY_DATE') || extractXmlValue(productXml, 'availability') || 'in_stock';
+        const productUrl = extractXmlValue(productXml, fields.product_url || 'URL') || extractXmlValue(productXml, 'link');
 
         // Debug logging for first product
         if (productsProcessed === 1) {
@@ -213,44 +221,52 @@ serve(async (req) => {
           continue;
         }
 
-        // Find or create category
-        let categoryId = null;
-        if (categoryName) {
-          const { data: existingCategory } = await supabaseClient
+        // Smart book categorization
+        let categoryId = await findBookCategory(supabaseClient, title, description, categoryName, author, marketCode, mappingConfig);
+        
+        // If no category found and we have category name from XML, create it
+        if (!categoryId && categoryName) {
+          const categorySlug = categoryName.toLowerCase().replace(/[^a-z0-9]+/g, '-');
+          const { data: newCategory } = await supabaseClient
             .from('categories')
+            .insert({
+              name: categoryName,
+              slug: categorySlug,
+              market_code: marketCode
+            })
             .select('id')
-            .eq('name', categoryName)
-            .eq('market_code', marketCode)
             .single();
-
-          if (existingCategory) {
-            categoryId = existingCategory.id;
-          } else {
-            const categorySlug = categoryName.toLowerCase().replace(/[^a-z0-9]+/g, '-');
-            const { data: newCategory } = await supabaseClient
-              .from('categories')
-              .insert({
-                name: categoryName,
-                slug: categorySlug,
-                market_code: marketCode
-              })
-              .select('id')
-              .single();
-            categoryId = newCategory?.id;
-          }
+          categoryId = newCategory?.id;
         }
 
-        // Check if product already exists
-        const { data: existingProduct } = await supabaseClient
-          .from('products')
-          .select('id')
-          .eq('title', title)
-          .eq('market_code', marketCode)
-          .single();
+        // Check if product already exists (by ISBN first, then by title for books)
+        let existingProduct = null;
+        if (isbn) {
+          const { data } = await supabaseClient
+            .from('products')
+            .select('id')
+            .eq('external_id', isbn)
+            .eq('market_code', marketCode)
+            .single();
+          existingProduct = data;
+        }
+        
+        if (!existingProduct) {
+          const { data } = await supabaseClient
+            .from('products')
+            .select('id')
+            .eq('title', title)
+            .eq('market_code', marketCode)
+            .single();
+          existingProduct = data;
+        }
 
+        // Enhanced product data for books
+        const enhancedDescription = author ? `${description || ''}\n\nAutor: ${author}${publisher ? `\nVydavateľ: ${publisher}` : ''}`.trim() : description;
+        
         const productData = {
-          title,
-          description,
+          title: author ? `${title} - ${author}` : title,
+          description: enhancedDescription,
           price,
           original_price: originalPrice || null,
           currency,
@@ -258,7 +274,8 @@ serve(async (req) => {
           category_id: categoryId,
           shop_id: shopId,
           market_code: marketCode,
-          availability
+          availability,
+          external_id: isbn || externalId
         };
 
         if (existingProduct) {
@@ -397,4 +414,36 @@ function extractXmlValue(xml: string, tagName: string): string | null {
                .replace(/&#39;/g, "'");
   
   return value.trim() || null;
+}
+
+// Smart book categorization function
+async function findBookCategory(supabaseClient: any, title: string, description: string, xmlCategory: string, author: string, marketCode: string, mappingConfig: any) {
+  const categoryMapping = mappingConfig?.category_mapping || {};
+  const searchText = `${title} ${description} ${xmlCategory} ${author}`.toLowerCase();
+  
+  // Find matching category based on keywords
+  for (const [categorySlug, keywords] of Object.entries(categoryMapping)) {
+    if (keywords && Array.isArray(keywords)) {
+      const hasMatch = keywords.some(keyword => searchText.includes(keyword.toLowerCase()));
+      if (hasMatch) {
+        const { data } = await supabaseClient
+          .from('categories')
+          .select('id')
+          .eq('slug', categorySlug)
+          .eq('market_code', marketCode)
+          .single();
+        if (data) return data.id;
+      }
+    }
+  }
+  
+  // Default to main books category if no specific match
+  const { data: booksCategory } = await supabaseClient
+    .from('categories')
+    .select('id')
+    .eq('slug', 'knihy')
+    .eq('market_code', marketCode)
+    .single();
+    
+  return booksCategory?.id || null;
 }
