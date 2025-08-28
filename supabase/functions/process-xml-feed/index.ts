@@ -32,6 +32,7 @@ serve(async (req) => {
 
     // Support both old format (feed_id) and new format (all parameters)
     let feedId, feedUrl, marketCode, mappingConfig, affiliateLinkTemplate, limit;
+    let categoryFilter, productsPerCategory, importType;
     
     const requestBody = await req.json();
     console.log('Request body received:', JSON.stringify(requestBody, null, 2));
@@ -55,19 +56,24 @@ serve(async (req) => {
       marketCode = feed.market_code;
       mappingConfig = feed.mapping_config;
       affiliateLinkTemplate = feed.affiliate_link_template;
+      
+      // Extract targeted import parameters
+      categoryFilter = requestBody.category_filter;
+      productsPerCategory = requestBody.products_per_category;
+      importType = requestBody.import_type;
     } else {
       // New format - use provided parameters
       ({ feedId, feedUrl, marketCode, mappingConfig, affiliateLinkTemplate, limit } = requestBody);
     }
 
-    console.log(`Processing XML feed: ${feedUrl} for market: ${marketCode}${limit ? ` (limit: ${limit})` : ''}`);
+    console.log(`Processing XML feed: ${feedUrl} for market: ${marketCode}${limit ? ` (limit: ${limit})` : ''}${importType === 'targeted_import' ? ` (targeted import for ${categoryFilter?.length || 0} categories)` : ''}`);
     
     // Start import log
     const { data: importLog, error: logError } = await supabaseClient
       .from('import_logs')
       .insert({
         feed_id: feedId,
-        import_type: limit ? 'test_import' : 'xml_feed',
+        import_type: importType || (limit ? 'test_import' : 'xml_feed'),
         status: 'processing'
       })
       .select()
@@ -105,8 +111,16 @@ serve(async (req) => {
       console.log('First product XML structure:', productMatches[0].substring(0, 500));
     }
 
-    // Limit products for testing
-    const productsToProcess = limit ? productMatches.slice(0, limit) : productMatches;
+    // Limit products for testing or targeted import
+    let productsToProcess = limit ? productMatches.slice(0, limit) : productMatches;
+    
+    // For targeted import, we need to track products per category
+    const categoryProductCounts: { [key: string]: number } = {};
+    const targetedImportLimit = importType === 'targeted_import' && productsPerCategory;
+    
+    if (targetedImportLimit) {
+      console.log(`Targeted import: ${productsPerCategory} products per category for ${categoryFilter?.length || 0} selected categories`);
+    }
 
     for (const productXml of productsToProcess) {
       try {
@@ -251,6 +265,26 @@ serve(async (req) => {
             .select('id')
             .single();
           categoryId = newCategory?.id;
+        }
+
+        // Handle targeted import filtering
+        if (targetedImportLimit && categoryId) {
+          // Check if this category is in our filter list
+          if (categoryFilter && !categoryFilter.includes(categoryId)) {
+            console.log(`Skipping product "${title}" - category ${categoryId} not in filter`);
+            continue;
+          }
+          
+          // Check if we've reached the limit for this category
+          const currentCount = categoryProductCounts[categoryId] || 0;
+          if (currentCount >= productsPerCategory) {
+            console.log(`Skipping product "${title}" - reached limit of ${productsPerCategory} for category ${categoryId}`);
+            continue;
+          }
+          
+          // Increment counter for this category
+          categoryProductCounts[categoryId] = currentCount + 1;
+          console.log(`Processing product "${title}" for category ${categoryId} (${categoryProductCounts[categoryId]}/${productsPerCategory})`);
         }
 
         // Check if product already exists (by ISBN first, then by title for books)

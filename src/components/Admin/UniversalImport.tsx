@@ -274,9 +274,16 @@ export const UniversalImport = () => {
 
       if (error) throw error;
 
+      const categoryCount = Object.keys(categoryMapping).length;
+      const totalProducts = categoryCount === 1 
+        ? Math.min(productsPerCategory * selectedCategories.length, productsPerCategory)
+        : productsPerCategory * selectedCategories.length;
+      
       toast({
-        title: "Import started",
-        description: `Importing ${productsPerCategory} products per category for ${selectedCategories.length} categories`,
+        title: "Targeted Import Started",
+        description: categoryCount === 1 
+          ? `Importing up to ${productsPerCategory} products to ${selectedCategories.length} selected ${selectedCategories.length === 1 ? 'category' : 'categories'}`
+          : `Importing ${productsPerCategory} products per category for ${selectedCategories.length} categories`,
         duration: 5000
       });
 
@@ -660,6 +667,12 @@ export const UniversalImport = () => {
           {Object.keys(categoryMapping).length > 0 && (
             <div className="p-3 bg-blue-50 rounded-lg border">
               <h5 className="font-medium text-blue-800 mb-2">XML Category Mappings:</h5>
+              {Object.keys(categoryMapping).length === 1 && (
+                <div className="mb-2 p-2 bg-yellow-50 border border-yellow-200 rounded text-sm">
+                  <p className="text-yellow-800 font-medium">Single Category Feed</p>
+                  <p className="text-yellow-700 text-xs">This feed contains products from only one category. All products will be imported to the selected category below.</p>
+                </div>
+              )}
               <div className="grid grid-cols-1 gap-2">
                 {Object.entries(categoryMapping).slice(0, 5).map(([xmlCategory, dbCategoryId]) => {
                   const dbCategory = categories.find(c => c.id === dbCategoryId);
