@@ -443,7 +443,9 @@ serve(async (req) => {
 
 function extractXmlValue(xml: string, tagName: string): string | null {
   // Handle CDATA sections and clean the tag content
-  const regex = new RegExp(`<${tagName}[^>]*>([\\s\\S]*?)<\\/${tagName}>`, 'i');
+  // Escape special regex characters in tagName for namespaced tags
+  const escapedTagName = tagName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const regex = new RegExp(`<${escapedTagName}[^>]*>([\\s\\S]*?)<\\/${escapedTagName}>`, 'i');
   const match = xml.match(regex);
   if (!match) return null;
   
