@@ -73,46 +73,130 @@ export const FeedManager = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setLoading(true);
+    
     try {
-      const oldData = editingFeed ? { ...editingFeed } : null;
-      const newData = {
-        ...formData,
-        mapping_config: JSON.parse(formData.mapping_config),
-        affiliate_link_template: JSON.parse(formData.affiliate_link_template),
-        ...(editingFeed && { id: editingFeed.id })
+      let mappingConfig = {};
+      let affiliateLinkTemplate = {};
+      
+      // Parse JSON configs if provided
+      if (formData.mapping_config) {
+        try {
+          mappingConfig = JSON.parse(formData.mapping_config);
+        } catch (error) {
+          toast({
+            title: "Invalid mapping configuration",
+            description: "Please provide valid JSON format",
+            variant: "destructive"
+          });
+          setLoading(false);
+          return;
+        }
+      }
+      
+      if (formData.affiliate_link_template) {
+        try {
+          affiliateLinkTemplate = JSON.parse(formData.affiliate_link_template);
+        } catch (error) {
+          toast({
+            title: "Invalid affiliate link template", 
+            description: "Please provide valid JSON format",
+            variant: "destructive"
+          });
+          setLoading(false);
+          return;
+        }
+      }
+
+      const action = editingFeed ? 'update_feed' : 'create_feed';
+      const requestData = {
+        action,
+        data: {
+          ...formData,
+          mapping_config: mappingConfig,
+          affiliate_link_template: affiliateLinkTemplate,
+          ...(editingFeed && { id: editingFeed.id })
+        }
       };
 
       const { error } = await supabase.functions.invoke('admin-operations', {
-        body: {
-          action: editingFeed ? 'update_feed' : 'create_feed',
-          data: newData
-        }
+        body: requestData
       });
 
       if (error) throw error;
 
+      // If creating a new feed, automatically analyze its XML structure
+      if (!editingFeed && formData.url) {
+        try {
+          setDebugLoading(true);
+          const { data: debugData, error: debugError } = await supabase.functions.invoke('debug-xml', {
+            body: { feed_url: formData.url }
+          });
+
+          if (debugError) {
+            console.warn('Could not analyze feed structure:', debugError);
+          } else {
+            // Update the feed with the analyzed structure and suggested mapping
+            const updateRequestData = {
+              action: 'update_feed_structure',
+              data: {
+                feed_url: formData.url,
+                structure_analysis: debugData,
+                suggested_mapping: debugData.suggestedMapping
+              }
+            };
+
+            await supabase.functions.invoke('admin-operations', {
+              body: updateRequestData
+            });
+
+            toast({
+              title: "Feed analyzed",
+              description: "XML structure has been automatically analyzed and mapping suggestions generated",
+            });
+          }
+        } catch (debugError) {
+          console.warn('Feed analysis failed:', debugError);
+        } finally {
+          setDebugLoading(false);
+        }
+      }
+
       // Log the configuration change
       await logConfigChange(
         editingFeed ? 'update_xml_feed' : 'create_xml_feed',
-        oldData,
-        newData,
+        editingFeed,
+        requestData.data,
         editingFeed?.id
       );
 
       toast({
-        title: `Feed ${editingFeed ? 'updated' : 'created'} successfully`,
+        title: editingFeed ? "Feed updated" : "Feed created",
+        description: editingFeed ? "XML feed has been successfully updated" : "XML feed has been created and analyzed",
       });
 
+      // Reset form and reload feeds
       setShowForm(false);
       setEditingFeed(null);
-      setFormData({ name: "", url: "", feed_type: "xml", market_code: "us", mapping_config: "{}", affiliate_link_template: '{"base_url": "", "url_encode": true}' });
-      loadFeeds();
+      setFormData({
+        name: '',
+        url: '',
+        feed_type: 'xml',
+        market_code: 'us',
+        mapping_config: '{}',
+        affiliate_link_template: '{"base_url": "", "url_encode": true}'
+      });
+      
+      await loadFeeds();
+      
     } catch (error) {
       toast({
         title: "Error saving feed",
         description: error instanceof Error ? error.message : "Unknown error",
         variant: "destructive"
       });
+    } finally {
+      setLoading(false);
     }
   };
 

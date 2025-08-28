@@ -73,6 +73,17 @@ Deno.serve(async (req) => {
         logDetails = { table: 'xml_feeds', recordId: data.id, oldValues: oldFeed, newValues: data }
         break
 
+      case 'update_feed_structure':
+        // Update feed with analyzed XML structure
+        result = await supabase
+          .from('xml_feeds')
+          .update({
+            mapping_config: data.suggested_mapping
+          })
+          .eq('url', data.feed_url)
+        logDetails = { table: 'xml_feeds', recordId: null, oldValues: null, newValues: { structure_analyzed: true } }
+        break
+
       case 'create_network':
         result = await supabase
           .from('affiliate_networks')
