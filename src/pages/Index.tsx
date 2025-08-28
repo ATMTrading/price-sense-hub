@@ -9,6 +9,7 @@ import { Input } from '@/components/ui/input';
 import { useMarket } from '@/hooks/useMarket';
 import { translate } from '@/lib/i18n';
 import { supabase } from '@/integrations/supabase/client';
+import { GoogleShoppingMeta } from '@/components/GoogleShoppingMeta';
 
 interface Product {
   id: string;
@@ -90,49 +91,49 @@ const Index = () => {
       setCategories([
         {
           title: 'Elektronika',
-          slug: 'electronics',
+          slug: 'elektronika',
           icon: Cpu,
           productCount: 0
         },
         {
-          title: 'Divat és Ruházat',
-          slug: 'fashion',
+          title: 'Móda a Oblečenie',
+          slug: 'moda-a-oblecenie',
           icon: Shirt,
           productCount: 0
         },
         {
-          title: 'Egészség és Szépség',
-          slug: 'health-beauty',
+          title: 'Zdravie a Krása',
+          slug: 'zdravie-a-krasa',
           icon: Heart,
           productCount: 0
         },
         {
-          title: 'Otthon és Kert',
-          slug: 'home-garden',
+          title: 'Domov a Záhrada',
+          slug: 'domov-a-zahrada',
           icon: Home,
           productCount: 0
         },
         {
-          title: 'Sport és Szabadidő',
-          slug: 'sports',
+          title: 'Šport a Voľný čas',
+          slug: 'sport-a-volny-cas',
           icon: Dumbbell,
           productCount: 0
         },
         {
-          title: 'Gyermek és Baba',
-          slug: 'baby-kids',
+          title: 'Deti a Bábätká',
+          slug: 'deti-a-babatka',
           icon: Baby,
           productCount: 0
         },
         {
-          title: 'Könyv és Média',
-          slug: 'books-media',
+          title: 'Knihy a Médiá',
+          slug: 'knihy-a-media',
           icon: Cpu,
           productCount: 0
         },
         {
-          title: 'Autó és Motor',
-          slug: 'automotive',
+          title: 'Auto a Motocykle',
+          slug: 'auto-a-motocykle',
           icon: Cpu,
           productCount: 0
         }
@@ -142,21 +143,22 @@ const Index = () => {
 
   const getIconForCategory = (slug: string) => {
     const iconMap: { [key: string]: any } = {
-      electronics: Cpu,
       elektronika: Cpu,
-      'moda-oblecenie': Shirt,
+      'moda-a-oblecenie': Shirt,
+      'zdravie-a-krasa': Heart,
+      'domov-a-zahrada': Home,
+      'deti-a-babatka': Baby,
+      'sport-a-volny-cas': Dumbbell,
+      'knihy-a-media': Cpu,
+      'auto-a-motocykle': Cpu,
+      // Legacy support
+      electronics: Cpu,
       fashion: Shirt,
-      'zdravie-krasa': Heart,
       'health-beauty': Heart,
-      'domov-zahrada': Home,
       'home-garden': Home,
-      'deti-babatka': Baby,
       'baby-kids': Baby,
-      'sport-volny-cas': Dumbbell,
       sports: Dumbbell,
-      'knihy-media': Cpu,
       'books-media': Cpu,
-      'auto-motocykle': Cpu,
       automotive: Cpu
     };
     return iconMap[slug.toLowerCase()] || Cpu;
@@ -263,6 +265,11 @@ const Index = () => {
 
   return (
     <div className="min-h-screen bg-background">
+      <GoogleShoppingMeta 
+        title="Najlepšie online nákupy na Slovensku - Porovnanie cien"
+        description="Porovnajte ceny produktov z tisícov slovenských e-shopov. Nájdite najlepšie ponuky na elektroniku, módu, domov, zdravie a ďalšie kategórie."
+        categories={categories}
+      />
       <Header />
       
       <main>
@@ -270,10 +277,10 @@ const Index = () => {
         <section className="relative py-20 px-4 gradient-hero text-white">
           <div className="container mx-auto text-center">
             <h1 className="font-heading text-5xl md:text-6xl font-bold mb-6">
-              {translate('hero.title', market)}
+              Najlepšie online nákupy na Slovensku
             </h1>
             <p className="text-xl md:text-2xl mb-8 text-white/90 max-w-3xl mx-auto">
-              {translate('hero.subtitle', market)}
+              Porovnajte ceny a nájdite najlepšie ponuky z tisícov slovenských e-shopov
             </p>
             
             {/* Hero Search */}
@@ -288,7 +295,7 @@ const Index = () => {
                   <Input
                     name="search"
                     type="search"
-                    placeholder={translate('nav.searchPlaceholder', market)}
+                    placeholder="Hľadajte produkty..."
                     className="pl-12 py-4 text-lg bg-white/10 border-white/20 text-white placeholder:text-white/70 focus:bg-white/20"
                   />
                   <Button type="submit" className="absolute right-2 top-1/2 transform -translate-y-1/2 bg-white text-primary hover:bg-white/90">
@@ -305,10 +312,10 @@ const Index = () => {
           <div className="container mx-auto">
             <div className="text-center mb-12">
               <h2 className="font-heading text-3xl md:text-4xl font-bold mb-4">
-                {translate('categories.title', market)}
+                Nákupné kategórie
               </h2>
               <p className="text-muted-foreground text-lg max-w-2xl mx-auto">
-                Browse through our carefully selected categories to find the best deals
+                Preskúmajte naše hlavné kategórie produktov a nájdite presne to, čo hľadáte
               </p>
             </div>
             
@@ -331,10 +338,10 @@ const Index = () => {
           <div className="container mx-auto">
             <div className="text-center mb-12">
               <h2 className="font-heading text-3xl md:text-4xl font-bold mb-4">
-                {translate('topDeals.title', market)}
+                Najlepšie ponuky
               </h2>
               <p className="text-muted-foreground text-lg max-w-2xl mx-auto">
-                Don't miss these limited-time offers from top merchants
+                Objavte najlepšie zľavy a akciové ponuky od overených predajcov
               </p>
             </div>
             
@@ -360,7 +367,7 @@ const Index = () => {
                   // TODO: Navigate to deals page
                 }}
               >
-                View All Deals
+                Zobraziť všetky ponuky
               </Button>
             </div>
           </div>

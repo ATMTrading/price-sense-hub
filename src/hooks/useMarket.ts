@@ -10,11 +10,18 @@ export function useMarket() {
         try {
           return JSON.parse(saved);
         } catch {
-          // If parsing fails, fall back to detection
+          // If parsing fails, fall back to Slovak market
         }
       }
     }
-    return detectMarket();
+    // Default to Slovak market
+    return {
+      code: 'SK',
+      name: 'Slovensko',
+      currency: 'EUR',
+      locale: 'sk-SK',
+      flag: '🇸🇰'
+    };
   });
 
   // Save market selection to localStorage when it changes
