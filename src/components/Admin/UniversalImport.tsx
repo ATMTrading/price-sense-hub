@@ -126,9 +126,12 @@ export const UniversalImport = () => {
         duration: 2000
       });
 
-      // Get stored structure or analyze the feed
+      // Get stored structure or analyze the feed with market context
       const { data, error } = await supabase.functions.invoke('debug-xml', {
-        body: { feedUrl: feed.url } // Use feedUrl as expected by debug-xml function
+        body: { 
+          feedUrl: feed.url,
+          marketCode: feed.market_code
+        }
       });
 
       if (error) throw error;
@@ -136,29 +139,40 @@ export const UniversalImport = () => {
       console.log('Feed structure analysis:', data);
       setFeedStructure(data);
       
-      // Generate proper affiliate template structure from base affiliate link
-      const affiliateTemplate = generateAffiliateTemplate(feed.affiliate_link_template);
+      // Use the feed's pre-configured affiliate template
+      const affiliateTemplate = feed.affiliate_link_template || {};
       setAffiliateTemplate(JSON.stringify(affiliateTemplate, null, 2));
       setCustomAffiliateTemplate(JSON.stringify(affiliateTemplate, null, 2));
       
-      // Extract category mapping from feed config or use suggested mapping
-      const existingMapping = feed.mapping_config?.category_mapping || {};
-      const suggestedMapping = data.categoryMapping || {};
-      const finalMapping = { ...existingMapping, ...suggestedMapping };
+      // Map XML categories to actual database categories
+      const xmlCategoryMapping = data.categoryMapping || {};
+      const dbCategoryMapping: Record<string, string> = {};
       
-      setCategoryMapping(finalMapping);
+      // Match XML category patterns to actual database category IDs
+      Object.entries(xmlCategoryMapping).forEach(([xmlCategory, suggestedSlug]) => {
+        const dbCategory = categories.find(cat => 
+          cat.slug === suggestedSlug || 
+          cat.name.toLowerCase().includes(String(suggestedSlug).toLowerCase()) ||
+          String(suggestedSlug).toLowerCase().includes(cat.name.toLowerCase())
+        );
+        if (dbCategory) {
+          dbCategoryMapping[xmlCategory] = dbCategory.id;
+        }
+      });
+      
+      setCategoryMapping(dbCategoryMapping);
       
       // Update feed with new mapping if we have suggestions
-      if (Object.keys(suggestedMapping).length > 0) {
-        await updateFeedStructure(feedId, data, finalMapping);
+      if (Object.keys(dbCategoryMapping).length > 0) {
+        await updateFeedStructure(feedId, data, dbCategoryMapping);
       }
       
       // Auto-select categories that have XML mappings
-      autoSelectMappedCategories(finalMapping);
+      autoSelectMappedCategories(dbCategoryMapping);
       
       toast({
         title: "Feed analysis complete",
-        description: `Found ${data.detectedFields.length} fields and ${data.feedOverview.totalProducts} products`,
+        description: `Found ${data.detectedFields?.length || 0} fields, ${data.feedOverview?.totalProducts || 0} products, and ${Object.keys(dbCategoryMapping).length} category mappings`,
         duration: 3000
       });
     } catch (error) {

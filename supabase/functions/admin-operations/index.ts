@@ -37,17 +37,55 @@ Deno.serve(async (req) => {
 
     switch (action) {
       case 'create_feed':
+        // Parse affiliate link template from simple URL
+        const parseAffiliateLink = (affiliateUrl: string) => {
+          if (!affiliateUrl) return { base_url: "", url_encode: true };
+          
+          try {
+            const url = new URL(affiliateUrl);
+            const params = new URLSearchParams(url.search);
+            
+            // Extract UTM parameters and other tracking parameters
+            const utmParams: any = {};
+            params.forEach((value, key) => {
+              if (key.startsWith('utm_') || ['chid', 'source', 'campaign', 'medium', 'a_aid', 'a_cid', 'chan'].includes(key)) {
+                utmParams[key] = value;
+              }
+            });
+            
+            // Create base URL without parameters
+            const baseUrl = `${url.protocol}//${url.host}${url.pathname}`;
+            
+            return {
+              base_url: baseUrl,
+              url_encode: true,
+              utm_params: utmParams,
+              append_product_url: true
+            };
+          } catch (error) {
+            // If parsing fails, treat as simple base URL
+            return {
+              base_url: affiliateUrl,
+              url_encode: true,
+              append_product_url: true
+            };
+          }
+        };
+
         // Auto-analyze feed and create configurations
         let analysisData = null
         try {
           const analysisResult = await supabase.functions.invoke('debug-xml', {
-            body: { feedUrl: data.url }
+            body: { feedUrl: data.url, marketCode: data.market_code }
           })
           analysisData = analysisResult.data
         } catch (error) {
           console.warn('Feed analysis failed during creation:', error)
         }
 
+        // Parse affiliate template
+        const affiliateTemplate = parseAffiliateLink(data.affiliate_link_template?.base_url || data.affiliate_link_template);
+        
         result = await supabase
           .from('xml_feeds')
           .insert({
@@ -56,7 +94,7 @@ Deno.serve(async (req) => {
             feed_type: data.feed_type,
             market_code: data.market_code,
             mapping_config: analysisData?.suggestedMapping || data.mapping_config || {},
-            affiliate_link_template: data.affiliate_link_template,
+            affiliate_link_template: affiliateTemplate,
             is_active: true
           })
         logDetails = { table: 'xml_feeds', recordId: result.data?.[0]?.id, newValues: data }

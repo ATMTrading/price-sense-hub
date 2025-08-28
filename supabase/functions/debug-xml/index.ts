@@ -75,6 +75,7 @@ serve(async (req) => {
 
   try {
     let feedUrl = 'https://www.4home.hu/export/feed-arukereso.xml'; // Default fallback
+    let marketCode = 'us'; // Default market
     
     // Try to get URL from request body or query parameters
     if (req.method === 'POST') {
@@ -82,15 +83,22 @@ serve(async (req) => {
       if (body.feedUrl || body.url) {
         feedUrl = body.feedUrl || body.url;
       }
+      if (body.marketCode) {
+        marketCode = body.marketCode.toLowerCase();
+      }
     } else if (req.method === 'GET') {
       const url = new URL(req.url);
       const urlParam = url.searchParams.get('url') || url.searchParams.get('feedUrl');
       if (urlParam) {
         feedUrl = urlParam;
       }
+      const marketParam = url.searchParams.get('marketCode');
+      if (marketParam) {
+        marketCode = marketParam.toLowerCase();
+      }
     }
 
-    console.log(`Analyzing XML feed: ${feedUrl}`);
+    console.log(`Analyzing XML feed: ${feedUrl} for market: ${marketCode}`);
     
     // Fetch the XML feed
     const response = await fetch(feedUrl);
@@ -140,67 +148,99 @@ serve(async (req) => {
     // Suggest field mappings
     const suggestedMapping = suggestFieldMappings(allFields);
     
+    // Get sample of XML for analysis
+    const sampleXml = xmlText.substring(0, 3000);
+    
+    // Create auto-category mapping based on actual XML categories
+    const autoCategoryMapping: Record<string, string> = {};
+    
+    // Extract category values from first few products to get actual XML categories
+    const categoryPatterns = new Map<string, string[]>();
+    
+    // Set up category patterns based on market
+    if (marketCode === 'sk') {
+      categoryPatterns.set('knihy', ['knihy', 'kniha', 'book', 'books', 'literature', 'literatúra']);
+      categoryPatterns.set('beletria', ['beletria', 'román', 'poézia', 'dráma', 'novela', 'fiction']);
+      categoryPatterns.set('historia', ['história', 'dejiny', 'biografia', 'historické', 'pamäti', 'history']);
+      categoryPatterns.set('nabozenstvo', ['kresťanské', 'náboženské', 'spirituálne', 'biblia', 'teológia', 'religion']);
+      categoryPatterns.set('vzdelavanie', ['učebnica', 'slovník', 'jazyk', 'kurzovník', 'gramatika', 'education']);
+      categoryPatterns.set('detske-knihy', ['detské', 'rozprávka', 'mládež', 'omaľovánky', 'básne', 'children']);
+      categoryPatterns.set('odborna-literatura', ['ekonómia', 'právo', 'medicína', 'technika', 'informatika', 'veda', 'professional']);
+    } else {
+      // Default English patterns
+      categoryPatterns.set('books', ['books', 'book', 'literatura', 'literature']);
+      categoryPatterns.set('fiction', ['fiction', 'novel', 'poetry', 'drama', 'beletria']);
+      categoryPatterns.set('history', ['history', 'biography', 'historical', 'memoir', 'historia']);
+      categoryPatterns.set('religion', ['religion', 'christian', 'spiritual', 'bible', 'theology']);
+      categoryPatterns.set('education', ['education', 'textbook', 'dictionary', 'language', 'grammar']);
+      categoryPatterns.set('children', ['children', 'kids', 'fairy tale', 'coloring', 'young adult']);
+      categoryPatterns.set('professional', ['professional', 'economics', 'law', 'medicine', 'technology', 'science']);
+    }
+    
+    // Extract Google Shopping category IDs or category names from XML
+    const categoryField = suggestedMapping.category || 'category';
+    const googleCategoryRegex = new RegExp(`<${categoryField}[^>]*>([^<]+)</${categoryField}>`, 'gi');
+    const detectedCategories = new Set<string>();
+    
+    let match;
+    while ((match = googleCategoryRegex.exec(xmlText)) !== null && detectedCategories.size < 50) {
+      const categoryValue = match[1].trim();
+      if (categoryValue && categoryValue !== '784') { // Skip generic Google category ID
+        detectedCategories.add(categoryValue.toLowerCase());
+      }
+    }
+    
+    // Map detected XML categories to our database categories
+    categoryPatterns.forEach((keywords, dbCategory) => {
+      detectedCategories.forEach(xmlCategory => {
+        if (keywords.some(keyword => 
+          xmlCategory.includes(keyword.toLowerCase()) || 
+          keyword.toLowerCase().includes(xmlCategory)
+        )) {
+          autoCategoryMapping[xmlCategory] = dbCategory;
+        }
+      });
+    });
+    
     // Create comprehensive mapping config suggestion
     const mappingConfigSuggestion = {
       fields: suggestedMapping,
       product_element: detectedProductElement || 'item',
-      category_mapping: {
-        'beletria': ['beletria', 'roman', 'poezia', 'drama', 'novela'],
-        'historia': ['historia', 'dejiny', 'biografia', 'historicke', 'pamati'],
-        'nabozenstvo': ['krestanske', 'nabozenske', 'spiritualne', 'biblia', 'teologia'],
-        'vzdelavanie': ['ucebnica', 'slovnik', 'jazyk', 'kurzovnik', 'gramatika'],
-        'detske-knihy': ['detske', 'rozpravka', 'mladez', 'omalovanky', 'basne'],
-        'odborna-literatura': ['ekonomia', 'pravo', 'medicina', 'technika', 'informatika', 'veda']
-      }
-    };
-    
-    // Get sample of XML for analysis
-    const sampleXml = xmlText.substring(0, 3000);
-    
-    // Create auto-category mapping based on detected categories in XML
-    const autoCategoryMapping: Record<string, string> = {};
-    
-    // Extract category values from sample products to suggest mappings
-    const categoryFieldValue = firstProductXml.match(/<category[^>]*>([^<]+)<\/category>/i)?.[1] || '';
-    const sampleCategories = categoryFieldValue.toLowerCase().split(/[>|/,]/).map(c => c.trim()).filter(c => c);
-    
-    // Common Slovak book categories mapping
-    const categoryPatterns = {
-      'beletria': ['beletria', 'román', 'poézia', 'dráma', 'novela', 'literatúra'],
-      'historia': ['história', 'dejiny', 'biografia', 'historické', 'pamäti'],
-      'nabozenstvo': ['kresťanské', 'náboženské', 'spirituálne', 'biblia', 'teológia'],
-      'vzdelavanie': ['učebnica', 'slovník', 'jazyk', 'kurzovník', 'gramatika'],
-      'detske-knihy': ['detské', 'rozprávka', 'mládež', 'omaľovánky', 'básne'],
-      'odborna-literatura': ['ekonómia', 'právo', 'medicína', 'technika', 'informatika', 'veda']
+      category_mapping: autoCategoryMapping
     };
 
     // Analysis summary matching UniversalImport FeedStructure interface
     const analysis = {
       isValid: productCount > 0 && suggestedMapping.title && suggestedMapping.price,
       warnings: [] as string[],
+      detectedFields: allFields,
+      suggestedMapping: suggestedMapping,
+      sampleXml: firstProductXml.substring(0, 1000),
+      categoryMapping: autoCategoryMapping,
+      detectedCategories: Array.from(detectedCategories),
       feedOverview: {
         rootElement,
         namespaces,
+        productElement: detectedProductElement || 'unknown',
         productElements: [detectedProductElement].filter(Boolean),
-        totalProducts: productCount
+        totalProducts: productCount,
+        sampleProduct: firstProductXml.substring(0, 500)
       },
-      detectedFields: allFields,
-      suggestedMapping,
+      validation: {
+        hasTitle: !!suggestedMapping.title,
+        hasPrice: !!suggestedMapping.price,
+        hasImage: !!suggestedMapping.image_url,
+        hasCategories: Object.keys(autoCategoryMapping).length > 0,
+        hasRequiredFields: !!(suggestedMapping.title && suggestedMapping.price),
+        warnings: [] as string[]
+      },
+      // Additional compatibility fields
       sampleProductXml: firstProductXml.substring(0, 2000),
-      categoryMapping: autoCategoryMapping,
-      // Additional data for compatibility
       feedUrl,
       xmlLength: xmlText.length,
       mappingConfigSuggestion,
       firstProductXml: firstProductXml.substring(0, 2000),
-      secondProductXml: secondProductXml.substring(0, 2000),
-      validation: {
-        hasProducts: productCount > 0,
-        hasRequiredFields: ['title', 'price'].every(field => 
-          allFields.some(f => f.toLowerCase().includes(field) || suggestedMapping[field])
-        ),
-        warnings: [] as string[]
-      }
+      secondProductXml: secondProductXml.substring(0, 2000)
     };
     
     // Add validation warnings
