@@ -4,6 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { ProcessManager } from "./ProcessManager";
 
 interface ImportLog {
   id: string;
@@ -69,6 +70,11 @@ export const ImportLogs = () => {
   return (
     <div className="space-y-6">
       <h2 className="text-2xl font-bold">Import Logs</h2>
+
+      {/* Process Management */}
+      {logs.length > 0 && (
+        <ProcessManager logs={logs} onLogsUpdate={loadLogs} />
+      )}
 
       <div className="grid gap-4">
         {logs.map((log) => (

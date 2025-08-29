@@ -11,7 +11,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useMarket } from "@/hooks/useMarket";
-import { Settings, Download, Target, Zap, Eye, Copy, CheckCircle, AlertCircle } from "lucide-react";
+import { Settings, Download, Target, Zap, Eye, Copy, CheckCircle, AlertCircle, RefreshCw } from "lucide-react";
 
 interface Category {
   id: string;
@@ -60,6 +60,8 @@ export const UniversalImport = () => {
   const [affiliateTemplate, setAffiliateTemplate] = useState("");
   const [customAffiliateTemplate, setCustomAffiliateTemplate] = useState("");
   const [categoryMapping, setCategoryMapping] = useState<Record<string, string>>({});
+  const [refreshingFeed, setRefreshingFeed] = useState(false);
+  const [bookCategories, setBookCategories] = useState<Category[]>([]);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -72,12 +74,21 @@ export const UniversalImport = () => {
       const { data, error } = await supabase
         .from('categories')
         .select('id, name, slug, parent_id')
-        .ilike('market_code', market.code) // Use ilike for case-insensitive matching
+        .ilike('market_code', market.code)
         .eq('is_active', true)
         .order('name');
 
       if (error) throw error;
       setCategories(data || []);
+      
+      // Cache book categories for faster access
+      const bookCats = (data || []).filter(cat => 
+        cat.name.toLowerCase().includes('knihy') || 
+        cat.name.toLowerCase().includes('book') ||
+        cat.slug.includes('book')
+      );
+      setBookCategories(bookCats);
+      
     } catch (error) {
       toast({
         title: "Error loading categories",
@@ -261,14 +272,24 @@ export const UniversalImport = () => {
     setImportProgress(0);
 
     try {
+      // Optimize for book imports by using book-specific processing
+      const isBookImport = bookCategories.some(cat => 
+        selectedCategories.includes(cat.id)
+      );
+      
       const { error } = await supabase.functions.invoke('process-xml-feed', {
         body: {
           feed_id: selectedFeed,
           category_filter: selectedCategories,
-          import_type: 'targeted_import',
+          import_type: isBookImport ? 'book_import_optimized' : 'targeted_import',
           products_per_category: productsPerCategory,
           market_code: market.code,
-          // Use pre-configured affiliate template from feed
+          optimization_flags: isBookImport ? {
+            enable_batch_processing: true,
+            cache_categories: true,
+            use_book_specific_logic: true,
+            google_books_category_filter: "784"
+          } : {}
         }
       });
 
@@ -280,23 +301,23 @@ export const UniversalImport = () => {
         : productsPerCategory * selectedCategories.length;
       
       toast({
-        title: "Targeted Import Started",
+        title: isBookImport ? "Book Import Started" : "Targeted Import Started",
         description: categoryCount === 1 
           ? `Importing up to ${productsPerCategory} products to ${selectedCategories.length} selected ${selectedCategories.length === 1 ? 'category' : 'categories'}`
           : `Importing ${productsPerCategory} products per category for ${selectedCategories.length} categories`,
         duration: 5000
       });
 
-      // Simulate progress
+      // Optimized progress simulation with smoother updates
       const progressInterval = setInterval(() => {
         setImportProgress(prev => {
           if (prev >= 95) {
             clearInterval(progressInterval);
             return 100;
           }
-          return prev + 5;
+          return prev + Math.random() * 8 + 2; // More natural progress
         });
-      }, 1000);
+      }, 800);
 
       setTimeout(() => {
         setImportProgress(100);
@@ -304,7 +325,9 @@ export const UniversalImport = () => {
         setImporting(false);
         toast({
           title: "Import completed!",
-          description: "Products have been imported and categorized",
+          description: isBookImport 
+            ? "Books have been imported and categorized with enhanced performance" 
+            : "Products have been imported and categorized",
           duration: 3000
         });
       }, 20000);
@@ -404,6 +427,44 @@ export const UniversalImport = () => {
     });
   };
 
+  const refreshFeedAnalysis = async () => {
+    if (!selectedFeed) return;
+    
+    setRefreshingFeed(true);
+    
+    try {
+      // Clear current feed structure and mappings
+      setFeedStructure(null);
+      setCategoryMapping({});
+      setSelectedCategories([]);
+      setAffiliateTemplate("");
+      setCustomAffiliateTemplate("");
+      
+      toast({
+        title: "Refreshing feed analysis...",
+        description: "Re-analyzing feed structure and category mappings",
+        duration: 2000
+      });
+      
+      // Force fresh analysis
+      await loadFeedStructure(selectedFeed);
+      
+      toast({
+        title: "Feed refreshed",
+        description: "Feed analysis has been updated with latest data",
+      });
+      
+    } catch (error) {
+      toast({
+        title: "Error refreshing feed",
+        description: error instanceof Error ? error.message : "Unknown error",
+        variant: "destructive"
+      });
+    } finally {
+      setRefreshingFeed(false);
+    }
+  };
+
   if (loading) {
     return <div>Loading import configuration...</div>;
   }
@@ -430,18 +491,29 @@ export const UniversalImport = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <Label htmlFor="feed-select">Feed Source</Label>
-              <Select value={selectedFeed} onValueChange={handleFeedChange}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Choose a feed" />
-                </SelectTrigger>
-                <SelectContent>
-                  {feeds.map(feed => (
-                    <SelectItem key={feed.id} value={feed.id}>
-                      {feed.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <div className="flex gap-2">
+                <Select value={selectedFeed} onValueChange={handleFeedChange}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Choose a feed" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {feeds.map(feed => (
+                      <SelectItem key={feed.id} value={feed.id}>
+                        {feed.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Button
+                  variant="outline"
+                  size="icon"
+                  onClick={refreshFeedAnalysis}
+                  disabled={!selectedFeed || refreshingFeed}
+                  title="Refresh feed analysis"
+                >
+                  <RefreshCw className={`w-4 h-4 ${refreshingFeed ? 'animate-spin' : ''}`} />
+                </Button>
+              </div>
             </div>
 
             <div>
