@@ -155,17 +155,29 @@ serve(async (req) => {
         const publisher = extractXmlValue(productXml, fields.publisher || 'g:brand') || extractXmlValue(productXml, 'MANUFACTURER');
         const isbn = extractXmlValue(productXml, fields.isbn || 'g:gtin') || extractXmlValue(productXml, 'EAN');
         const externalId = extractXmlValue(productXml, fields.external_id || 'g:id') || extractXmlValue(productXml, 'ITEM_ID');
-        // Set currency based on market code
+        // Set currency and market code to uppercase
         let currency = 'EUR'; // default
-        if (marketCode === 'hu') currency = 'HUF';
-        else if (marketCode === 'cz') currency = 'CZK';
-        else if (marketCode === 'sk') currency = 'EUR';
-        else if (marketCode === 'pl') currency = 'PLN';
+        marketCode = marketCode.toUpperCase(); // Ensure uppercase market codes
+        
+        if (marketCode === 'HU') currency = 'HUF';
+        else if (marketCode === 'CZ') currency = 'CZK';
+        else if (marketCode === 'SK') currency = 'EUR';
+        else if (marketCode === 'PL') currency = 'PLN';
         
         // Override with XML value if available
         const xmlCurrency = extractXmlValue(productXml, fields.currency || 'currency');
         if (xmlCurrency) currency = xmlCurrency;
-        const imageUrl = extractXmlValue(productXml, fields.image_url || 'g:image_link') || extractXmlValue(productXml, 'IMGURL');
+        let imageUrl = extractXmlValue(productXml, fields.image_url || 'g:image_link') || extractXmlValue(productXml, 'IMGURL');
+        
+        // Fix image URLs for Restorio.sk - convert product page URLs to actual image URLs
+        if (imageUrl && imageUrl.includes('restorio.sk') && !imageUrl.includes('/images/')) {
+          const isbn = imageUrl.split('/').pop();
+          if (isbn) {
+            imageUrl = `https://www.restorio.sk/images/big_${isbn}.jpg`;
+            console.log(`Fixed image URL for ${isbn}: ${imageUrl}`);
+          }
+        }
+        
         const categoryName = extractXmlValue(productXml, fields.category || 'g:google_product_category') || extractXmlValue(productXml, 'CATEGORYTEXT');
         const shopName = extractXmlValue(productXml, fields.shop || 'shop') || 'Restorio.sk'; // Default for books
         const availability = extractXmlValue(productXml, fields.availability || 'g:availability') || extractXmlValue(productXml, 'DELIVERY_DATE') || 'in_stock';
@@ -559,7 +571,7 @@ async function findBookCategory(supabaseClient: any, title: string, description:
   const { data: booksCategory } = await supabaseClient
     .from('categories')
     .select('id')
-    .eq('slug', 'knihy')
+    .eq('slug', 'books')
     .eq('market_code', marketCode)
     .single();
     

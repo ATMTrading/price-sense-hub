@@ -5,6 +5,7 @@ import { Header } from '@/components/Layout/Header';
 import { Footer } from '@/components/Layout/Footer';
 import { ProductCard } from '@/components/ProductCard';
 import { SubcategoryNav } from '@/components/SubcategoryNav';
+import { SearchBar } from '@/components/SearchBar';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Slider } from '@/components/ui/slider';
@@ -43,8 +44,10 @@ export default function CategoryListing() {
   const [priceRange, setPriceRange] = useState([0, 2000]);
   const [selectedMerchants, setSelectedMerchants] = useState<string[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
+  const [allProducts, setAllProducts] = useState<Product[]>([]);
   const [merchants, setMerchants] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
+  const [searchQuery, setSearchQuery] = useState('');
   const [sortBy, setSortBy] = useState('relevance');
   const [currentCategory, setCurrentCategory] = useState<any>(null);
   const [parentCategory, setParentCategory] = useState<any>(null);
@@ -58,7 +61,7 @@ export default function CategoryListing() {
     fetchCurrentCategory();
     fetchProducts();
     fetchMerchants();
-  }, [categorySlug, market, priceRange, selectedMerchants, sortBy, availabilityFilters]);
+  }, [categorySlug, market, priceRange, selectedMerchants, sortBy, availabilityFilters, searchQuery]);
 
   const fetchCurrentCategory = async () => {
     if (!categorySlug) return;
@@ -110,6 +113,11 @@ export default function CategoryListing() {
       // Filter by category if we have a slug
       if (categorySlug && currentCategory) {
         query = query.eq('category_id', currentCategory.id);
+      }
+
+      // Apply search filter
+      if (searchQuery.trim()) {
+        query = query.ilike('title', `%${searchQuery}%`);
       }
 
       // Apply price range filter
@@ -178,6 +186,7 @@ export default function CategoryListing() {
       }));
 
       setProducts(typedData);
+      setAllProducts(typedData); // Store original data for search
     } catch (error) {
       console.error('Error fetching products:', error);
       setProducts([]);
@@ -220,6 +229,10 @@ export default function CategoryListing() {
     }));
   };
 
+  const handleSearch = (query: string) => {
+    setSearchQuery(query);
+  };
+
   const clearFilters = () => {
     setPriceRange([0, 2000]);
     setSelectedMerchants([]);
@@ -256,6 +269,14 @@ export default function CategoryListing() {
         {parentCategory && (
           <SubcategoryNav parentCategory={parentCategory} />
         )}
+
+        {/* Search Bar */}
+        <div className="mb-6">
+          <SearchBar 
+            onSearch={handleSearch}
+            placeholder={`Hľadať v kategórii ${categoryName}...`}
+          />
+        </div>
 
         {/* Header */}
         <div className="flex items-center justify-between mb-8">

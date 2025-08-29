@@ -9,6 +9,7 @@ interface Product {
   id: string;
   title: string;
   image_url: string;
+  description?: string;
   price: number;
   original_price?: number;
   currency: string;
@@ -33,6 +34,23 @@ interface ProductCardProps {
 
 export function ProductCard({ product, className = '' }: ProductCardProps) {
   const { market } = useMarket();
+  
+  // Generate proper image URL for Restorio products
+  const getImageUrl = (url: string) => {
+    if (url.includes('restorio.sk') && !url.includes('/images/')) {
+      // Extract ISBN from URL and construct proper image URL
+      const isbn = url.split('/').pop();
+      return `https://www.restorio.sk/images/big_${isbn}.jpg`;
+    }
+    return url;
+  };
+
+  const handleImageError = (e: React.SyntheticEvent<HTMLImageElement, Event>) => {
+    const img = e.target as HTMLImageElement;
+    if (img.src !== '/placeholder.svg') {
+      img.src = '/placeholder.svg';
+    }
+  };
 
   const handleViewOffer = async () => {
     try {
@@ -72,20 +90,28 @@ export function ProductCard({ product, className = '' }: ProductCardProps) {
     <Card className={`group h-full transition-smooth hover:shadow-card-hover ${className}`}>
       <CardContent className="p-4">
         {/* Image */}
-        <div className="aspect-square mb-4 overflow-hidden rounded-lg bg-muted">
+        <div className="aspect-square mb-4 overflow-hidden rounded-lg bg-muted/50 border">
           <img
-            src={product.image_url}
+            src={getImageUrl(product.image_url)}
             alt={product.title}
             className="h-full w-full object-cover transition-smooth group-hover:scale-105"
             loading="lazy"
+            onError={handleImageError}
           />
         </div>
 
           {/* Content */}
         <div className="space-y-3">
-          <h3 className="font-medium text-sm line-clamp-2 leading-tight">
+          <h3 className="font-medium text-sm line-clamp-2 leading-tight hover:text-primary transition-colors cursor-pointer">
             {product.title}
           </h3>
+
+          {/* Description */}
+          {product.description && (
+            <p className="text-xs text-muted-foreground line-clamp-2 leading-relaxed">
+              {product.description}
+            </p>
+          )}
 
           {/* Price */}
           <div className="space-y-1">
