@@ -46,6 +46,7 @@ interface FeedStructure {
 
 export const UniversalImport = () => {
   const { market } = useMarket();
+  const { toast } = useToast();
   const [categories, setCategories] = useState<Category[]>([]);
   const [feeds, setFeeds] = useState<Feed[]>([]);
   const [selectedFeed, setSelectedFeed] = useState("");
@@ -62,7 +63,6 @@ export const UniversalImport = () => {
   const [categoryMapping, setCategoryMapping] = useState<Record<string, string>>({});
   const [refreshingFeed, setRefreshingFeed] = useState(false);
   const [bookCategories, setBookCategories] = useState<Category[]>([]);
-  const { toast } = useToast();
 
   useEffect(() => {
     loadCategories();
@@ -419,14 +419,7 @@ export const UniversalImport = () => {
     }
   };
 
-  const copyToClipboard = (text: string) => {
-    navigator.clipboard.writeText(text);
-    toast({
-      title: "Copied to clipboard",
-      duration: 2000
-    });
-  };
-
+  // Refresh feed analysis function
   const refreshFeedAnalysis = async () => {
     if (!selectedFeed) return;
     
@@ -463,6 +456,14 @@ export const UniversalImport = () => {
     } finally {
       setRefreshingFeed(false);
     }
+  };
+
+  const copyToClipboard = (text: string) => {
+    navigator.clipboard.writeText(text);
+    toast({
+      title: "Copied to clipboard",
+      duration: 2000
+    });
   };
 
   if (loading) {
