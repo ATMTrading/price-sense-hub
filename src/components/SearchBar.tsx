@@ -23,8 +23,17 @@ export function SearchBar({
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (query.trim()) {
-      onSearch(query.trim());
+      handleSearch(query.trim());
     }
+  };
+
+  const handleSearch = (searchQuery: string) => {
+    // Dispatch custom event for other pages to listen
+    window.dispatchEvent(new CustomEvent('headerSearch', { 
+      detail: { query: searchQuery } 
+    }));
+    
+    onSearch(searchQuery);
   };
 
   const handleClear = () => {

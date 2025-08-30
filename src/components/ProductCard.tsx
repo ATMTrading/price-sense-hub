@@ -37,16 +37,36 @@ export function ProductCard({ product, className = '' }: ProductCardProps) {
   const [imageError, setImageError] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
-  // Handle image URL for restorio.sk - convert to media URL
+  // Enhanced image URL handling for restorio.sk and other sources
   const getImageUrl = (url: string): string => {
     if (!url) return '/placeholder.svg';
     
-    // Convert restorio.sk image URLs to media URLs for better loading
-    if (url.includes('restorio.sk/images/big_')) {
-      const filename = url.split('/').pop();
-      if (filename) {
-        return `https://media.restorio.sk/media/catalog/product/cache/8e008d9281ec096d35da0b6f5fe9575f/${filename.slice(0,1)}/${filename.slice(1,2)}/${filename}v2.jpg`;
+    // Enhanced handling for Restorio.sk images
+    if (url.includes('restorio.sk')) {
+      // Check if it's already a full URL
+      if (url.startsWith('http')) {
+        return url;
       }
+      
+      // Handle images with special big_ prefix - optimized URLs
+      if (url.includes('restorio.sk/images/big_')) {
+        const filename = url.split('/').pop();
+        if (filename) {
+          return `https://media.restorio.sk/media/catalog/product/cache/8e008d9281ec096d35da0b6f5fe9575f/${filename.slice(0,1)}/${filename.slice(1,2)}/${filename}v2.jpg`;
+        }
+      }
+      
+      // Handle relative URLs
+      if (url.startsWith('/')) {
+        return `https://restorio.sk${url}`;
+      }
+      
+      return `https://restorio.sk/${url}`;
+    }
+    
+    // Ensure other URLs start with http/https
+    if (!url.startsWith('http') && !url.startsWith('/')) {
+      return `https://${url}`;
     }
     
     return url;

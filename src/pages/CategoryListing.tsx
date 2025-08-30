@@ -74,6 +74,21 @@ export default function CategoryListing() {
     fetchMerchants();
   }, [market]);
 
+  // Handle search functionality from header
+  useEffect(() => {
+    const handleHeaderSearch = (event: CustomEvent) => {
+      const query = event.detail?.query;
+      if (query) {
+        setSearchQuery(query);
+      }
+    };
+
+    window.addEventListener('headerSearch', handleHeaderSearch as EventListener);
+    return () => {
+      window.removeEventListener('headerSearch', handleHeaderSearch as EventListener);
+    };
+  }, []);
+
   const fetchCurrentCategory = async () => {
     if (!categorySlug) return;
 
@@ -207,7 +222,25 @@ export default function CategoryListing() {
       }
 
       console.log('Fetched products:', data);
-      setProducts(data || []);
+      
+      // Transform the data to match our Product interface
+      const transformedData = (data || []).map(item => ({
+        id: item.id,
+        title: item.title,
+        image_url: item.image_url,
+        price: item.price,
+        original_price: item.original_price,
+        currency: item.currency,
+        shop: item.shop,
+        rating: item.rating,
+        review_count: item.review_count,
+        availability: item.availability,
+        affiliate_links: Array.isArray(item.affiliate_links) 
+          ? item.affiliate_links
+          : (item.affiliate_links ? [item.affiliate_links] : [])
+      }));
+      
+      setProducts(transformedData);
     } catch (error) {
       console.error('Error in fetchProducts:', error);
     } finally {

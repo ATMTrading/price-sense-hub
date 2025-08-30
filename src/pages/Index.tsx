@@ -27,6 +27,7 @@ interface Product {
   review_count?: number;
   availability: 'in_stock' | 'out_of_stock' | 'limited';
   affiliate_links?: Array<{
+    id: string;
     affiliate_url: string;
     tracking_code?: string;
   }>;
@@ -102,6 +103,7 @@ const Index = () => {
         availability: item.availability as 'in_stock' | 'out_of_stock' | 'limited',
         affiliate_links: Array.isArray(item.affiliate_links) 
           ? item.affiliate_links.map(link => ({
+              id: link.id,
               affiliate_url: link.affiliate_url,
               tracking_code: link.tracking_code
             }))
@@ -145,12 +147,13 @@ const Index = () => {
               rating: item.rating,
               review_count: item.review_count,
               availability: item.availability as 'in_stock' | 'out_of_stock' | 'limited',
-              affiliate_links: Array.isArray(item.affiliate_links) 
-                ? item.affiliate_links.map(link => ({
-                    affiliate_url: link.affiliate_url,
-                    tracking_code: link.tracking_code
-                  }))
-                : []
+            affiliate_links: Array.isArray(item.affiliate_links) 
+              ? item.affiliate_links.map(link => ({
+                  id: link.id,
+                  affiliate_url: link.affiliate_url,
+                  tracking_code: link.tracking_code
+                }))
+              : []
             }));
             setTopDeals(searchResults);
           } else {
@@ -291,6 +294,7 @@ const Index = () => {
         availability: item.availability as 'in_stock' | 'out_of_stock' | 'limited',
         affiliate_links: Array.isArray(item.affiliate_links) 
           ? item.affiliate_links.map(link => ({
+              id: link.id,
               affiliate_url: link.affiliate_url,
               tracking_code: link.tracking_code
             }))

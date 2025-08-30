@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Header } from "@/components/Layout/Header";
 import { Footer } from "@/components/Layout/Footer";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Button } from "@/components/ui/button";
 import { FeedManager } from "@/components/Admin/FeedManager";
 import { NetworkManager } from "@/components/Admin/NetworkManager";
 import { ImportLogs } from "@/components/Admin/ImportLogs";
@@ -10,6 +11,7 @@ import { ScheduleManager } from "@/components/Admin/ScheduleManager";
 import { CategoryImport } from "@/components/Admin/CategoryImport";
 import { UniversalImport } from "@/components/Admin/UniversalImport";
 import { AuditLogs } from "@/components/Admin/AuditLogs";
+import { triggerXMLImport } from '@/utils/importTrigger';
 
 export const Admin = () => {
   return (
@@ -33,6 +35,22 @@ export const Admin = () => {
 
           <TabsContent value="import" className="mt-6">
             <div className="space-y-6">
+              <div className="flex gap-4 mb-6">
+                <Button 
+                  onClick={async () => {
+                    console.log('🚀 Triggering XML import...');
+                    const result = await triggerXMLImport('277034c8-3836-4410-bdc5-b1602d50195a');
+                    if (result.success) {
+                      console.log('✅ Import triggered successfully');
+                    } else {
+                      console.error('❌ Import failed:', result.error);
+                    }
+                  }}
+                  variant="outline"
+                >
+                  🔄 Restore Products (XML Import)
+                </Button>
+              </div>
               <UniversalImport />
               <CategoryImport />
             </div>
