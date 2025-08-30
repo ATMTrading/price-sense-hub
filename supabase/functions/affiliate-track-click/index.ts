@@ -30,19 +30,18 @@ serve(async (req) => {
 
       console.log('Tracking click:', { productId, trackingCode, referrer });
 
-      // Get the product and affiliate link
+      // Get the product and affiliate link with proper joins
       const { data: product, error: productError } = await supabase
         .from('products')
         .select(`
           *,
-          shop:shops(*, affiliate_params),
-          affiliate_links!inner(*)
+          shop:shops(*),
+          affiliate_links(*)
         `)
         .eq('id', productId)
         .single();
 
       console.log('Product data:', product);
-      console.log('Affiliate links raw:', product?.affiliate_links);
 
       if (productError || !product) {
         console.error('Product not found:', productError);
@@ -55,46 +54,43 @@ serve(async (req) => {
         );
       }
 
-      // Log the click (you can extend this to store in a clicks table)
-      console.log('Click tracked for product:', {
-        product: product.title,
-        shop: product.shop?.name,
-        tracking_code: trackingCode
-      });
-
-      // Get the affiliate URL - use the actual affiliate link if available
-      // Handle both array and single object cases for affiliate_links
-      const affiliateLink = Array.isArray(product.affiliate_links) 
-        ? product.affiliate_links?.[0] 
-        : product.affiliate_links;
+      // Get the first active affiliate link
+      const affiliateLink = product.affiliate_links?.[0];
       let redirectUrl = affiliateLink?.affiliate_url;
       
       console.log('Affiliate link found:', affiliateLink);
-      console.log('Redirect URL:', redirectUrl);
-      
-      if (!redirectUrl) {
-        // Fallback: construct URL based on shop website with affiliate parameters
-        if (product.shop?.website_url) {
-          const shopAffiliateParams = product.shop.affiliate_params || {};
-          const utmSource = shopAffiliateParams.utm_source || 'dognet';
-          const aCid = shopAffiliateParams.a_cid || '908fbcd7';
-          
-          const globalParams = {
-            utm_medium: 'affiliate',
-            utm_campaign: '68b053b92fff1',
-            a_aid: '68b053b92fff1',
-            chan: 'KZKBlu6j'
-          };
-          
-          const separator = product.shop.website_url.includes('?') ? '&' : '?';
-          const affiliateParams = `utm_source=${utmSource}&utm_medium=${globalParams.utm_medium}&utm_campaign=${globalParams.utm_campaign}&a_aid=${globalParams.a_aid}&a_cid=${aCid}&chan=${globalParams.chan}`;
-          redirectUrl = `${product.shop.website_url}${separator}${affiliateParams}`;
-        } else {
-          redirectUrl = `https://www.${product.shop?.name?.toLowerCase()}.com/`;
+      console.log('Initial redirect URL:', redirectUrl);
+
+      // Ensure affiliate URL has proper tracking parameters
+      if (redirectUrl && product.shop?.name === 'Restorio.sk') {
+        // Check if URL already has tracking parameters
+        if (!redirectUrl.includes('utm_source=dognet')) {
+          const separator = redirectUrl.includes('?') ? '&' : '?';
+          const trackingParams = 'utm_source=dognet&utm_medium=affiliate&utm_campaign=68b053b92fff1&a_aid=68b053b92fff1&a_cid=908fbcd7&chan=KZKBlu6j';
+          redirectUrl = `${redirectUrl}${separator}${trackingParams}`;
         }
+      } else if (!redirectUrl && product.shop?.website_url) {
+        // Fallback: construct URL based on shop website with affiliate parameters
+        const shopParams = product.shop.affiliate_params || {};
+        const utmSource = shopParams.utm_source || 'dognet';
+        const aCid = shopParams.a_cid || '908fbcd7';
+        
+        const separator = product.shop.website_url.includes('?') ? '&' : '?';
+        const affiliateParams = `utm_source=${utmSource}&utm_medium=affiliate&utm_campaign=68b053b92fff1&a_aid=68b053b92fff1&a_cid=${aCid}&chan=KZKBlu6j`;
+        redirectUrl = `${product.shop.website_url}${separator}${affiliateParams}`;
+      } else if (!redirectUrl) {
+        // Last resort fallback
+        redirectUrl = `https://www.${product.shop?.name?.toLowerCase().replace(/\./g, '')}.sk/`;
       }
 
-      console.log('Using affiliate URL from database:', redirectUrl);
+      console.log('Final redirect URL with tracking:', redirectUrl);
+
+      // Log the click for analytics
+      console.log('Click tracked for product:', {
+        product: product.title,
+        shop: product.shop?.name,
+        final_url: redirectUrl
+      });
 
       return new Response(
         JSON.stringify({ 

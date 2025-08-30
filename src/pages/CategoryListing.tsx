@@ -30,8 +30,9 @@ interface Product {
   };
   rating?: number;
   review_count?: number;
-  availability: 'in_stock' | 'out_of_stock' | 'limited';
+  availability: string;
   affiliate_links?: Array<{
+    id: string;
     affiliate_url: string;
     tracking_code?: string;
   }>;
@@ -111,91 +112,88 @@ export default function CategoryListing() {
   };
 
   const fetchProducts = async () => {
-    if (!currentCategory) return;
-    
     setLoading(true);
     try {
-      console.log('🔍 Fetching products for category:', currentCategory.slug);
-      
+      // Get all category IDs to search in (main category + subcategories)
+      const categoryIds = [];
+      if (currentCategory) {
+        categoryIds.push(currentCategory.id);
+        
+        // Get subcategories if this is a main category
+        const { data: subcategories } = await supabase
+          .from('categories')
+          .select('id')
+          .eq('parent_id', currentCategory.id)
+          .eq('is_active', true);
+        
+        if (subcategories) {
+          categoryIds.push(...subcategories.map(sub => sub.id));
+        }
+      }
+
       let query = supabase
         .from('products')
         .select(`
           *,
-          shop:shops(*),
-          affiliate_links(*),
-          category:categories(*)
+          shop:shops(id, name, logo_url),
+          affiliate_links(id, affiliate_url, tracking_code)
         `)
         .eq('market_code', market.code)
         .eq('is_active', true);
 
-      // Filter by current category and its subcategories
-      const { data: subcategories } = await supabase
-        .from('categories')
-        .select('id')
-        .eq('parent_id', currentCategory.id)
-        .eq('is_active', true);
-      
-      const categoryIds = [currentCategory.id, ...(subcategories || []).map(sub => sub.id)];
-      query = query.in('category_id', categoryIds);
+      // Apply category filter (search in main category and subcategories)
+      if (categoryIds.length > 0) {
+        query = query.in('category_id', categoryIds);
+      }
 
-      // Apply search filter
-      if (searchQuery.trim()) {
-        // First try searching by shop name
-        const { data: shopData } = await supabase
-          .from('shops')
-          .select('id')
-          .ilike('name', `%${searchQuery}%`)
-          .eq('market_code', market.code)
-          .eq('is_active', true);
-
-        if (shopData && shopData.length > 0) {
-          // Search by shop if shop name matches
-          query = query.in('shop_id', shopData.map(shop => shop.id));
-        } else {
-          // Otherwise search by product title
-          query = query.ilike('title', `%${searchQuery}%`);
-        }
+      // Apply search filter - simplified
+      if (searchQuery) {
+        query = query.or(`title.ilike.%${searchQuery}%,description.ilike.%${searchQuery}%`);
       }
 
       // Apply price range filter
-      if (priceRange[0] > 0 || priceRange[1] < 2000) {
+      if (priceRange[0] > 0 || priceRange[1] < 10000) {
         query = query.gte('price', priceRange[0]).lte('price', priceRange[1]);
       }
 
-      // Apply availability filters
+      // Apply availability filter
       const activeAvailability = Object.entries(availabilityFilters)
         .filter(([_, active]) => active)
         .map(([status]) => status);
       
       if (activeAvailability.length > 0 && activeAvailability.length < 3) {
-        query = query.in('availability', activeAvailability);
+        const availabilityConditions = activeAvailability.map(filter => {
+          switch (filter) {
+            case 'in_stock': return 'availability.eq.in stock';
+            case 'out_of_stock': return 'availability.eq.out of stock';
+            case 'limited': return 'availability.eq.limited';
+            default: return null;
+          }
+        }).filter(Boolean);
+        
+        if (availabilityConditions.length > 0) {
+          query = query.or(availabilityConditions.join(','));
+        }
       }
 
-      // Apply merchant filters
+      // Apply merchant filter - simplified
       if (selectedMerchants.length > 0) {
-        const { data: shopData } = await supabase
-          .from('shops')
-          .select('id')
-          .in('name', selectedMerchants);
-        
-        if (shopData && shopData.length > 0) {
-          query = query.in('shop_id', shopData.map(shop => shop.id));
-        }
+        query = query.in('shop.name', selectedMerchants);
       }
 
       // Apply sorting
       switch (sortBy) {
-        case 'price-low':
+        case 'price_low':
           query = query.order('price', { ascending: true });
           break;
-        case 'price-high':
+        case 'price_high':
           query = query.order('price', { ascending: false });
-          break;
-        case 'newest':
-          query = query.order('created_at', { ascending: false });
           break;
         case 'rating':
           query = query.order('rating', { ascending: false });
+          break;
+        case 'newest':
+          query = query.order('created_at', { ascending: false });
           break;
         default:
           query = query.order('created_at', { ascending: false });
@@ -203,40 +201,15 @@ export default function CategoryListing() {
 
       const { data, error } = await query.limit(50);
 
-      console.log('📊 Category products query result:', { 
-        data: data?.length, 
-        error, 
-        categorySlug: currentCategory.slug,
-        filters: { searchQuery, priceRange, selectedMerchants, sortBy, availabilityFilters }
-      });
+      if (error) {
+        console.error('Error fetching products:', error);
+        return;
+      }
 
-      if (error) throw error;
-
-      const typedData = (data || []).map(item => ({
-        id: item.id,
-        title: item.title,
-        image_url: item.image_url,
-        price: item.price,
-        original_price: item.original_price,
-        currency: item.currency,
-        shop: item.shop,
-        rating: item.rating,
-        review_count: item.review_count,
-        availability: item.availability as 'in_stock' | 'out_of_stock' | 'limited',
-        affiliate_links: Array.isArray(item.affiliate_links) 
-          ? item.affiliate_links.map(link => ({
-              affiliate_url: link.affiliate_url,
-              tracking_code: link.tracking_code
-            }))
-          : []
-      }));
-
-      console.log('✅ Processed category products:', typedData.length);
-      setProducts(typedData);
-      setAllProducts(typedData); // Store original data for search
+      console.log('Fetched products:', data);
+      setProducts(data || []);
     } catch (error) {
-      console.error('❌ Error fetching products:', error);
-      setProducts([]);
+      console.error('Error in fetchProducts:', error);
     } finally {
       setLoading(false);
     }

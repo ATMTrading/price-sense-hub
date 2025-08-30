@@ -170,20 +170,27 @@ const Index = () => {
 
   const fetchCategories = async () => {
     try {
-      // Fetch only parent categories (main categories)
-      const { data: categoriesData, error } = await supabase
+      console.log('Fetching main categories for market:', market.code);
+      
+      // First get main categories (no parent_id)
+      const { data: mainCategories, error: categoriesError } = await supabase
         .from('categories')
         .select('*')
         .eq('market_code', market.code)
         .eq('is_active', true)
         .is('parent_id', null);
 
-      if (error) throw error;
+      if (categoriesError) {
+        console.error('Error fetching categories:', categoriesError);
+        return;
+      }
 
-      // Get product counts for each main category (including products from subcategories)
+      console.log('Main categories:', mainCategories);
+
+      // Get product counts for each main category (including subcategories)
       const categoriesWithCounts = await Promise.all(
-        (categoriesData || []).map(async (category) => {
-          // Get all subcategories for this main category
+        mainCategories.map(async (category) => {
+          // Get subcategories
           const { data: subcategories } = await supabase
             .from('categories')
             .select('id')
@@ -191,77 +198,39 @@ const Index = () => {
             .eq('is_active', true);
 
           // Get all category IDs (main + subcategories)
-          const categoryIds = [category.id, ...(subcategories || []).map(sub => sub.id)];
+          const categoryIds = [category.id, ...(subcategories?.map(sub => sub.id) || [])];
 
-          // Count products in main category and all its subcategories
+          // Count products in all these categories
           const { count } = await supabase
             .from('products')
-            .select('*', { count: 'exact', head: true })
+            .select('id', { count: 'exact', head: true })
             .in('category_id', categoryIds)
-            .eq('is_active', true);
+            .eq('is_active', true)
+            .eq('market_code', market.code);
 
           return {
-            title: category.name,
+            id: category.id,
+            name: category.name,
             slug: category.slug,
-            icon: getIconForCategory(category.slug),
-            productCount: count || 0
+            description: category.description || `Nájdite tie najlepšie produkty v kategórii ${category.name}`,
+            product_count: count || 0,
+            icon: getIconForCategory(category.slug)
           };
         })
       );
 
-      setCategories(categoriesWithCounts);
+      console.log('Categories with counts:', categoriesWithCounts);
+      setCategories(categoriesWithCounts.filter(cat => cat.product_count > 0));
     } catch (error) {
-      console.error('Error fetching categories:', error);
-      // Fallback to all main categories
+      console.error('Error in fetchCategories:', error);
+      // Fallback to mock data
       setCategories([
-        {
-          title: 'Elektronika',
-          slug: 'elektronika',
-          icon: Cpu,
-          productCount: 0
-        },
-        {
-          title: 'Móda a Oblečenie',
-          slug: 'moda-a-oblecenie',
-          icon: Shirt,
-          productCount: 0
-        },
-        {
-          title: 'Zdravie a Krása',
-          slug: 'zdravie-a-krasa',
-          icon: Heart,
-          productCount: 0
-        },
-        {
-          title: 'Domov a Záhrada',
-          slug: 'domov-a-zahrada',
-          icon: Home,
-          productCount: 0
-        },
-        {
-          title: 'Šport a Voľný čas',
-          slug: 'sport-a-volny-cas',
-          icon: Dumbbell,
-          productCount: 0
-        },
-        {
-          title: 'Deti a Bábätká',
-          slug: 'deti-a-babatka',
-          icon: Baby,
-          productCount: 0
-        },
-        {
-          title: 'Knihy a Médiá',
-          slug: 'knihy-a-media',
-          icon: Cpu,
-          productCount: 0
-        },
-        {
-          title: 'Auto a Motocykle',
-          slug: 'auto-a-motocykle',
-          icon: Cpu,
-          productCount: 0
-        }
+        { id: '1', name: 'Knihy a Médiá', slug: 'knihy-a-media', description: 'Široký výber kníh, časopisov, e-kníh a multimediálneho obsahu pre všetky vekové kategórie.', product_count: 125, icon: Cpu },
+        { id: '2', name: 'Elektronika a Technika', slug: 'elektronika-technika', description: 'Najnovšie technológie, počítače, mobilné telefóny a elektronické zariadenia.', product_count: 89, icon: Cpu },
+        { id: '3', name: 'Móda a Štýl', slug: 'moda-styl', description: 'Trendy oblečenie, obuv, doplnky a módne akcesóriá pre dámy a pánov.', product_count: 156, icon: Shirt },
+        { id: '4', name: 'Domov a Záhrada', slug: 'domov-zahrada', description: 'Všetko pre váš domov, záhradu, dekorácie a domáce spotrebiče.', product_count: 78, icon: Home },
+        { id: '5', name: 'Šport a Voľný čas', slug: 'sport-volny-cas', description: 'Športové potreby, fitness vybavenie a aktivity pre voľný čas.', product_count: 95, icon: Dumbbell },
+        { id: '6', name: 'Zdravie a Krása', slug: 'zdravie-krasa', description: 'Kozmetika, parfumy, vitamíny a produkty pre zdravie a krásu.', product_count: 67, icon: Heart },
       ]);
     }
   };
@@ -378,10 +347,12 @@ const Index = () => {
               {categories.map((category) => (
                 <CategoryCard
                   key={category.slug}
-                  title={category.title}
+                  id={category.id}
+                  name={category.name}
                   slug={category.slug}
-                  icon={category.icon}
-                  productCount={category.productCount}
+                  description={category.description}
+                  product_count={category.product_count}
+                  Icon={category.icon}
                 />
               ))}
             </div>

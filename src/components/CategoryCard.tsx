@@ -1,36 +1,65 @@
-import { Link } from 'react-router-dom';
-import { LucideIcon } from 'lucide-react';
-import { Card, CardContent } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { useMarket } from '@/hooks/useMarket';
-import { translate } from '@/lib/i18n';
+import { Card, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { ChevronRight } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 
 interface CategoryCardProps {
-  title: string;
+  id: string;
+  name: string;
   slug: string;
-  icon: LucideIcon;
-  productCount?: number;
-  className?: string;
+  description?: string;
+  product_count?: number;
+  image_url?: string;
+  Icon?: React.ComponentType<{ className?: string }>;
 }
 
-export function CategoryCard({ title, slug, icon: Icon, productCount, className = '' }: CategoryCardProps) {
-  const { market } = useMarket();
-  
+export function CategoryCard({ name, slug, description, product_count, image_url, Icon }: CategoryCardProps) {
+  const navigate = useNavigate();
+
   return (
-    <Link to={`/c/${slug}`} className={`block group ${className}`}>
-      <Card className="h-full transition-smooth hover:shadow-card-hover hover:scale-[1.02] gradient-card border-0">
-        <CardContent className="p-6 text-center">
-          <div className="mx-auto mb-4 h-12 w-12 rounded-xl bg-primary/10 flex items-center justify-center group-hover:bg-primary group-hover:text-white transition-smooth">
-            <Icon className="h-6 w-6 text-primary group-hover:text-white transition-smooth" />
+    <Card 
+      className="group hover:shadow-lg transition-all duration-300 cursor-pointer overflow-hidden h-full"
+      onClick={() => navigate(`/category/${slug}`)}
+    >
+      <div className="relative h-32 bg-gradient-to-br from-primary/10 to-primary/5 flex items-center justify-center">
+        {image_url ? (
+          <img 
+            src={image_url} 
+            alt={name}
+            className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
+          />
+        ) : Icon ? (
+          <Icon className="h-12 w-12 text-primary group-hover:scale-110 transition-transform duration-300" />
+        ) : (
+          <div className="h-12 w-12 rounded-full bg-primary/20 flex items-center justify-center">
+            <span className="text-2xl font-bold text-primary">{name.charAt(0)}</span>
           </div>
-          <h3 className="font-heading text-lg font-semibold mb-2">{title}</h3>
-          {productCount !== undefined && (
-            <p className="text-sm text-muted-foreground">
-              {productCount.toLocaleString()} {translate('product.products', market)}
+        )}
+      </div>
+      
+      <CardContent className="p-4 flex flex-col h-full">
+        <div className="flex-1">
+          <h3 className="font-semibold text-foreground group-hover:text-primary transition-colors mb-2">
+            {name}
+          </h3>
+          
+          {description && (
+            <p className="text-sm text-muted-foreground line-clamp-2 mb-2">
+              {description}
             </p>
           )}
-        </CardContent>
-      </Card>
-    </Link>
+          
+          {product_count && (
+            <Badge variant="secondary" className="text-xs">
+              {product_count} produktov
+            </Badge>
+          )}
+        </div>
+        
+        <div className="flex items-center justify-end mt-2">
+          <ChevronRight className="h-5 w-5 text-muted-foreground group-hover:text-primary group-hover:translate-x-1 transition-all" />
+        </div>
+      </CardContent>
+    </Card>
   );
 }
