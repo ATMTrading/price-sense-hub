@@ -1,11 +1,12 @@
 import { Search, Menu, Globe, User, LogOut } from 'lucide-react';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useMarket } from '@/hooks/useMarket';
 import { useAuth } from '@/hooks/useAuth';
 import { translate, MARKETS } from '@/lib/i18n';
+import { supabase } from '@/integrations/supabase/client';
 import logo from '@/assets/logo.png';
 import {
   DropdownMenu,
@@ -19,7 +20,30 @@ export function Header() {
   const { market, setMarket } = useMarket();
   const { user, profile, isAdmin, signOut } = useAuth();
   const [searchQuery, setSearchQuery] = useState('');
+  const [categories, setCategories] = useState<any[]>([]);
   const navigate = useNavigate();
+
+  useEffect(() => {
+    fetchCategories();
+  }, [market]);
+
+  const fetchCategories = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('categories')
+        .select('*')
+        .eq('market_code', market.code)
+        .eq('is_active', true)
+        .is('parent_id', null)
+        .limit(6);
+
+      if (error) throw error;
+      setCategories(data || []);
+    } catch (error) {
+      console.error('Error fetching categories:', error);
+      setCategories([]);
+    }
+  };
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -78,36 +102,13 @@ export function Header() {
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-56">
-                <DropdownMenuItem asChild>
-                  <Link to="/c/electronics">
-                    {translate('categories.electronics', market)}
-                  </Link>
-                </DropdownMenuItem>
-                <DropdownMenuItem asChild>
-                  <Link to="/c/fashion">
-                    {translate('categories.fashion', market)}
-                  </Link>
-                </DropdownMenuItem>
-                <DropdownMenuItem asChild>
-                  <Link to="/c/home-living">
-                    {translate('categories.homeLiving', market)}
-                  </Link>
-                </DropdownMenuItem>
-                <DropdownMenuItem asChild>
-                  <Link to="/c/health">
-                    {translate('categories.health', market)}
-                  </Link>
-                </DropdownMenuItem>
-                <DropdownMenuItem asChild>
-                  <Link to="/c/children">
-                    {translate('categories.children', market)}
-                  </Link>
-                </DropdownMenuItem>
-                <DropdownMenuItem asChild>
-                  <Link to="/c/sports">
-                    {translate('categories.sports', market)}
-                  </Link>
-                </DropdownMenuItem>
+                {categories.map((category) => (
+                  <DropdownMenuItem key={category.id} asChild>
+                    <Link to={`/c/${category.slug}`}>
+                      {category.name}
+                    </Link>
+                  </DropdownMenuItem>
+                ))}
               </DropdownMenuContent>
             </DropdownMenu>
 

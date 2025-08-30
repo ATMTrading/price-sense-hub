@@ -9,6 +9,7 @@ import { useMarket } from '@/hooks/useMarket';
 import { translate } from '@/lib/i18n';
 import { supabase } from '@/integrations/supabase/client';
 import { GoogleShoppingMeta } from '@/components/GoogleShoppingMeta';
+import { useNavigate } from 'react-router-dom';
 
 interface Product {
   id: string;
@@ -33,6 +34,7 @@ interface Product {
 
 const Index = () => {
   const { market } = useMarket();
+  const navigate = useNavigate();
   const [topDeals, setTopDeals] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [categories, setCategories] = useState<any[]>([]);
@@ -82,7 +84,7 @@ const Index = () => {
         `)
         .eq('market_code', market.code)
         .eq('is_active', true)
-        .ilike('title', `%${searchTerm}%`)
+        .or(`title.ilike.%${searchTerm}%,shop.name.ilike.%${searchTerm}%`)
         .limit(8);
 
       if (error) throw error;
@@ -109,7 +111,58 @@ const Index = () => {
       setTopDeals(searchResults);
     } catch (error) {
       console.error('❌ Search error:', error);
-      setTopDeals([]);
+      // Fallback: try searching by shop name separately
+      try {
+        const { data: shopData } = await supabase
+          .from('shops')
+          .select('id')
+          .ilike('name', `%${searchTerm}%`)
+          .eq('market_code', market.code)
+          .eq('is_active', true);
+
+        if (shopData && shopData.length > 0) {
+          const { data: productsByShop, error: shopError } = await supabase
+            .from('products')
+            .select(`
+              *,
+              shop:shops(*),
+              affiliate_links(*)
+            `)
+            .eq('market_code', market.code)
+            .eq('is_active', true)
+            .in('shop_id', shopData.map(shop => shop.id))
+            .limit(8);
+
+          if (!shopError && productsByShop) {
+            const searchResults = productsByShop.map(item => ({
+              id: item.id,
+              title: item.title,
+              image_url: item.image_url,
+              price: item.price,
+              original_price: item.original_price,
+              currency: item.currency,
+              shop: item.shop,
+              rating: item.rating,
+              review_count: item.review_count,
+              availability: item.availability as 'in_stock' | 'out_of_stock' | 'limited',
+              affiliate_links: Array.isArray(item.affiliate_links) 
+                ? item.affiliate_links.map(link => ({
+                    affiliate_url: link.affiliate_url,
+                    tracking_code: link.tracking_code
+                  }))
+                : []
+            }));
+            setTopDeals(searchResults);
+          } else {
+            setTopDeals([]);
+          }
+        } else {
+          setTopDeals([]);
+        }
+      } catch (fallbackError) {
+        console.error('❌ Fallback search error:', fallbackError);
+        setTopDeals([]);
+      }
     } finally {
       setLoading(false);
     }
@@ -368,8 +421,7 @@ const Index = () => {
                 variant="outline" 
                 size="lg"
                 onClick={() => {
-                  console.log('Navigate to all deals page');
-                  // TODO: Navigate to deals page
+                  navigate('/c/knihy-a-media');
                 }}
               >
                 Zobraziť všetky ponuky

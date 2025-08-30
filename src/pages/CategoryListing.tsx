@@ -58,10 +58,20 @@ export default function CategoryListing() {
   });
 
   useEffect(() => {
-    fetchCurrentCategory();
-    fetchProducts();
+    if (categorySlug) {
+      fetchCurrentCategory();
+    }
+  }, [categorySlug, market]);
+
+  useEffect(() => {
+    if (currentCategory) {
+      fetchProducts();
+    }
+  }, [currentCategory, market, priceRange, selectedMerchants, sortBy, availabilityFilters, searchQuery]);
+
+  useEffect(() => {
     fetchMerchants();
-  }, [categorySlug, market, priceRange, selectedMerchants, sortBy, availabilityFilters, searchQuery]);
+  }, [market]);
 
   const fetchCurrentCategory = async () => {
     if (!categorySlug) return;
@@ -72,33 +82,41 @@ export default function CategoryListing() {
         .select('*')
         .eq('slug', categorySlug)
         .eq('market_code', market.code)
-        .single();
+        .maybeSingle();
 
       if (error) throw error;
 
-      setCurrentCategory(categoryData);
+      if (categoryData) {
+        setCurrentCategory(categoryData);
 
-      // If this is a subcategory, fetch its parent
-      if (categoryData.parent_id) {
-        const { data: parentData } = await supabase
-          .from('categories')
-          .select('*')
-          .eq('id', categoryData.parent_id)
-          .single();
-        
-        setParentCategory(parentData);
-      } else {
-        // This is a main category, so it's also the parent
-        setParentCategory(categoryData);
+        // If this is a subcategory, fetch its parent
+        if (categoryData.parent_id) {
+          const { data: parentData } = await supabase
+            .from('categories')
+            .select('*')
+            .eq('id', categoryData.parent_id)
+            .maybeSingle();
+          
+          setParentCategory(parentData);
+        } else {
+          // This is a main category, so it's also the parent
+          setParentCategory(categoryData);
+        }
       }
     } catch (error) {
       console.error('Error fetching category:', error);
+      setCurrentCategory(null);
+      setParentCategory(null);
     }
   };
 
   const fetchProducts = async () => {
+    if (!currentCategory) return;
+    
     setLoading(true);
     try {
+      console.log('🔍 Fetching products for category:', currentCategory.slug);
+      
       let query = supabase
         .from('products')
         .select(`
@@ -110,25 +128,46 @@ export default function CategoryListing() {
         .eq('market_code', market.code)
         .eq('is_active', true);
 
-      // Filter by category if we have a slug
-      if (categorySlug && currentCategory) {
-        query = query.eq('category_id', currentCategory.id);
-      }
+      // Filter by current category and its subcategories
+      const { data: subcategories } = await supabase
+        .from('categories')
+        .select('id')
+        .eq('parent_id', currentCategory.id)
+        .eq('is_active', true);
+      
+      const categoryIds = [currentCategory.id, ...(subcategories || []).map(sub => sub.id)];
+      query = query.in('category_id', categoryIds);
 
       // Apply search filter
       if (searchQuery.trim()) {
-        query = query.ilike('title', `%${searchQuery}%`);
+        // First try searching by shop name
+        const { data: shopData } = await supabase
+          .from('shops')
+          .select('id')
+          .ilike('name', `%${searchQuery}%`)
+          .eq('market_code', market.code)
+          .eq('is_active', true);
+
+        if (shopData && shopData.length > 0) {
+          // Search by shop if shop name matches
+          query = query.in('shop_id', shopData.map(shop => shop.id));
+        } else {
+          // Otherwise search by product title
+          query = query.ilike('title', `%${searchQuery}%`);
+        }
       }
 
       // Apply price range filter
-      query = query.gte('price', priceRange[0]).lte('price', priceRange[1]);
+      if (priceRange[0] > 0 || priceRange[1] < 2000) {
+        query = query.gte('price', priceRange[0]).lte('price', priceRange[1]);
+      }
 
       // Apply availability filters
       const activeAvailability = Object.entries(availabilityFilters)
         .filter(([_, active]) => active)
         .map(([status]) => status);
       
-      if (activeAvailability.length > 0) {
+      if (activeAvailability.length > 0 && activeAvailability.length < 3) {
         query = query.in('availability', activeAvailability);
       }
 
@@ -164,6 +203,13 @@ export default function CategoryListing() {
 
       const { data, error } = await query.limit(50);
 
+      console.log('📊 Category products query result:', { 
+        data: data?.length, 
+        error, 
+        categorySlug: currentCategory.slug,
+        filters: { searchQuery, priceRange, selectedMerchants, sortBy, availabilityFilters }
+      });
+
       if (error) throw error;
 
       const typedData = (data || []).map(item => ({
@@ -185,10 +231,11 @@ export default function CategoryListing() {
           : []
       }));
 
+      console.log('✅ Processed category products:', typedData.length);
       setProducts(typedData);
       setAllProducts(typedData); // Store original data for search
     } catch (error) {
-      console.error('Error fetching products:', error);
+      console.error('❌ Error fetching products:', error);
       setProducts([]);
     } finally {
       setLoading(false);
@@ -441,7 +488,14 @@ export default function CategoryListing() {
 
                 {/* Load More */}
                 <div className="flex justify-center mt-12">
-                  <Button size="lg" variant="outline">
+                  <Button 
+                    size="lg" 
+                    variant="outline"
+                    onClick={async () => {
+                      // Load more products logic here
+                      console.log('Loading more products...');
+                    }}
+                  >
                     {translate('btn.loadMore', market)}
                   </Button>
                 </div>
