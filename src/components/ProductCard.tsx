@@ -37,14 +37,13 @@ export function ProductCard({ product, className = '' }: ProductCardProps) {
   const [imageError, setImageError] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
-  // Enhanced image URL handling for restorio.sk and other sources
+  // Enhanced image URL handling - use original URLs directly
   const getImageUrl = (url: string): string => {
     if (!url) return '/placeholder.svg';
     
-    // For Restorio.sk images, convert to optimized format
+    // Ensure proper URL format for restorio.sk
     if (url.includes('restorio.sk')) {
-      // Convert big_ to small_ for thumbnails and ensure proper URL format
-      return url.replace('/images/big_', '/images/small_').replace(/^https?:\/\/restorio\.sk/, 'https://www.restorio.sk');
+      return url.replace(/^https?:\/\/restorio\.sk/, 'https://www.restorio.sk');
     }
     
     return url;
@@ -181,9 +180,11 @@ export function ProductCard({ product, className = '' }: ProductCardProps) {
                     />
                   ))}
                 </div>
-                <span className="text-xs text-muted-foreground">
-                  ({product.review_count || 0})
-                </span>
+                {(product.review_count || 0) > 0 && (
+                  <span className="text-xs text-muted-foreground">
+                    ({product.review_count})
+                  </span>
+                )}
               </div>
             )}
 
