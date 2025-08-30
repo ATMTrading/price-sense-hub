@@ -85,7 +85,7 @@ const Index = () => {
         `)
         .eq('market_code', market.code)
         .eq('is_active', true)
-        .or(`title.ilike.%${searchTerm}%,shop.name.ilike.%${searchTerm}%`)
+        .or(`title.ilike.%${searchTerm}%,shops.name.ilike.%${searchTerm}%`)
         .limit(8);
 
       if (error) throw error;

@@ -19,7 +19,7 @@ export function CategoryCard({ name, slug, description, product_count, image_url
   return (
     <Card 
       className="group hover:shadow-lg transition-all duration-300 cursor-pointer overflow-hidden h-full"
-      onClick={() => navigate(`/category/${slug}`)}
+      onClick={() => navigate(`/c/${slug}`)}
     >
       <div className="relative h-32 bg-gradient-to-br from-primary/10 to-primary/5 flex items-center justify-center">
         {image_url ? (
