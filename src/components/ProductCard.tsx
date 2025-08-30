@@ -41,32 +41,10 @@ export function ProductCard({ product, className = '' }: ProductCardProps) {
   const getImageUrl = (url: string): string => {
     if (!url) return '/placeholder.svg';
     
-    // Enhanced handling for Restorio.sk images
+    // For Restorio.sk images, convert to optimized format
     if (url.includes('restorio.sk')) {
-      // Check if it's already a full URL
-      if (url.startsWith('http')) {
-        return url;
-      }
-      
-      // Handle images with special big_ prefix - optimized URLs
-      if (url.includes('restorio.sk/images/big_')) {
-        const filename = url.split('/').pop();
-        if (filename) {
-          return `https://media.restorio.sk/media/catalog/product/cache/8e008d9281ec096d35da0b6f5fe9575f/${filename.slice(0,1)}/${filename.slice(1,2)}/${filename}v2.jpg`;
-        }
-      }
-      
-      // Handle relative URLs
-      if (url.startsWith('/')) {
-        return `https://restorio.sk${url}`;
-      }
-      
-      return `https://restorio.sk/${url}`;
-    }
-    
-    // Ensure other URLs start with http/https
-    if (!url.startsWith('http') && !url.startsWith('/')) {
-      return `https://${url}`;
+      // Convert big_ to small_ for thumbnails and ensure proper URL format
+      return url.replace('/images/big_', '/images/small_').replace(/^https?:\/\/restorio\.sk/, 'https://www.restorio.sk');
     }
     
     return url;
