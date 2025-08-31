@@ -223,9 +223,9 @@ export function ProductCard({ product, className = '', onProductClick }: Product
         <Button 
           onClick={handleViewOffer}
           disabled={isLoading || !product.affiliate_links?.length}
-          className="w-full mt-auto"
+          className="w-full mt-auto font-semibold shadow-md hover:shadow-lg transition-all duration-200"
           size="sm"
-          style={{ minHeight: '36px', backgroundColor: product.affiliate_links?.length ? undefined : '#ccc' }}
+          variant={product.affiliate_links?.length ? "default" : "secondary"}
         >
           <ExternalLink className="h-4 w-4 mr-1" />
           {!product.affiliate_links?.length 
