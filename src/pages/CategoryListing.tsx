@@ -251,12 +251,18 @@ export default function CategoryListing() {
         currency: item.currency,
         shop: item.shop,
         availability: item.availability,
-        affiliate_links: Array.isArray(item.affiliate_links) 
-          ? item.affiliate_links.map(link => ({
-              id: link.id,
-              affiliate_url: link.affiliate_url,
-              tracking_code: link.tracking_code
-            }))
+        affiliate_links: item.affiliate_links 
+          ? (Array.isArray(item.affiliate_links) 
+              ? item.affiliate_links.map(link => ({
+                  id: link.id,
+                  affiliate_url: link.affiliate_url,
+                  tracking_code: link.tracking_code
+                }))
+              : [{
+                  id: item.affiliate_links.id,
+                  affiliate_url: item.affiliate_links.affiliate_url,
+                  tracking_code: item.affiliate_links.tracking_code
+                }])
           : []
       }));
       
