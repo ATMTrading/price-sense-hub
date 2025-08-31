@@ -144,7 +144,8 @@ export function ProductCard({ product, className = '' }: ProductCardProps) {
     title: product.title,
     hasAffiliateLinks: !!product.affiliate_links?.length,
     affiliateLinksCount: product.affiliate_links?.length || 0,
-    shop: product.shop?.name
+    shop: product.shop?.name,
+    affiliateLinksData: product.affiliate_links
   });
 
   return (
@@ -208,12 +209,16 @@ export function ProductCard({ product, className = '' }: ProductCardProps) {
 
         <Button 
           onClick={handleViewOffer}
-          disabled={isLoading}
+          disabled={isLoading || !product.affiliate_links?.length}
           className="w-full mt-auto"
           size="sm"
+          style={{ minHeight: '36px', backgroundColor: product.affiliate_links?.length ? undefined : '#ccc' }}
         >
           <ExternalLink className="h-4 w-4 mr-1" />
-          {isLoading ? 'Načítavam...' : 'Zobraziť ponuku'}
+          {!product.affiliate_links?.length 
+            ? 'Nedostupné' 
+            : (isLoading ? 'Načítavam...' : 'Zobraziť ponuku')
+          }
         </Button>
       </CardContent>
     </Card>

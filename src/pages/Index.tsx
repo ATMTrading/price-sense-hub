@@ -288,13 +288,11 @@ const Index = () => {
         shop: item.shop,
         availability: item.availability as 'in_stock' | 'out_of_stock' | 'limited',
         affiliate_links: Array.isArray(item.affiliate_links) 
-          ? item.affiliate_links.map(link => ({
-              id: link.id,
-              affiliate_url: link.affiliate_url,
-              tracking_code: link.tracking_code
-            }))
-          : []
+          ? item.affiliate_links
+          : (item.affiliate_links ? [item.affiliate_links] : [])
       }));
+      
+      console.log('🔍 Index.tsx - First product affiliate links:', typedData[0]?.affiliate_links);
       
       console.log('✅ Processed products:', typedData.length);
       setTopDeals(typedData);
