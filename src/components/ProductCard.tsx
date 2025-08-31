@@ -37,12 +37,17 @@ export function ProductCard({ product, className = '' }: ProductCardProps) {
   const [imageError, setImageError] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
-  // Enhanced image URL handling - use original URLs directly
+  // Enhanced image URL handling for different restorio.sk domains
   const getImageUrl = (url: string): string => {
     if (!url) return '/placeholder.svg';
     
-    // Ensure proper URL format for restorio.sk
+    // Handle different restorio.sk domains
     if (url.includes('restorio.sk')) {
+      // Handle media.restorio.sk URLs - use them directly
+      if (url.includes('media.restorio.sk')) {
+        return url;
+      }
+      // Handle www.restorio.sk URLs
       return url.replace(/^https?:\/\/restorio\.sk/, 'https://www.restorio.sk');
     }
     

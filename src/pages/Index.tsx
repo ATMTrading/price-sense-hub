@@ -223,7 +223,10 @@ const Index = () => {
       );
 
       console.log('Categories with counts:', categoriesWithCounts);
-      setCategories(categoriesWithCounts.filter(cat => cat.product_count > 0));
+      // Show categories with product count > 0, but also show a few with 0 for better UX
+      const categoriesWithProducts = categoriesWithCounts.filter(cat => cat.product_count > 0);
+      const categoriesWithoutProducts = categoriesWithCounts.filter(cat => cat.product_count === 0).slice(0, 2);
+      setCategories([...categoriesWithProducts, ...categoriesWithoutProducts]);
     } catch (error) {
       console.error('Error in fetchCategories:', error);
       // Fallback to mock data
