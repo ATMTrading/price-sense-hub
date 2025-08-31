@@ -55,6 +55,10 @@ export default function CategoryListing() {
     limited: false,
     out_of_stock: false
   });
+  const [currentPage, setCurrentPage] = useState(1);
+  const [hasMore, setHasMore] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const PRODUCTS_PER_PAGE = 20;
 
   useEffect(() => {
     if (categorySlug) {
@@ -64,7 +68,7 @@ export default function CategoryListing() {
 
   useEffect(() => {
     if (currentCategory) {
-      fetchProducts();
+      fetchProducts(1, false);
     }
   }, [currentCategory, market, priceRange, selectedMerchants, sortBy, availabilityFilters, searchQuery]);
 
@@ -124,8 +128,14 @@ export default function CategoryListing() {
     }
   };
 
-  const fetchProducts = async () => {
-    setLoading(true);
+  const fetchProducts = async (page = 1, append = false) => {
+    if (page === 1) {
+      setLoading(true);
+      setCurrentPage(1);
+    } else {
+      setLoadingMore(true);
+    }
+    
     try {
       // Get all category IDs to search in (main category + subcategories)
       const categoryIds = [];
@@ -209,17 +219,30 @@ export default function CategoryListing() {
           query = query.order('created_at', { ascending: false });
       }
 
-      const { data, error } = await query.limit(50);
+      // Add pagination
+      const from = (page - 1) * PRODUCTS_PER_PAGE;
+      const to = from + PRODUCTS_PER_PAGE - 1;
+      
+      const { data, error } = await query
+        .range(from, to)
+        .limit(PRODUCTS_PER_PAGE + 1); // Get one extra to check if there are more
 
       if (error) {
         console.error('Error fetching products:', error);
         return;
       }
 
-      console.log('Fetched products:', data);
+      console.log('🔍 CategoryListing - Fetched products:', data?.length || 0);
+      console.log('🔍 CategoryListing - First product affiliate_links:', data?.[0]?.affiliate_links);
+      
+      // Check if there are more products
+      const hasMoreProducts = data && data.length > PRODUCTS_PER_PAGE;
+      const productsToShow = hasMoreProducts ? data.slice(0, PRODUCTS_PER_PAGE) : data || [];
+      
+      setHasMore(hasMoreProducts);
       
       // Transform the data to match our Product interface
-      const transformedData = (data || []).map(item => ({
+      const transformedData = productsToShow.map(item => ({
         id: item.id,
         title: item.title,
         image_url: item.image_url,
@@ -233,11 +256,23 @@ export default function CategoryListing() {
           : (item.affiliate_links ? [item.affiliate_links] : [])
       }));
       
-      setProducts(transformedData);
+      console.log('🔍 CategoryListing - Transformed first product:', {
+        title: transformedData[0]?.title,
+        hasAffiliateLinks: !!transformedData[0]?.affiliate_links?.length,
+        affiliateLinksCount: transformedData[0]?.affiliate_links?.length || 0,
+        affiliateLinksData: transformedData[0]?.affiliate_links
+      });
+      
+      if (append) {
+        setProducts(prev => [...prev, ...transformedData]);
+      } else {
+        setProducts(transformedData);
+      }
     } catch (error) {
       console.error('Error in fetchProducts:', error);
     } finally {
       setLoading(false);
+      setLoadingMore(false);
     }
   };
 
@@ -485,18 +520,22 @@ export default function CategoryListing() {
                 </div>
 
                 {/* Load More */}
-                <div className="flex justify-center mt-12">
-                  <Button 
-                    size="lg" 
-                    variant="outline"
-                    onClick={async () => {
-                      // Load more products logic here
-                      console.log('Loading more products...');
-                    }}
-                  >
-                    {translate('btn.loadMore', market)}
-                  </Button>
-                </div>
+                {hasMore && (
+                  <div className="flex justify-center mt-12">
+                    <Button 
+                      size="lg" 
+                      variant="outline"
+                      disabled={loadingMore}
+                      onClick={() => {
+                        const nextPage = currentPage + 1;
+                        setCurrentPage(nextPage);
+                        fetchProducts(nextPage, true);
+                      }}
+                    >
+                      {loadingMore ? 'Načítavam...' : translate('btn.loadMore', market)}
+                    </Button>
+                  </div>
+                )}
               </>
             ) : (
               <div className="text-center py-12">

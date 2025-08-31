@@ -29,6 +29,8 @@ export function SubcategoryNav({ parentCategory }: SubcategoryNavProps) {
 
   const fetchSubcategories = async () => {
     try {
+      console.log('🔍 Fetching subcategories for parent:', parentCategory.id);
+      
       // Fetch subcategories for this parent category
       const { data: subcategoriesData, error } = await supabase
         .from('categories')
@@ -39,6 +41,8 @@ export function SubcategoryNav({ parentCategory }: SubcategoryNavProps) {
 
       if (error) throw error;
 
+      console.log('📂 Found subcategories:', subcategoriesData?.length || 0);
+
       // Get product counts for each subcategory
       const subcategoriesWithCounts = await Promise.all(
         (subcategoriesData || []).map(async (subcategory) => {
@@ -46,7 +50,10 @@ export function SubcategoryNav({ parentCategory }: SubcategoryNavProps) {
             .from('products')
             .select('*', { count: 'exact', head: true })
             .eq('category_id', subcategory.id)
+            .eq('market_code', market.code)
             .eq('is_active', true);
+
+          console.log(`📊 ${subcategory.name}: ${count || 0} products`);
 
           return {
             id: subcategory.id,
