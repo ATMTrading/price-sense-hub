@@ -15,8 +15,6 @@ interface Product {
   original_price: number | null;
   currency: string;
   image_url: string;
-  rating: number | null;
-  review_count: number | null;
   is_active: boolean;
   is_featured: boolean;
   availability: string;
@@ -192,19 +190,6 @@ export const ProductManager = () => {
                       </p>
                     )}
                   </div>
-                  {product.rating && (
-                    <div>
-                      <p className="font-medium">Rating</p>
-                      <p className="text-lg">
-                        ⭐ {product.rating.toFixed(1)}
-                        {product.review_count && (
-                          <span className="text-sm text-muted-foreground ml-1">
-                            ({product.review_count} reviews)
-                          </span>
-                        )}
-                      </p>
-                    </div>
-                  )}
                 </div>
               </div>
             </CardContent>

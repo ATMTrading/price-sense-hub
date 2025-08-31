@@ -1,7 +1,7 @@
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { ExternalLink, Star } from "lucide-react";
+import { ExternalLink } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useState } from "react";
 
@@ -13,8 +13,6 @@ interface Product {
   original_price?: number;
   currency: string;
   image_url: string;
-  rating?: number;
-  review_count?: number;
   availability: string;
   shop?: {
     id: string;
@@ -171,27 +169,6 @@ export function ProductCard({ product, className = '' }: ProductCardProps) {
               )}
             </div>
 
-            {product.rating && product.rating > 0 && (
-              <div className="flex items-center gap-1">
-                <div className="flex">
-                  {[1, 2, 3, 4, 5].map((star) => (
-                    <Star
-                      key={star}
-                      className={`h-3 w-3 ${
-                        star <= (product.rating || 0)
-                          ? 'fill-yellow-400 text-yellow-400'
-                          : 'text-muted-foreground'
-                      }`}
-                    />
-                  ))}
-                </div>
-                {(product.review_count || 0) > 0 && (
-                  <span className="text-xs text-muted-foreground">
-                    ({product.review_count})
-                  </span>
-                )}
-              </div>
-            )}
 
             {product.shop && (
               <div className="text-xs text-muted-foreground">

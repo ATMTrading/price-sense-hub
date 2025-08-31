@@ -255,8 +255,6 @@ export type Database = {
           market_code: string
           original_price: number | null
           price: number
-          rating: number | null
-          review_count: number | null
           shop_id: string
           title: string
           updated_at: string
@@ -275,8 +273,6 @@ export type Database = {
           market_code: string
           original_price?: number | null
           price: number
-          rating?: number | null
-          review_count?: number | null
           shop_id: string
           title: string
           updated_at?: string
@@ -295,8 +291,6 @@ export type Database = {
           market_code?: string
           original_price?: number | null
           price?: number
-          rating?: number | null
-          review_count?: number | null
           shop_id?: string
           title?: string
           updated_at?: string

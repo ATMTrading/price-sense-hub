@@ -28,8 +28,6 @@ interface Product {
     name: string;
     logo_url?: string;
   };
-  rating?: number;
-  review_count?: number;
   availability: string;
   affiliate_links?: Array<{
     id: string;
@@ -204,9 +202,6 @@ export default function CategoryListing() {
         case 'price_high':
           query = query.order('price', { ascending: false });
           break;
-        case 'rating':
-          query = query.order('rating', { ascending: false });
-          break;
         case 'newest':
           query = query.order('created_at', { ascending: false });
           break;
@@ -232,8 +227,6 @@ export default function CategoryListing() {
         original_price: item.original_price,
         currency: item.currency,
         shop: item.shop,
-        rating: item.rating,
-        review_count: item.review_count,
         availability: item.availability,
         affiliate_links: Array.isArray(item.affiliate_links) 
           ? item.affiliate_links
@@ -369,7 +362,6 @@ export default function CategoryListing() {
                 <SelectItem value="price-low">{translate('sort.priceLow', market)}</SelectItem>
                 <SelectItem value="price-high">{translate('sort.priceHigh', market)}</SelectItem>
                 <SelectItem value="newest">{translate('sort.newest', market)}</SelectItem>
-                <SelectItem value="rating">{translate('sort.rating', market)}</SelectItem>
               </SelectContent>
             </Select>
           </div>

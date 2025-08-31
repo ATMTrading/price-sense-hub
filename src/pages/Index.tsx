@@ -23,8 +23,6 @@ interface Product {
     name: string;
     logo_url?: string;
   };
-  rating?: number;
-  review_count?: number;
   availability: 'in_stock' | 'out_of_stock' | 'limited';
   affiliate_links?: Array<{
     id: string;
@@ -98,8 +96,6 @@ const Index = () => {
         original_price: item.original_price,
         currency: item.currency,
         shop: item.shop,
-        rating: item.rating,
-        review_count: item.review_count,
         availability: item.availability as 'in_stock' | 'out_of_stock' | 'limited',
         affiliate_links: Array.isArray(item.affiliate_links) 
           ? item.affiliate_links.map(link => ({
@@ -144,8 +140,6 @@ const Index = () => {
               original_price: item.original_price,
               currency: item.currency,
               shop: item.shop,
-              rating: item.rating,
-              review_count: item.review_count,
               availability: item.availability as 'in_stock' | 'out_of_stock' | 'limited',
             affiliate_links: Array.isArray(item.affiliate_links) 
               ? item.affiliate_links.map(link => ({
@@ -292,8 +286,6 @@ const Index = () => {
         original_price: item.original_price,
         currency: item.currency,
         shop: item.shop,
-        rating: item.rating,
-        review_count: item.review_count,
         availability: item.availability as 'in_stock' | 'out_of_stock' | 'limited',
         affiliate_links: Array.isArray(item.affiliate_links) 
           ? item.affiliate_links.map(link => ({
