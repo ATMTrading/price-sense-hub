@@ -288,8 +288,12 @@ const Index = () => {
         shop: item.shop,
         availability: item.availability as 'in_stock' | 'out_of_stock' | 'limited',
         affiliate_links: Array.isArray(item.affiliate_links) 
-          ? item.affiliate_links
-          : (item.affiliate_links ? [item.affiliate_links] : [])
+          ? item.affiliate_links.map(link => ({
+              id: link.id,
+              affiliate_url: link.affiliate_url,
+              tracking_code: link.tracking_code
+            }))
+          : []
       }));
       
       console.log('🔍 Index.tsx - First product affiliate links:', typedData[0]?.affiliate_links);
@@ -302,6 +306,19 @@ const Index = () => {
       setTopDeals([]);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleProductClick = async (product: Product) => {
+    try {
+      // Find the category for this product to navigate to the right category page
+      // For now, navigate to the default category since product doesn't have category_id in the interface
+      // This can be enhanced later by adding category_id to the Product interface and query
+      navigate('/c/knihy-a-media');
+    } catch (error) {
+      console.error('Error navigating to category:', error);
+      // Fallback navigation
+      navigate('/c/knihy-a-media');
     }
   };
 
@@ -379,7 +396,11 @@ const Index = () => {
                 ))
               ) : (
                 topDeals.map((product) => (
-                  <ProductCard key={product.id} product={product} />
+                  <ProductCard 
+                    key={product.id} 
+                    product={product} 
+                    onProductClick={handleProductClick}
+                  />
                 ))
               )}
             </div>
