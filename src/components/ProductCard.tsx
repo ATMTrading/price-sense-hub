@@ -39,16 +39,34 @@ export function ProductCard({ product, className = '' }: ProductCardProps) {
   const getImageUrl = (url: string): string => {
     if (!url) return '/placeholder.svg';
     
+    console.log('🖼️ Processing image URL:', url);
+    
     // Handle different restorio.sk domains
     if (url.includes('restorio.sk')) {
       // Handle media.restorio.sk URLs - use them directly
       if (url.includes('media.restorio.sk')) {
+        console.log('✅ Using media.restorio.sk URL as-is');
         return url;
       }
-      // Handle www.restorio.sk URLs
-      return url.replace(/^https?:\/\/restorio\.sk/, 'https://www.restorio.sk');
+      
+      // Convert old www.restorio.sk image URLs to new media format
+      if (url.includes('/images/big_') && url.match(/big_(\d+)\.jpg$/)) {
+        const match = url.match(/big_(\d+)\.jpg$/);
+        if (match) {
+          const productId = match[1];
+          const newUrl = `https://media.restorio.sk/media/catalog/product/cache/8e008d9281ec096d35da0b6f5fe9575f/${productId.charAt(0)}/${productId.charAt(1)}/${productId}v2.jpg`;
+          console.log('🔄 Converting URL from:', url, 'to:', newUrl);
+          return newUrl;
+        }
+      }
+      
+      // Handle other www.restorio.sk URLs
+      const convertedUrl = url.replace(/^https?:\/\/restorio\.sk/, 'https://www.restorio.sk');
+      console.log('🔄 Converting restorio.sk to www.restorio.sk:', convertedUrl);
+      return convertedUrl;
     }
     
+    console.log('✅ Using original URL:', url);
     return url;
   };
 
@@ -71,7 +89,8 @@ export function ProductCard({ product, className = '' }: ProductCardProps) {
     setIsLoading(true);
     
     try {
-      console.log('Tracking click for product:', product.id);
+      console.log('🔗 Tracking click for product:', product.id);
+      console.log('🔗 Product affiliate links:', product.affiliate_links);
       
       // Call the affiliate tracking function
       const { data, error } = await supabase.functions.invoke('affiliate-track-click', {
@@ -118,6 +137,15 @@ export function ProductCard({ product, className = '' }: ProductCardProps) {
       currency: currency || 'EUR'
     }).format(price);
   };
+
+  // Debug logging
+  console.log('🔍 ProductCard Debug:', {
+    productId: product.id,
+    title: product.title,
+    hasAffiliateLinks: !!product.affiliate_links?.length,
+    affiliateLinksCount: product.affiliate_links?.length || 0,
+    shop: product.shop?.name
+  });
 
   return (
     <Card className={`group hover:shadow-lg transition-all duration-300 overflow-hidden h-full ${className}`}>
