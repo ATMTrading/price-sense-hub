@@ -29,9 +29,10 @@ interface Product {
 interface ProductCardProps {
   product: Product;
   className?: string;
+  onProductClick?: (product: Product) => void;
 }
 
-export function ProductCard({ product, className = '' }: ProductCardProps) {
+export function ProductCard({ product, className = '', onProductClick }: ProductCardProps) {
   const [imageError, setImageError] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
@@ -148,9 +149,18 @@ export function ProductCard({ product, className = '' }: ProductCardProps) {
     affiliateLinksData: product.affiliate_links
   });
 
+  const handleProductClick = () => {
+    if (onProductClick) {
+      onProductClick(product);
+    }
+  };
+
   return (
     <Card className={`group hover:shadow-lg transition-all duration-300 overflow-hidden h-full ${className}`}>
-      <div className="relative overflow-hidden">
+      <div 
+        className="relative overflow-hidden cursor-pointer" 
+        onClick={handleProductClick}
+      >
         <img
           src={getImageUrl(product.image_url)}
           alt={product.title}
@@ -176,7 +186,10 @@ export function ProductCard({ product, className = '' }: ProductCardProps) {
       
       <CardContent className="p-4 flex flex-col h-full">
         <div className="flex-1">
-          <h3 className="font-semibold text-sm line-clamp-2 mb-2 min-h-[2.5rem]">
+          <h3 
+            className="font-semibold text-sm line-clamp-2 mb-2 min-h-[2.5rem] cursor-pointer hover:text-primary transition-colors"
+            onClick={handleProductClick}
+          >
             {product.title}
           </h3>
           

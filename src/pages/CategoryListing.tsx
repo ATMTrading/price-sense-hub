@@ -252,8 +252,12 @@ export default function CategoryListing() {
         shop: item.shop,
         availability: item.availability,
         affiliate_links: Array.isArray(item.affiliate_links) 
-          ? item.affiliate_links
-          : (item.affiliate_links ? [item.affiliate_links] : [])
+          ? item.affiliate_links.map(link => ({
+              id: link.id,
+              affiliate_url: link.affiliate_url,
+              tracking_code: link.tracking_code
+            }))
+          : []
       }));
       
       console.log('🔍 CategoryListing - Transformed first product:', {
@@ -293,6 +297,18 @@ export default function CategoryListing() {
     }
   };
   
+  const handleProductClick = (product: Product) => {
+    // Navigate to the current category showing related products
+    // Add category description and highlight similar products
+    setSearchQuery(''); // Clear any search filters to show all category products
+    
+    // Scroll to top to show category info
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+    
+    // Could also highlight the clicked product or show a "related to" message
+    console.log('Product clicked:', product.title, 'in category:', categoryName);
+  };
+
   const categoryName = currentCategory?.name || 'Category';
 
   const toggleMerchant = (merchant: string) => {
@@ -359,10 +375,15 @@ export default function CategoryListing() {
           />
         </div>
 
-        {/* Header */}
-        <div className="flex items-center justify-between mb-8">
-          <div>
+        {/* Header with Category Description */}
+        <div className="flex items-start justify-between mb-8">
+          <div className="flex-1">
             <h1 className="font-heading text-3xl font-bold mb-2">{categoryName}</h1>
+            {currentCategory?.description && (
+              <p className="text-muted-foreground mb-4 max-w-3xl leading-relaxed">
+                {currentCategory.description}
+              </p>
+            )}
             <p className="text-muted-foreground">{products.length} {translate('product.productsFound', market)}</p>
           </div>
           
@@ -514,9 +535,13 @@ export default function CategoryListing() {
                     ? 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6'
                     : 'space-y-4'
                 }>
-                  {products.map((product) => (
-                    <ProductCard key={product.id} product={product} />
-                  ))}
+                   {products.map((product) => (
+                     <ProductCard 
+                       key={product.id} 
+                       product={product} 
+                       onProductClick={handleProductClick}
+                     />
+                   ))}
                 </div>
 
                 {/* Load More */}
