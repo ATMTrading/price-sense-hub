@@ -54,8 +54,10 @@ serve(async (req) => {
         );
       }
 
-      // Get the first active affiliate link
-      const affiliateLink = product.affiliate_links?.[0];
+      // Handle affiliate link data structure (can be object or array)
+      const affiliateLink = Array.isArray(product.affiliate_links) 
+        ? product.affiliate_links[0] 
+        : product.affiliate_links;
       let redirectUrl = affiliateLink?.affiliate_url;
       
       console.log('Affiliate link found:', affiliateLink);
