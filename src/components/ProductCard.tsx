@@ -156,7 +156,7 @@ export function ProductCard({ product, className = '', onProductClick }: Product
   };
 
   return (
-    <Card className={`group hover:shadow-lg transition-all duration-300 overflow-hidden h-full ${className}`}>
+    <Card className={`group hover:shadow-lg transition-all duration-300 overflow-hidden ${className}`}>
       <div 
         className="relative overflow-hidden cursor-pointer" 
         onClick={handleProductClick}
@@ -184,8 +184,8 @@ export function ProductCard({ product, className = '', onProductClick }: Product
         </Badge>
       </div>
       
-      <CardContent className="p-4 flex flex-col h-full">
-        <div className="flex-1">
+      <CardContent className="p-4 flex flex-col min-h-[200px]">
+        <div className="flex-1 space-y-3">
           <h3 
             className="font-semibold text-sm line-clamp-2 mb-2 min-h-[2.5rem] cursor-pointer hover:text-primary transition-colors"
             onClick={handleProductClick}
@@ -194,12 +194,12 @@ export function ProductCard({ product, className = '', onProductClick }: Product
           </h3>
           
           {product.description && (
-            <p className="text-xs text-muted-foreground line-clamp-2 mb-3">
+            <p className="text-xs text-muted-foreground line-clamp-2">
               {product.description}
             </p>
           )}
 
-          <div className="space-y-2 mb-4">
+          <div className="space-y-2">
             <div className="flex items-center gap-2">
               <span className="text-lg font-bold text-primary">
                 {formatPrice(product.price, product.currency)}
@@ -211,7 +211,6 @@ export function ProductCard({ product, className = '', onProductClick }: Product
               )}
             </div>
 
-
             {product.shop && (
               <div className="text-xs text-muted-foreground">
                 {product.shop.name}
@@ -220,20 +219,25 @@ export function ProductCard({ product, className = '', onProductClick }: Product
           </div>
         </div>
 
-        <Button 
-          onClick={handleViewOffer}
-          disabled={isLoading || !product.affiliate_links?.length}
-          className="w-full mt-auto font-semibold shadow-md hover:shadow-lg transition-all duration-200"
-          size="sm"
-          variant={product.affiliate_links?.length ? "default" : "secondary"}
-        >
-          <ExternalLink className="h-4 w-4 mr-1" />
-          {!product.affiliate_links?.length 
-            ? 'Nedostupné' 
-            : (isLoading ? 'Načítavam...' : 'Zobraziť ponuku')
-          }
-        </Button>
+        {/* DEBUG: Add temporary styling to make button area visible */}
+        <div className="mt-4 pt-2 border-t border-muted">
+          <Button 
+            onClick={handleViewOffer}
+            disabled={isLoading || !product.affiliate_links?.length}
+            className="w-full font-semibold shadow-md hover:shadow-lg transition-all duration-200 bg-primary text-primary-foreground hover:bg-primary/90"
+            size="sm"
+          >
+            <ExternalLink className="h-4 w-4 mr-1" />
+            {!product.affiliate_links?.length 
+              ? 'Nedostupné' 
+              : (isLoading ? 'Načítavam...' : 'Zobraziť ponuku')
+            }
+          </Button>
+        </div>
       </CardContent>
     </Card>
   );
+
+  // Add debug console log to verify button is being rendered
+  console.log('🔘 Button should be visible for product:', product.id, 'Has affiliate links:', !!product.affiliate_links?.length);
 }
