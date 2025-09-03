@@ -33,7 +33,6 @@
   </header>
 
   <div id="err"></div>
-
   <nav id="nav"></nav>
 
   <div id="grid"></div>
@@ -48,8 +47,8 @@ const ANON_KEY     = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZ
 const headers = { apikey: ANON_KEY, Authorization: 'Bearer ' + ANON_KEY };
 const state = { limit: 24, offset: 0, category: '', mode: 'browse', q: '' };
 
-function showErr(msg){ const e = document.getElementById('err'); e.textContent = msg; e.style.display = msg ? 'block':'none'; }
-function fmtPrice(n,c){ const v=Number(n); return isFinite(v) ? v.toFixed(2)+' '+(c||'EUR') : ''; }
+function showErr(msg){ const e=document.getElementById('err'); e.textContent=msg; e.style.display=msg?'block':'none'; }
+function fmtPrice(n,c){ const v=Number(n); return isFinite(v)? v.toFixed(2)+' '+(c||'EUR') : ''; }
 
 async function fetchJSON(url, opts={}) {
   const r = await fetch(url, { headers, ...opts });
@@ -67,48 +66,43 @@ async function loadNav(){
 
 function renderNav(cats){
   const nav = document.getElementById('nav');
-  nav.innerHTML = cats.map(c => `<button class="chip" data-slug="${c.slug}">${c.name}</button>`).join('');
+  nav.innerHTML = cats.map(c=>`<button class="chip" data-slug="${c.slug}">${c.name}</button>`).join('');
   nav.addEventListener('click', async (ev)=>{
-    const btn = ev.target.closest('button[data-slug]');
-    if(!btn) return;
+    const btn=ev.target.closest('button[data-slug]');
+    if(!btn)return;
     document.querySelectorAll('.chip').forEach(x=>x.classList.remove('active'));
     btn.classList.add('active');
-    state.category = btn.dataset.slug; state.mode='browse'; state.q=''; document.getElementById('q').value='';
-    state.offset = 0;
+    state.category=btn.dataset.slug; state.mode='browse'; state.q=''; document.getElementById('q').value='';
+    state.offset=0;
     await loadProducts({replace:true});
-  }, { once:true });
-  const first = nav.querySelector('.chip'); if (first) first.classList.add('active');
+  }, {once:true});
+  const first=nav.querySelector('.chip'); if(first) first.classList.add('active');
 }
 
 async function loadProducts({append=false, replace=false}={}){
   try{
-    showErr('');
-    document.getElementById('empty').style.display='none';
-    let url = `${SUPABASE_URL}/rest/v1/site_products_v2?select=id,title,price,currency,image_url,affiliate_url,site_category,category_slug&order=created_at.desc&limit=${state.limit}&offset=${state.offset}`;
-    if (state.category) url += `&category_slug=eq.${encodeURIComponent(state.category)}`;
-    const items = await fetchJSON(url);
-    renderGrid(items, {append, replace});
-    if ((document.getElementById('grid').children.length===0)) document.getElementById('empty').style.display='block';
+    showErr(''); document.getElementById('empty').style.display='none';
+    let url=`${SUPABASE_URL}/rest/v1/site_products_v2?select=id,title,price,currency,image_url,affiliate_url,site_category,category_slug&order=created_at.desc&limit=${state.limit}&offset=${state.offset}`;
+    if(state.category) url+=`&category_slug=eq.${encodeURIComponent(state.category)}`;
+    const items=await fetchJSON(url);
+    renderGrid(items,{append,replace});
+    if(document.getElementById('grid').children.length===0) document.getElementById('empty').style.display='block';
     return items;
-  }catch(e){ showErr('Cannot load products: ' + e.message); return []; }
+  }catch(e){ showErr('Cannot load products: '+e.message); return[]; }
 }
 
 async function searchProducts(q){
   try{
     showErr('');
-    const url = `${SUPABASE_URL}/rest/v1/rpc/site_search_v2`;
-    const items = await fetchJSON(url,{
-      method:'POST',
-      headers: { ...headers, 'Content-Type':'application/json' },
-      body: JSON.stringify({ q, lim: 48, off: 0 })
-    });
-    renderGrid(items, {replace:true});
-  }catch(e){ showErr('Search failed: ' + e.message); }
+    const url=`${SUPABASE_URL}/rest/v1/rpc/site_search_v2`;
+    const items=await fetchJSON(url,{method:'POST',headers:{...headers,'Content-Type':'application/json'},body:JSON.stringify({q,lim:48,off:0})});
+    renderGrid(items,{replace:true});
+  }catch(e){ showErr('Search failed: '+e.message); }
 }
 
-function renderGrid(items, {append=false, replace=false}={}){
-  const grid = document.getElementById('grid');
-  const html = items.map(p => `
+function renderGrid(items,{append=false,replace=false}={}){
+  const grid=document.getElementById('grid');
+  const html=items.map(p=>`
     <a class="card" href="${p.affiliate_url}" target="_blank" rel="nofollow sponsored">
       <div class="img"><img src="${p.image_url||''}" alt=""></div>
       <div class="title">${p.title||''}</div>
@@ -116,32 +110,29 @@ function renderGrid(items, {append=false, replace=false}={}){
       <div class="cat">${p.site_category||''}</div>
     </a>
   `).join('');
-  if (replace) grid.innerHTML = html;
-  else if (append) grid.insertAdjacentHTML('beforeend', html);
-  else grid.innerHTML = html;
+  if(replace) grid.innerHTML=html;
+  else if(append) grid.insertAdjacentHTML('beforeend',html);
+  else grid.innerHTML=html;
 }
 
-document.getElementById('q').addEventListener('input', async (e)=>{
-  const v = e.target.value.trim();
-  if (v.length < 2) {
-    if (state.mode==='search'){ state.mode='browse'; state.offset=0; await loadProducts({replace:true}); }
+document.getElementById('q').addEventListener('input',async e=>{
+  const v=e.target.value.trim();
+  if(v.length<2){
+    if(state.mode==='search'){state.mode='browse';state.offset=0;await loadProducts({replace:true});}
     return;
   }
   state.mode='search'; state.q=v;
   await searchProducts(v);
 });
 
-document.getElementById('more').addEventListener('click', async ()=>{
-  if (state.mode==='search') return;
-  state.offset += state.limit;
-  const items = await loadProducts({append:true});
-  if (items.length===0) state.offset -= state.limit;
+document.getElementById('more').addEventListener('click',async()=>{
+  if(state.mode==='search') return;
+  state.offset+=state.limit;
+  const items=await loadProducts({append:true});
+  if(items.length===0) state.offset-=state.limit;
 });
 
-(async function(){
-  await loadNav();
-  await loadProducts({replace:true});
-})();
+(async function(){ await loadNav(); await loadProducts({replace:true}); })();
 </script>
 </body>
 </html>
