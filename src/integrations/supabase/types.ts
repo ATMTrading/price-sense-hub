@@ -12,6 +12,31 @@ export type Database = {
   __InternalSupabase: {
     PostgrestVersion: "13.0.4"
   }
+  graphql_public: {
+    Tables: {
+      [_ in never]: never
+    }
+    Views: {
+      [_ in never]: never
+    }
+    Functions: {
+      graphql: {
+        Args: {
+          extensions?: Json
+          operationName?: string
+          query?: string
+          variables?: Json
+        }
+        Returns: Json
+      }
+    }
+    Enums: {
+      [_ in never]: never
+    }
+    CompositeTypes: {
+      [_ in never]: never
+    }
+  }
   public: {
     Tables: {
       affiliate_links: {
@@ -45,15 +70,7 @@ export type Database = {
           tracking_code?: string | null
           updated_at?: string
         }
-        Relationships: [
-          {
-            foreignKeyName: "affiliate_links_product_id_fkey"
-            columns: ["product_id"]
-            isOneToOne: true
-            referencedRelation: "products"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
       }
       affiliate_networks: {
         Row: {
@@ -136,36 +153,45 @@ export type Database = {
       categories: {
         Row: {
           created_at: string
+          css_google_category_id: number | null
           description: string | null
           id: string
           image_url: string | null
           is_active: boolean
+          is_visible: boolean
           market_code: string
           name: string
+          nav_order: number | null
           parent_id: string | null
           slug: string
           updated_at: string
         }
         Insert: {
           created_at?: string
+          css_google_category_id?: number | null
           description?: string | null
           id?: string
           image_url?: string | null
           is_active?: boolean
-          market_code: string
+          is_visible?: boolean
+          market_code?: string
           name: string
+          nav_order?: number | null
           parent_id?: string | null
           slug: string
           updated_at?: string
         }
         Update: {
           created_at?: string
+          css_google_category_id?: number | null
           description?: string | null
           id?: string
           image_url?: string | null
           is_active?: boolean
+          is_visible?: boolean
           market_code?: string
           name?: string
+          nav_order?: number | null
           parent_id?: string | null
           slug?: string
           updated_at?: string
@@ -178,7 +204,139 @@ export type Database = {
             referencedRelation: "categories"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "categories_parent_id_fkey"
+            columns: ["parent_id"]
+            isOneToOne: false
+            referencedRelation: "visible_categories"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "categories_parent_id_fkey"
+            columns: ["parent_id"]
+            isOneToOne: false
+            referencedRelation: "visible_categories_v2"
+            referencedColumns: ["id"]
+          },
         ]
+      }
+      category_mapping: {
+        Row: {
+          category_id: string | null
+          id: string
+          merchant_category: string
+          merchant_name: string
+        }
+        Insert: {
+          category_id?: string | null
+          id?: string
+          merchant_category: string
+          merchant_name: string
+        }
+        Update: {
+          category_id?: string | null
+          id?: string
+          merchant_category?: string
+          merchant_name?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "category_mapping_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "categories"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "category_mapping_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "visible_categories"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "category_mapping_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "visible_categories_v2"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      category_mappings: {
+        Row: {
+          created_at: string
+          id: string
+          market_code: string
+          merchant_category: string
+          merchant_name: string
+          site_category: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          market_code: string
+          merchant_category: string
+          merchant_name: string
+          site_category: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          market_code?: string
+          merchant_category?: string
+          merchant_name?: string
+          site_category?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      feeds: {
+        Row: {
+          active: boolean
+          affiliate_suffix: string | null
+          created_at: string
+          feed_type: string
+          feed_url: string
+          id: string
+          last_import_at: string | null
+          last_status: string | null
+          market_code: string
+          merchant_name: string
+          note: string | null
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          affiliate_suffix?: string | null
+          created_at?: string
+          feed_type?: string
+          feed_url: string
+          id?: string
+          last_import_at?: string | null
+          last_status?: string | null
+          market_code: string
+          merchant_name: string
+          note?: string | null
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          affiliate_suffix?: string | null
+          created_at?: string
+          feed_type?: string
+          feed_url?: string
+          id?: string
+          last_import_at?: string | null
+          last_status?: string | null
+          market_code?: string
+          merchant_name?: string
+          note?: string | null
+          updated_at?: string
+        }
+        Relationships: []
       }
       import_logs: {
         Row: {
@@ -242,72 +400,79 @@ export type Database = {
       }
       products: {
         Row: {
-          availability: string
-          category_id: string
+          affiliate_url: string
+          category_id: string | null
           created_at: string
           currency: string
           description: string | null
-          external_id: string | null
           id: string
-          image_url: string
-          is_active: boolean
-          is_featured: boolean
+          image_url: string | null
           market_code: string
-          original_price: number | null
+          merchant_category: string | null
+          merchant_feed: string
+          merchant_name: string
           price: number
-          shop_id: string
+          site_category: string | null
           title: string
           updated_at: string
+          visible: boolean | null
         }
         Insert: {
-          availability?: string
-          category_id: string
+          affiliate_url: string
+          category_id?: string | null
           created_at?: string
           currency: string
           description?: string | null
-          external_id?: string | null
           id?: string
-          image_url: string
-          is_active?: boolean
-          is_featured?: boolean
+          image_url?: string | null
           market_code: string
-          original_price?: number | null
+          merchant_category?: string | null
+          merchant_feed: string
+          merchant_name: string
           price: number
-          shop_id: string
+          site_category?: string | null
           title: string
           updated_at?: string
+          visible?: boolean | null
         }
         Update: {
-          availability?: string
-          category_id?: string
+          affiliate_url?: string
+          category_id?: string | null
           created_at?: string
           currency?: string
           description?: string | null
-          external_id?: string | null
           id?: string
-          image_url?: string
-          is_active?: boolean
-          is_featured?: boolean
+          image_url?: string | null
           market_code?: string
-          original_price?: number | null
+          merchant_category?: string | null
+          merchant_feed?: string
+          merchant_name?: string
           price?: number
-          shop_id?: string
+          site_category?: string | null
           title?: string
           updated_at?: string
+          visible?: boolean | null
         }
         Relationships: [
           {
-            foreignKeyName: "products_category_id_fkey"
+            foreignKeyName: "fk_products_category"
             columns: ["category_id"]
             isOneToOne: false
             referencedRelation: "categories"
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "products_shop_id_fkey"
-            columns: ["shop_id"]
+            foreignKeyName: "fk_products_category"
+            columns: ["category_id"]
             isOneToOne: false
-            referencedRelation: "shops"
+            referencedRelation: "visible_categories"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_products_category"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "visible_categories_v2"
             referencedColumns: ["id"]
           },
         ]
@@ -419,7 +584,200 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      products_public: {
+        Row: {
+          affiliate_url: string | null
+          created_at: string | null
+          currency: string | null
+          id: string | null
+          image_url: string | null
+          market_code: string | null
+          price: number | null
+          site_category: string | null
+          title: string | null
+        }
+        Insert: {
+          affiliate_url?: string | null
+          created_at?: string | null
+          currency?: string | null
+          id?: string | null
+          image_url?: string | null
+          market_code?: string | null
+          price?: number | null
+          site_category?: string | null
+          title?: string | null
+        }
+        Update: {
+          affiliate_url?: string | null
+          created_at?: string | null
+          currency?: string | null
+          id?: string | null
+          image_url?: string | null
+          market_code?: string | null
+          price?: number | null
+          site_category?: string | null
+          title?: string | null
+        }
+        Relationships: []
+      }
+      site_products: {
+        Row: {
+          affiliate_url: string | null
+          category_id: string | null
+          category_name: string | null
+          category_slug: string | null
+          created_at: string | null
+          currency: string | null
+          description: string | null
+          id: string | null
+          image_url: string | null
+          merchant_category: string | null
+          merchant_name: string | null
+          price: number | null
+          title: string | null
+          updated_at: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fk_products_category"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "categories"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_products_category"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "visible_categories"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_products_category"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "visible_categories_v2"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      site_products_debug: {
+        Row: {
+          affiliate_url: string | null
+          category_id: string | null
+          category_name: string | null
+          category_slug: string | null
+          created_at: string | null
+          currency: string | null
+          description: string | null
+          id: string | null
+          image_url: string | null
+          market_code: string | null
+          merchant_category: string | null
+          merchant_feed: string | null
+          merchant_name: string | null
+          price: number | null
+          site_category: string | null
+          title: string | null
+          updated_at: string | null
+          visible: boolean | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fk_products_category"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "categories"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_products_category"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "visible_categories"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_products_category"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "visible_categories_v2"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      site_products_v2: {
+        Row: {
+          affiliate_url: string | null
+          category_slug: string | null
+          created_at: string | null
+          currency: string | null
+          description: string | null
+          id: string | null
+          image_url: string | null
+          merchant_category: string | null
+          merchant_name: string | null
+          price: number | null
+          site_category: string | null
+          title: string | null
+          updated_at: string | null
+        }
+        Relationships: []
+      }
+      unmapped_categories: {
+        Row: {
+          market_code: string | null
+          merchant_category: string | null
+          merchant_name: string | null
+          product_count: number | null
+        }
+        Relationships: []
+      }
+      visible_categories: {
+        Row: {
+          id: string | null
+          name: string | null
+          nav_order: number | null
+          slug: string | null
+        }
+        Insert: {
+          id?: string | null
+          name?: string | null
+          nav_order?: number | null
+          slug?: string | null
+        }
+        Update: {
+          id?: string | null
+          name?: string | null
+          nav_order?: number | null
+          slug?: string | null
+        }
+        Relationships: []
+      }
+      visible_categories_v2: {
+        Row: {
+          css_google_category_id: number | null
+          id: string | null
+          name: string | null
+          nav_order: number | null
+          slug: string | null
+        }
+        Insert: {
+          css_google_category_id?: number | null
+          id?: string | null
+          name?: string | null
+          nav_order?: never
+          slug?: string | null
+        }
+        Update: {
+          css_google_category_id?: number | null
+          id?: string | null
+          name?: string | null
+          nav_order?: never
+          slug?: string | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       delete_scheduled_job: {
@@ -433,6 +791,26 @@ export type Database = {
       get_scheduled_jobs: {
         Args: Record<PropertyKey, never>
         Returns: Json
+      }
+      gtrgm_compress: {
+        Args: { "": unknown }
+        Returns: unknown
+      }
+      gtrgm_decompress: {
+        Args: { "": unknown }
+        Returns: unknown
+      }
+      gtrgm_in: {
+        Args: { "": unknown }
+        Returns: unknown
+      }
+      gtrgm_options: {
+        Args: { "": unknown }
+        Returns: undefined
+      }
+      gtrgm_out: {
+        Args: { "": unknown }
+        Returns: unknown
       }
       has_role: {
         Args: {
@@ -459,6 +837,18 @@ export type Database = {
           job_name: string
         }
         Returns: Json
+      }
+      set_limit: {
+        Args: { "": number }
+        Returns: number
+      }
+      show_limit: {
+        Args: Record<PropertyKey, never>
+        Returns: number
+      }
+      show_trgm: {
+        Args: { "": string }
+        Returns: string[]
       }
       toggle_scheduled_job: {
         Args: { is_active: boolean; job_id: number }
@@ -592,6 +982,9 @@ export type CompositeTypes<
     : never
 
 export const Constants = {
+  graphql_public: {
+    Enums: {},
+  },
   public: {
     Enums: {
       app_role: ["admin", "user"],
