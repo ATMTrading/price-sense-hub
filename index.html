@@ -21,8 +21,8 @@
   .price { margin-top:6px; font-weight:700; }
   .cat { font-size:12px; color:var(--muted); margin-top:2px; }
   #more { margin:20px auto; display:block; padding:10px 16px; border:1px solid var(--border); border-radius:10px; background:#fff; cursor:pointer; }
-  #empty { text-align:center; color:var(--muted); margin:24px 0; }
-  #err { color:#b00020; margin:8px 0; display:none; }
+  #empty { text-align:center; color:var(--muted); margin:24px 0; display:none; }
+  #err { color:#b00020; margin:8px 0; display:none; white-space:pre-wrap; }
 </style>
 </head>
 <body>
@@ -37,7 +37,7 @@
   <nav id="nav"></nav>
 
   <div id="grid"></div>
-  <div id="empty" style="display:none">No products found.</div>
+  <div id="empty">No products found.</div>
   <button id="more">Load more</button>
 </div>
 
@@ -45,18 +45,11 @@
 const SUPABASE_URL = 'a73338790fa4c95dd4bbce6f6f59e24f754b6875bd5d746da1c4700b1dc6d94f';
 const ANON_KEY     = '10bb0ba9259e67d26d6b1d4be6f06a3ebd23bee51ec13514faf29d688019031e';
 
-const state = {
-  limit: 24,
-  offset: 0,
-  category: '',  // slug
-  mode: 'browse', // 'browse' | 'search'
-  q: ''
-};
-
 const headers = { apikey: ANON_KEY, Authorization: 'Bearer ' + ANON_KEY };
+const state = { limit: 24, offset: 0, category: '', mode: 'browse', q: '' };
 
-function showErr(msg){ const e=document.getElementById('err'); e.textContent=msg; e.style.display=msg?'block':'none'; }
-function fmtPrice(n,c){ const v=Number(n); return isFinite(v)? v.toFixed(2)+' '+(c||'EUR') : ''; }
+function showErr(msg){ const e = document.getElementById('err'); e.textContent = msg; e.style.display = msg ? 'block':'none'; }
+function fmtPrice(n,c){ const v=Number(n); return isFinite(v) ? v.toFixed(2)+' '+(c||'EUR') : ''; }
 
 async function fetchJSON(url, opts={}) {
   const r = await fetch(url, { headers, ...opts });
@@ -82,11 +75,9 @@ function renderNav(cats){
     btn.classList.add('active');
     state.category = btn.dataset.slug; state.mode='browse'; state.q=''; document.getElementById('q').value='';
     state.offset = 0;
-    const items = await loadProducts({replace:true});
-    if(items.length===0) document.getElementById('empty').style.display='block';
+    await loadProducts({replace:true});
   }, { once:true });
-  // mark "All" active by default
-  const first = nav.querySelector('.chip'); if(first) first.classList.add('active');
+  const first = nav.querySelector('.chip'); if (first) first.classList.add('active');
 }
 
 async function loadProducts({append=false, replace=false}={}){
@@ -97,6 +88,7 @@ async function loadProducts({append=false, replace=false}={}){
     if (state.category) url += `&category_slug=eq.${encodeURIComponent(state.category)}`;
     const items = await fetchJSON(url);
     renderGrid(items, {append, replace});
+    if ((document.getElementById('grid').children.length===0)) document.getElementById('empty').style.display='block';
     return items;
   }catch(e){ showErr('Cannot load products: ' + e.message); return []; }
 }
@@ -127,8 +119,6 @@ function renderGrid(items, {append=false, replace=false}={}){
   if (replace) grid.innerHTML = html;
   else if (append) grid.insertAdjacentHTML('beforeend', html);
   else grid.innerHTML = html;
-
-  if ((grid.children.length===0)) document.getElementById('empty').style.display='block';
 }
 
 document.getElementById('q').addEventListener('input', async (e)=>{
@@ -142,13 +132,12 @@ document.getElementById('q').addEventListener('input', async (e)=>{
 });
 
 document.getElementById('more').addEventListener('click', async ()=>{
-  if (state.mode==='search') return; // simple: no pagination on search
+  if (state.mode==='search') return;
   state.offset += state.limit;
   const items = await loadProducts({append:true});
-  if (items.length===0) state.offset -= state.limit; // no more
+  if (items.length===0) state.offset -= state.limit;
 });
 
-// bootstrap
 (async function(){
   await loadNav();
   await loadProducts({replace:true});
