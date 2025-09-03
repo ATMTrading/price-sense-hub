@@ -1,24 +1,158 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>bestpric.eu - Compare Prices, Save Money</title>
-    <meta name="description" content="Compare prices from thousands of stores and save on every purchase. Find the best deals on electronics, health products, and more." />
-    <meta name="author" content="bestpric.eu" />
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>bestpric.eu — Products</title>
+<style>
+  :root { --fg:#111; --muted:#666; --border:#e5e7eb; --bg:#fff; --chip:#fff; --chipb:#ddd; }
+  body { margin:0; font: 14px/1.4 system-ui,Segoe UI,Roboto,Arial,sans-serif; color:var(--fg); background:var(--bg); }
+  .wrap { max-width:1100px; margin:24px auto; padding:0 16px; }
+  header { display:flex; flex-wrap:wrap; align-items:center; gap:12px; margin-bottom:12px; }
+  #q { flex:1; min-width:240px; padding:10px 12px; border:1px solid var(--border); border-radius:10px; }
+  nav { display:flex; flex-wrap:wrap; gap:8px; margin:8px 0 16px; }
+  .chip { padding:8px 12px; border:1px solid var(--chipb); background:var(--chip); border-radius:999px; cursor:pointer; }
+  .chip.active { border-color:#000; font-weight:600; }
+  #grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(180px,1fr)); gap:16px; }
+  .card { border:1px solid var(--border); border-radius:12px; padding:12px; text-decoration:none; color:inherit; display:block; }
+  .img { aspect-ratio:1/1; background:#f7f7f7; border-radius:8px; overflow:hidden; display:flex; align-items:center; justify-content:center; }
+  .img img { max-width:100%; max-height:100%; object-fit:contain; }
+  .title { margin-top:8px; font-size:14px; line-height:1.3; height:3.4em; overflow:hidden; }
+  .price { margin-top:6px; font-weight:700; }
+  .cat { font-size:12px; color:var(--muted); margin-top:2px; }
+  #more { margin:20px auto; display:block; padding:10px 16px; border:1px solid var(--border); border-radius:10px; background:#fff; cursor:pointer; }
+  #empty { text-align:center; color:var(--muted); margin:24px 0; }
+  #err { color:#b00020; margin:8px 0; display:none; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1 style="margin:0;font-size:20px">bestpric.eu</h1>
+    <input id="q" placeholder="Search products…" />
+  </header>
 
-    <meta property="og:title" content="bestpric.eu - Compare Prices, Save Money" />
-    <meta property="og:description" content="Compare prices from thousands of stores and save on every purchase. Find the best deals on electronics, health products, and more." />
-    <meta property="og:type" content="website" />
-    <meta property="og:image" content="https://lovable.dev/opengraph-image-p98pqg.png" />
+  <div id="err"></div>
 
-    <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:site" content="@lovable_dev" />
-    <meta name="twitter:image" content="https://lovable.dev/opengraph-image-p98pqg.png" />
-  </head>
+  <nav id="nav"></nav>
 
-  <body>
-    <div id="root"></div>
-    <script type="module" src="/src/main.tsx"></script>
-  </body>
+  <div id="grid"></div>
+  <div id="empty" style="display:none">No products found.</div>
+  <button id="more">Load more</button>
+</div>
+
+<script>
+const SUPABASE_URL = 'a73338790fa4c95dd4bbce6f6f59e24f754b6875bd5d746da1c4700b1dc6d94f';
+const ANON_KEY     = '10bb0ba9259e67d26d6b1d4be6f06a3ebd23bee51ec13514faf29d688019031e';
+
+const state = {
+  limit: 24,
+  offset: 0,
+  category: '',  // slug
+  mode: 'browse', // 'browse' | 'search'
+  q: ''
+};
+
+const headers = { apikey: ANON_KEY, Authorization: 'Bearer ' + ANON_KEY };
+
+function showErr(msg){ const e=document.getElementById('err'); e.textContent=msg; e.style.display=msg?'block':'none'; }
+function fmtPrice(n,c){ const v=Number(n); return isFinite(v)? v.toFixed(2)+' '+(c||'EUR') : ''; }
+
+async function fetchJSON(url, opts={}) {
+  const r = await fetch(url, { headers, ...opts });
+  if (!r.ok) throw new Error(await r.text());
+  return r.json();
+}
+
+async function loadNav(){
+  try{
+    const url = `${SUPABASE_URL}/rest/v1/visible_categories_v2?select=name,slug,nav_order&order=nav_order.asc`;
+    const cats = await fetchJSON(url);
+    renderNav([{name:'All', slug:''}, ...cats]);
+  }catch(e){ showErr('Cannot load categories: ' + e.message); }
+}
+
+function renderNav(cats){
+  const nav = document.getElementById('nav');
+  nav.innerHTML = cats.map(c => `<button class="chip" data-slug="${c.slug}">${c.name}</button>`).join('');
+  nav.addEventListener('click', async (ev)=>{
+    const btn = ev.target.closest('button[data-slug]');
+    if(!btn) return;
+    document.querySelectorAll('.chip').forEach(x=>x.classList.remove('active'));
+    btn.classList.add('active');
+    state.category = btn.dataset.slug; state.mode='browse'; state.q=''; document.getElementById('q').value='';
+    state.offset = 0;
+    const items = await loadProducts({replace:true});
+    if(items.length===0) document.getElementById('empty').style.display='block';
+  }, { once:true });
+  // mark "All" active by default
+  const first = nav.querySelector('.chip'); if(first) first.classList.add('active');
+}
+
+async function loadProducts({append=false, replace=false}={}){
+  try{
+    showErr('');
+    document.getElementById('empty').style.display='none';
+    let url = `${SUPABASE_URL}/rest/v1/site_products_v2?select=id,title,price,currency,image_url,affiliate_url,site_category,category_slug&order=created_at.desc&limit=${state.limit}&offset=${state.offset}`;
+    if (state.category) url += `&category_slug=eq.${encodeURIComponent(state.category)}`;
+    const items = await fetchJSON(url);
+    renderGrid(items, {append, replace});
+    return items;
+  }catch(e){ showErr('Cannot load products: ' + e.message); return []; }
+}
+
+async function searchProducts(q){
+  try{
+    showErr('');
+    const url = `${SUPABASE_URL}/rest/v1/rpc/site_search_v2`;
+    const items = await fetchJSON(url,{
+      method:'POST',
+      headers: { ...headers, 'Content-Type':'application/json' },
+      body: JSON.stringify({ q, lim: 48, off: 0 })
+    });
+    renderGrid(items, {replace:true});
+  }catch(e){ showErr('Search failed: ' + e.message); }
+}
+
+function renderGrid(items, {append=false, replace=false}={}){
+  const grid = document.getElementById('grid');
+  const html = items.map(p => `
+    <a class="card" href="${p.affiliate_url}" target="_blank" rel="nofollow sponsored">
+      <div class="img"><img src="${p.image_url||''}" alt=""></div>
+      <div class="title">${p.title||''}</div>
+      <div class="price">${fmtPrice(p.price,p.currency)}</div>
+      <div class="cat">${p.site_category||''}</div>
+    </a>
+  `).join('');
+  if (replace) grid.innerHTML = html;
+  else if (append) grid.insertAdjacentHTML('beforeend', html);
+  else grid.innerHTML = html;
+
+  if ((grid.children.length===0)) document.getElementById('empty').style.display='block';
+}
+
+document.getElementById('q').addEventListener('input', async (e)=>{
+  const v = e.target.value.trim();
+  if (v.length < 2) {
+    if (state.mode==='search'){ state.mode='browse'; state.offset=0; await loadProducts({replace:true}); }
+    return;
+  }
+  state.mode='search'; state.q=v;
+  await searchProducts(v);
+});
+
+document.getElementById('more').addEventListener('click', async ()=>{
+  if (state.mode==='search') return; // simple: no pagination on search
+  state.offset += state.limit;
+  const items = await loadProducts({append:true});
+  if (items.length===0) state.offset -= state.limit; // no more
+});
+
+// bootstrap
+(async function(){
+  await loadNav();
+  await loadProducts({replace:true});
+})();
+</script>
+</body>
 </html>
