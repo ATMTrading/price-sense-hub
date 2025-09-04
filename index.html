@@ -51,7 +51,13 @@ function showErr(msg){ const e=document.getElementById('err'); e.textContent=msg
 function fmtPrice(n,c){ const v=Number(n); return isFinite(v)? v.toFixed(2)+' '+(c||'EUR') : ''; }
 
 async function fetchJSON(url, opts={}) {
-  const r = await fetch(url, { headers, ...opts });
+  const r = await fetch(url, {
+    ...opts,
+    headers: {
+      ...headers,
+      ...(opts.headers || {})
+    }
+  });
   if (!r.ok) throw new Error(await r.text());
   return r.json();
 }
