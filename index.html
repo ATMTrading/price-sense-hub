@@ -93,7 +93,7 @@ async function loadNav() {
 const PRODUCTS_VIEW = 'site_products_v2';   // change to 'products_public' if that's what you use
 
 function buildProductsUrl({ limit, offset, slug, q }) {
-  const fields = 'id,title,price,currency,image_url,affiliate_url,category_slug,shop_name';
+  const fields = 'id,title,price,currency,image_url,final_url,category_slug,shop_name';
   const params = new URLSearchParams({ select: fields, limit, offset, order: 'price.asc' });
   if (slug) params.append('category_slug', `eq.${slug}`);
   if (q)    params.append('title', `ilike.*${q}*`);   // simple search
@@ -103,7 +103,7 @@ function buildProductsUrl({ limit, offset, slug, q }) {
 function renderProducts(items, { replace=false } = {}) {
   const grid = $('#grid');
   const html = items.map(p => `
-    <a class="card" href="${p.affiliate_url || '#'}" target="_blank" rel="nofollow noopener">
+    <a class="card" href="${p.final_url || '#'}" target="_blank" rel="nofollow noopener">
       <div class="img"><img src="${p.image_url||''}" alt=""></div>
       <div class="title">${p.title||''}</div>
       <div class="price">${fmtPrice(p.price, p.currency)}</div>
