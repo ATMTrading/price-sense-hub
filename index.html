@@ -42,21 +42,14 @@
 
 <script>
 const SUPABASE_URL = 'https://xxplocdervsfftnnalah.supabase.co';
-const ANON_KEY     = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inh4cGxvY2RlcnZzZmZ0bm5hbGFoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTU4OTIyODYsImV4cCI6MjA3MTQ2ODI4Nn0.Gh8AShwePYUuiJjj_G1qFuMaTRC_6HZOSERifIvjZro';
+const ANON_KEY = '<eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inh4cGxvY2RlcnZzZmZ0bm5hbGFoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTU4OTIyODYsImV4cCI6MjA3MTQ2ODI4Nn0.Gh8AShwePYUuiJjj_G1qFuMaTRC_6HZOSERifIvjZro>';
 
-const headers = { apikey: ANON_KEY, Authorization: 'Bearer ' + ANON_KEY };
-const state = { limit: 24, offset: 0, category: '', mode: 'browse', q: '' };
+const baseHeaders = { apikey: ANON_KEY, Authorization: 'Bearer ' + ANON_KEY };
 
-function showErr(msg){ const e=document.getElementById('err'); e.textContent=msg; e.style.display=msg?'block':'none'; }
-function fmtPrice(n,c){ const v=Number(n); return isFinite(v)? v.toFixed(2)+' '+(c||'EUR') : ''; }
-
-async function fetchJSON(url, opts={}) {
+async function fetchJSON(url, opts = {}) {
   const r = await fetch(url, {
     ...opts,
-    headers: {
-      ...headers,
-      ...(opts.headers || {})
-    }
+    headers: { ...baseHeaders, ...(opts.headers || {}) }
   });
   if (!r.ok) throw new Error(await r.text());
   return r.json();
