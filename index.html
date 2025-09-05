@@ -66,7 +66,7 @@ async function fetchJSON(url, opts={}) {
 /* ================= Categories (nav) ================= */
 async function loadNav() {
   try {
-    const url = `${SUPABASE_URL}/rest/v1/visible_categories_v2?select=name,slug,nav_order&order=nav_order.asc`;
+    const url = `${SUPABASE_URL}/rest/v1/site_products_live?select=name,slug,nav_order&order=nav_order.asc`;
     const cats = await fetchJSON(url);
 
     const nav = $('#nav');
@@ -90,7 +90,7 @@ async function loadNav() {
 }
 
 /* ================= Products ================= */
-const PRODUCTS_VIEW = 'site_products_v2';   // change to 'products_public' if that's what you use
+const PRODUCTS_VIEW = 'site_products_live';   // change to 'products_public' if that's what you use
 
 function buildProductsUrl({ limit, offset, slug, q }) {
   const fields = 'id,title,price,currency,image_url,final_url,category_slug,shop_name';
