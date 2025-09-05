@@ -57,7 +57,7 @@ async function fetchJSON(url, opts = {}) {
 
 async function loadNav(){
   try{
-    const url = `${SUPABASE_URL}/rest/v1/visible_categories_v2?select=name,slug,nav_order&order=nav_order.asc`;
+    const url = `${SUPABASE_URL}/rest/v1/visible_categories_v2?select=name,slug&order=nav_order.asc`;
     const cats = await fetchJSON(url);
     renderNav([{name:'All', slug:''}, ...cats]);
   }catch(e){ showErr('Cannot load categories: ' + e.message); }
