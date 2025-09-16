@@ -63,42 +63,51 @@ async function fetchJSON(url, opts={}) {
   return res.json();
 }
 
-/* ================= Categories (nav) ================= */
+/* ================= Categories (merchant categories) ================= */
 async function loadNav() {
   try {
-    // 🟢 Use the categories view, not products
-    const url = `${SUPABASE_URL}/rest/v1/visible_categories_v2?select=name,slug,nav_order&order=nav_order.asc`;
+    // Distinct merchant categories from the live view
+    // Add &shop_name=eq.Faxcopy.sk if you want to show only Faxcopy categories
+    const url = `${SUPABASE_URL}/rest/v1/site_products_live` +
+      `?select=merchant_category&merchant_category=not.is.null&distinct=on&order=merchant_category.asc`;
     const cats = await fetchJSON(url);
 
     const nav = $('#nav');
     nav.innerHTML = [
-      `<button class="chip active" data-slug="">All</button>`,
-      ...cats.map(c => `<button class="chip" data-slug="${c.slug}">${c.name}</button>`)
+      `<button class="chip active" data-cat="">All</button>`,
+      ...cats.map(c => `<button class="chip" data-cat="${encodeURIComponent(c.merchant_category)}">${c.merchant_category}</button>`)
     ].join('');
 
     nav.addEventListener('click', async (ev) => {
-      const btn = ev.target.closest('button[data-slug]');
+      const btn = ev.target.closest('button[data-cat]');
       if (!btn) return;
       $$('.chip', nav).forEach(b => b.classList.toggle('active', b===btn));
-      state.category = btn.dataset.slug;
+      state.category = decodeURIComponent(btn.dataset.cat || '');
       state.mode = 'browse';
       state.q = '';
       $('#q').value = '';
       state.offset = 0;
-      await loadProducts({ replace:true });
+      await loadProducts({ replace: true });
     });
-  } catch (e) { showErr('Cannot load categories: ' + e.message); }
+  } catch (e) {
+    showErr('Cannot load categories: ' + e.message);
+  }
 }
 
-/* ================= Products ================= */
+/* ================= Products (use merchant_category filter) ================= */
 const PRODUCTS_VIEW = 'site_products_live';
 
 function buildProductsUrl({ limit, offset, slug, q }) {
-  // 🟢 Include product_url_clean so we can fall back to canonical
-  const fields = 'id,title,price,currency,image_url,final_url,product_url_clean,category_slug,shop_name';
+  // include product_url_clean so we can safely fall back to canonical
+  const fields = 'id,title,price,currency,image_url,final_url,product_url_clean,merchant_category,shop_name';
   const params = new URLSearchParams({ select: fields, limit, offset, order: 'price.asc' });
-  if (slug) params.append('category_slug', `eq.${slug}`);
-  if (q)    params.append('title', `ilike.*${q}*`);
+
+  if (slug) params.append('merchant_category', `eq.${slug}`);      // filter by merchant category
+  if (q)    params.append('title', `ilike.*${q}*`);                 // simple search
+
+  // Optionally keep a single merchant in the grid:
+  // params.append('shop_name', 'eq.Faxcopy.sk');
+
   return `${SUPABASE_URL}/rest/v1/${PRODUCTS_VIEW}?${params.toString()}`;
 }
 
@@ -109,30 +118,13 @@ function renderProducts(items, { replace=false } = {}) {
       <div class="img"><img src="${p.image_url||''}" alt=""></div>
       <div class="title">${p.title||''}</div>
       <div class="price">${fmtPrice(p.price, p.currency)}</div>
-      <div class="cat">${p.category_slug || ''}${p.shop_name ? ' • ' + p.shop_name : ''}</div>
+      <div class="cat">${p.merchant_category || ''}${p.shop_name ? ' • ' + p.shop_name : ''}</div>
     </a>
   `).join('');
   if (replace) grid.innerHTML = html;
   else grid.insertAdjacentHTML('beforeend', html);
 
   $('#empty').style.display = grid.children.length ? 'none' : 'block';
-}
-
-async function loadProducts({ append=false, replace=false } = {}) {
-  try {
-    showErr('');
-    const url = buildProductsUrl({
-      limit: state.limit,
-      offset: state.offset,
-      slug: state.mode === 'browse' ? state.category : '',
-      q:    state.mode === 'search' ? state.q        : ''
-    });
-    const rows = await fetchJSON(url);
-    renderProducts(rows, { replace });
-    if (!append && rows.length < state.limit) $('#more').style.display = 'none';
-    else $('#more').style.display = 'block';
-    return rows;
-  } catch (e) { showErr('Cannot load products: ' + e.message); return []; }
 }
 
 /* ================= Search ================= */
