@@ -63,27 +63,30 @@ async function fetchJSON(url, opts={}) {
   return res.json();
 }
 
-/* ================= Categories (merchant/site category labels) ================= */
+/* ================= Categories (robust, merchant categories) ================= */
 async function loadNav() {
   try {
-    // Get only category columns and de-duplicate; both columns are selected so we can fallback.
-    // NOTE: PostgREST distinct works as a query param without value.
-    const url = `${SUPABASE_URL}/rest/v1/site_products_live` +
-      `?select=merchant_category,site_category&distinct&order=merchant_category.asc,site_category.asc`;
+    // merchant_category only, distinct, ordered
+    const url = `${SUPABASE_URL}/rest/v1/site_products_live`
+      + `?select=merchant_category`
+      + `&merchant_category=not.is.null`
+      + `&distinct`
+      + `&order=merchant_category.asc`;
+
     const rows = await fetchJSON(url);
 
+    // Count occurrences (you can lower MIN_OCCURRENCES if you want more chips)
+    const MIN_OCCURRENCES = 5;
     const counts = new Map();
     for (const r of rows) {
-      const label = (r.merchant_category || r.site_category || '').trim();
-      if (!label) continue;
-      counts.set(label, (counts.get(label) || 0) + 1);
+      const v = (r.merchant_category || '').trim();
+      if (!v) continue;
+      counts.set(v, (counts.get(v) || 0) + 1);
     }
-    // keep reasonably common labels
-    const MIN_OCCURRENCES = 5;
     const labels = Array.from(counts.entries())
       .filter(([, n]) => n >= MIN_OCCURRENCES)
       .map(([name]) => name)
-      .sort((a,b)=>a.localeCompare(b,'sk',{sensitivity:'base'}));
+      .sort((a, b) => a.localeCompare(b, 'sk', { sensitivity: 'base' }));
 
     const nav = $('#nav');
     nav.innerHTML = [
@@ -96,13 +99,13 @@ async function loadNav() {
     nav.addEventListener('click', async (ev) => {
       const btn = ev.target.closest('button[data-cat]');
       if (!btn) return;
-      $$('.chip', nav).forEach(b => b.classList.toggle('active', b===btn));
+      $$('.chip', nav).forEach(b => b.classList.toggle('active', b === btn));
       state.category = decodeURIComponent(btn.dataset.cat || '');
       state.mode = 'browse';
       state.q = '';
       $('#q').value = '';
       state.offset = 0;
-      await loadProducts({ replace:true });
+      await loadProducts({ replace: true });
     });
   } catch (e) {
     showErr('Cannot load categories: ' + e.message);
@@ -112,47 +115,39 @@ async function loadNav() {
 /* ================= Products ================= */
 const PRODUCTS_VIEW = 'site_products_live';
 
-function buildProductsUrl({ limit, offset, cat, q }) {
-  const fields =
-    'id,title,price,currency,image_url,final_url,product_url_clean,merchant_category,site_category,shop_name';
+function buildProductsUrl({ limit, offset, slug, q }) {
+  const fields = [
+    'id','title','price','currency','image_url',
+    'final_url','product_url_clean','merchant_category','site_category','shop_name'
+  ].join(',');
 
-  // Build manually to control the OR filter
-  const params = new URLSearchParams({
-    select: fields,
-    limit: String(limit),
-    offset: String(offset),
-    order: 'price.asc'
-  });
+  const params = new URLSearchParams({ select: fields, limit, offset, order: 'price.asc' });
 
-  if (q) params.append('title', `ilike.*${q}*`);
-
-  // If a category is chosen, match either merchant_category OR site_category
-  if (cat) {
-    // PostgREST OR syntax; parentheses and commas may be percent-encoded – server accepts that.
-    const orValue = `(merchant_category.eq.${cat},site_category.eq.${cat})`;
-    params.append('or', orValue);
+  if (slug) {
+    // match either merchant_category OR site_category
+    params.append('or', `(merchant_category.eq.${slug},site_category.eq.${slug})`);
   }
-
-  // If you want to show only one shop, uncomment:
-  // params.append('shop_name','eq.Faxcopy.sk');
+  if (q) params.append('title', `ilike.*${q}*`);
 
   return `${SUPABASE_URL}/rest/v1/${PRODUCTS_VIEW}?${params.toString()}`;
 }
 
 function renderProducts(items, { replace=false } = {}) {
   const grid = $('#grid');
-  const html = items.map(p => `
-    <a class="card" href="${p.final_url || p.product_url_clean || '#'}" target="_blank" rel="nofollow noopener">
-      <div class="img"><img src="${p.image_url||''}" alt=""></div>
-      <div class="title">${p.title||''}</div>
-      <div class="price">${fmtPrice(p.price, p.currency)}</div>
-      <div class="cat">${(p.merchant_category || p.site_category || '')}${p.shop_name ? ' • ' + p.shop_name : ''}</div>
-    </a>
-  `).join('');
-
+  const html = items.map(p => {
+    const href = p.final_url || p.product_url_clean || '#';
+    const label = p.merchant_category || p.site_category || '';
+    return `
+      <a class="card" href="${href}" target="_blank" rel="nofollow noopener">
+        <div class="img"><img src="${p.image_url||''}" alt=""></div>
+        <div class="title">${p.title||''}</div>
+        <div class="price">${fmtPrice(p.price, p.currency)}</div>
+        <div class="cat">${label}${p.shop_name ? ' • ' + p.shop_name : ''}</div>
+      </a>
+    `;
+  }).join('');
   if (replace) grid.innerHTML = html;
   else grid.insertAdjacentHTML('beforeend', html);
-
   $('#empty').style.display = grid.children.length ? 'none' : 'block';
 }
 
@@ -162,16 +157,13 @@ async function loadProducts({ append=false, replace=false } = {}) {
     const url = buildProductsUrl({
       limit: state.limit,
       offset: state.offset,
-      cat: state.mode === 'browse' ? state.category : '',
-      q:   state.mode === 'search' ? state.q        : ''
+      slug: state.mode === 'browse' ? state.category : '',
+      q:    state.mode === 'search' ? state.q        : ''
     });
     const rows = await fetchJSON(url);
     renderProducts(rows, { replace });
-
-    // pager
     if (!append && rows.length < state.limit) $('#more').style.display = 'none';
     else $('#more').style.display = 'block';
-
     return rows;
   } catch (e) {
     showErr('Cannot load products: ' + e.message);
