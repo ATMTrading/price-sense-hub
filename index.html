@@ -1,30 +1,30 @@
 <!doctype html>
 <html lang="en">
 <head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>bestpric.eu — Products</title>
-<style>
-  :root { --fg:#111; --muted:#666; --border:#e5e7eb; --bg:#fff; --chip:#fff; --chipb:#ddd; }
-  body { margin:0; font:14px/1.4 system-ui,Segoe UI,Roboto,Arial,sans-serif; color:var(--fg); background:var(--bg); }
-  .wrap { max-width:1100px; margin:24px auto; padding:0 16px; }
-  header { display:flex; flex-wrap:wrap; align-items:center; gap:12px; margin-bottom:12px; }
-  h1 { margin:0; font-size:20px }
-  #q { flex:1; min-width:240px; padding:10px 12px; border:1px solid var(--border); border-radius:10px; }
-  nav { display:flex; flex-wrap:wrap; gap:8px; margin:8px 0 16px; }
-  .chip { padding:8px 12px; border:1px solid var(--chipb); background:var(--chip); border-radius:999px; cursor:pointer; }
-  .chip.active { border-color:#000; font-weight:600; }
-  #grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(180px,1fr)); gap:16px; }
-  .card { border:1px solid var(--border); border-radius:12px; padding:12px; text-decoration:none; color:inherit; display:block; }
-  .img { aspect-ratio:1/1; background:#f7f7f7; border-radius:8px; overflow:hidden; display:flex; align-items:center; justify-content:center; }
-  .img img { max-width:100%; max-height:100%; object-fit:contain; }
-  .title { margin-top:8px; font-size:14px; line-height:1.3; height:3.4em; overflow:hidden; }
-  .price { margin-top:6px; font-weight:700; }
-  .cat { font-size:12px; color:var(--muted); margin-top:2px; }
-  #more { margin:20px auto; display:block; padding:10px 16px; border:1px solid var(--border); border-radius:10px; background:#fff; cursor:pointer; }
-  #empty { text-align:center; color:var(--muted); margin:24px 0; display:none; }
-  #err { color:#b00020; margin:8px 0; display:none; white-space:pre-wrap; }
-</style>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>bestpric.eu — Products</title>
+  <style>
+    :root { --fg:#111; --muted:#666; --border:#e5e7eb; --bg:#fff; --chip:#fff; --chipb:#ddd; }
+    body { margin:0; font:14px/1.4 system-ui,Segoe UI,Roboto,Arial,sans-serif; color:var(--fg); background:var(--bg); }
+    .wrap { max-width:1100px; margin:24px auto; padding:0 16px; }
+    header { display:flex; flex-wrap:wrap; align-items:center; gap:12px; margin-bottom:12px; }
+    h1 { margin:0; font-size:20px }
+    #q { flex:1; min-width:240px; padding:10px 12px; border:1px solid var(--border); border-radius:10px; }
+    nav { display:flex; flex-wrap:wrap; gap:8px; margin:8px 0 16px; }
+    .chip { padding:8px 12px; border:1px solid var(--chipb); background:var(--chip); border-radius:999px; cursor:pointer; }
+    .chip.active { border-color:#000; font-weight:600; }
+    #grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(180px,1fr)); gap:16px; }
+    .card { border:1px solid var(--border); border-radius:12px; padding:12px; text-decoration:none; color:inherit; display:block; }
+    .img { aspect-ratio:1/1; background:#f7f7f7; border-radius:8px; overflow:hidden; display:flex; align-items:center; justify-content:center; }
+    .img img { max-width:100%; max-height:100%; object-fit:contain; }
+    .title { margin-top:8px; font-size:14px; line-height:1.3; height:3.4em; overflow:hidden; }
+    .price { margin-top:6px; font-weight:700; }
+    .cat { font-size:12px; color:var(--muted); margin-top:2px; }
+    #more { margin:20px auto; display:block; padding:10px 16px; border:1px solid var(--border); border-radius:10px; background:#fff; cursor:pointer; }
+    #empty { text-align:center; color:var(--muted); margin:24px 0; display:none; }
+    #err { color:#b00020; margin:8px 0; display:none; white-space:pre-wrap; }
+  </style>
 </head>
 <body>
 <div class="wrap">
@@ -44,7 +44,7 @@
 <script>
 /* ================= Supabase config ================= */
 const SUPABASE_URL = 'https://xxplocdervsfftnnalah.supabase.co';
-const ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inh4cGxvY2RlcnZzZmZ0bm5hbGFoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTU4OTIyODYsImV4cCI6MjA3MTQ2ODI4Nn0.Gh8AShwePYUuiJjj_G1qFuMaTRC_6HZOSERifIvjZro'.trim();   // <-- no < >, no spaces
+const ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inh4cGxvY2RlcnZzZmZ0bm5hbGFoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTU4OTIyODYsImV4cCI6MjA3MTQ2ODI4Nn0.Gh8AShwePYUuiJjj_G1qFuMaTRC_6HZOSERifIvjZro'.trim();
 
 const baseHeaders = { apikey: ANON_KEY, Authorization: 'Bearer ' + ANON_KEY };
 
@@ -63,30 +63,27 @@ async function fetchJSON(url, opts={}) {
   return res.json();
 }
 
-<script>
-/* ================= Categories (robust) ================= */
+/* ================= Categories (merchant/site category labels) ================= */
 async function loadNav() {
   try {
-    // Minimal fields, we’ll dedupe client-side
-    // Add &shop_name=eq.Faxcopy.sk if you want a single merchant
+    // Get only category columns and de-duplicate; both columns are selected so we can fallback.
+    // NOTE: PostgREST distinct works as a query param without value.
     const url = `${SUPABASE_URL}/rest/v1/site_products_live` +
-       `?select=merchant_category&merchant_category=not.is.null&distinct&order=merchant_category.asc`;
+      `?select=merchant_category,site_category&distinct&order=merchant_category.asc,site_category.asc`;
     const rows = await fetchJSON(url);
 
-    // Count labels across merchant_category then site_category
     const counts = new Map();
     for (const r of rows) {
-      const v = (r.merchant_category || r.site_category || '').trim();
-      if (!v) continue;
-      counts.set(v, (counts.get(v) || 0) + 1);
+      const label = (r.merchant_category || r.site_category || '').trim();
+      if (!label) continue;
+      counts.set(label, (counts.get(label) || 0) + 1);
     }
-
-    // Keep only labels that appear at least N times (tune N if needed)
+    // keep reasonably common labels
     const MIN_OCCURRENCES = 5;
     const labels = Array.from(counts.entries())
       .filter(([, n]) => n >= MIN_OCCURRENCES)
       .map(([name]) => name)
-      .sort((a, b) => a.localeCompare(b, 'sk', { sensitivity: 'base' }));
+      .sort((a,b)=>a.localeCompare(b,'sk',{sensitivity:'base'}));
 
     const nav = $('#nav');
     nav.innerHTML = [
@@ -99,67 +96,88 @@ async function loadNav() {
     nav.addEventListener('click', async (ev) => {
       const btn = ev.target.closest('button[data-cat]');
       if (!btn) return;
-      $$('.chip', nav).forEach(b => b.classList.toggle('active', b === btn));
+      $$('.chip', nav).forEach(b => b.classList.toggle('active', b===btn));
       state.category = decodeURIComponent(btn.dataset.cat || '');
       state.mode = 'browse';
       state.q = '';
       $('#q').value = '';
       state.offset = 0;
-      await loadProducts({ replace: true });
+      await loadProducts({ replace:true });
     });
   } catch (e) {
     showErr('Cannot load categories: ' + e.message);
   }
 }
 
-/* ================= Products (filter by merchant OR site category) ================= */
+/* ================= Products ================= */
 const PRODUCTS_VIEW = 'site_products_live';
 
-function buildProductsUrl({ limit, offset, slug, q }) {
+function buildProductsUrl({ limit, offset, cat, q }) {
   const fields =
     'id,title,price,currency,image_url,final_url,product_url_clean,merchant_category,site_category,shop_name';
-  const params = new URLSearchParams({ select: fields, limit, offset, order: 'price.asc' });
 
-  if (slug) {
-    // match either merchant_category OR site_category
-    // PostgREST will encode the (...) automatically from URLSearchParams
-    params.append('or', `(merchant_category.eq.${slug},site_category.eq.${slug})`);
-  }
+  // Build manually to control the OR filter
+  const params = new URLSearchParams({
+    select: fields,
+    limit: String(limit),
+    offset: String(offset),
+    order: 'price.asc'
+  });
+
   if (q) params.append('title', `ilike.*${q}*`);
 
-  // Optional: pin a shop
-  // params.append('shop_name', 'eq.Faxcopy.sk');
+  // If a category is chosen, match either merchant_category OR site_category
+  if (cat) {
+    // PostgREST OR syntax; parentheses and commas may be percent-encoded – server accepts that.
+    const orValue = `(merchant_category.eq.${cat},site_category.eq.${cat})`;
+    params.append('or', orValue);
+  }
+
+  // If you want to show only one shop, uncomment:
+  // params.append('shop_name','eq.Faxcopy.sk');
 
   return `${SUPABASE_URL}/rest/v1/${PRODUCTS_VIEW}?${params.toString()}`;
 }
 
-/* ================= Products render (unchanged except label source) ================= */
-async function loadProducts({ append = false, replace = false } = {}) {
+function renderProducts(items, { replace=false } = {}) {
+  const grid = $('#grid');
+  const html = items.map(p => `
+    <a class="card" href="${p.final_url || p.product_url_clean || '#'}" target="_blank" rel="nofollow noopener">
+      <div class="img"><img src="${p.image_url||''}" alt=""></div>
+      <div class="title">${p.title||''}</div>
+      <div class="price">${fmtPrice(p.price, p.currency)}</div>
+      <div class="cat">${(p.merchant_category || p.site_category || '')}${p.shop_name ? ' • ' + p.shop_name : ''}</div>
+    </a>
+  `).join('');
+
+  if (replace) grid.innerHTML = html;
+  else grid.insertAdjacentHTML('beforeend', html);
+
+  $('#empty').style.display = grid.children.length ? 'none' : 'block';
+}
+
+async function loadProducts({ append=false, replace=false } = {}) {
   try {
     showErr('');
     const url = buildProductsUrl({
       limit: state.limit,
       offset: state.offset,
-      slug: state.mode === 'browse' ? state.category : '',
-      q:    state.mode === 'search' ? state.q        : ''
+      cat: state.mode === 'browse' ? state.category : '',
+      q:   state.mode === 'search' ? state.q        : ''
     });
-
     const rows = await fetchJSON(url);
     renderProducts(rows, { replace });
 
-    // pager visibility
-    if (!append && rows.length < state.limit) {
-      $('#more').style.display = 'none';
-    } else {
-      $('#more').style.display = 'block';
-    }
+    // pager
+    if (!append && rows.length < state.limit) $('#more').style.display = 'none';
+    else $('#more').style.display = 'block';
+
     return rows;
   } catch (e) {
     showErr('Cannot load products: ' + e.message);
     return [];
   }
-</script>
-
+}
 
 /* ================= Search ================= */
 $('#q').addEventListener('input', async (e) => {
@@ -182,7 +200,6 @@ $('#more').addEventListener('click', async () => {
   await loadNav();
   await loadProducts({ replace:true });
 })();
-
 </script>
 </body>
 </html>
