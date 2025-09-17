@@ -70,7 +70,7 @@ async function loadNav() {
     // Minimal fields, we’ll dedupe client-side
     // Add &shop_name=eq.Faxcopy.sk if you want a single merchant
     const url = `${SUPABASE_URL}/rest/v1/site_products_live` +
-      `?select=merchant_category,site_category&limit=10000`;
+       `?select=merchant_category&merchant_category=not.is.null&distinct&order=merchant_category.asc`;
     const rows = await fetchJSON(url);
 
     // Count labels across merchant_category then site_category
@@ -134,21 +134,30 @@ function buildProductsUrl({ limit, offset, slug, q }) {
 }
 
 /* ================= Products render (unchanged except label source) ================= */
-function renderProducts(items, { replace=false } = {}) {
-  const grid = $('#grid');
-  const html = items.map(p => `
-    <a class="card" href="${p.final_url || p.product_url_clean || '#'}" target="_blank" rel="nofollow noopener">
-      <div class="img"><img src="${p.image_url||''}" alt=""></div>
-      <div class="title">${p.title||''}</div>
-      <div class="price">${fmtPrice(p.price, p.currency)}</div>
-      <div class="cat">${p.merchant_category || p.site_category || ''}${p.shop_name ? ' • ' + p.shop_name : ''}</div>
-    </a>
-  `).join('');
-  if (replace) grid.innerHTML = html;
-  else grid.insertAdjacentHTML('beforeend', html);
+async function loadProducts({ append = false, replace = false } = {}) {
+  try {
+    showErr('');
+    const url = buildProductsUrl({
+      limit: state.limit,
+      offset: state.offset,
+      slug: state.mode === 'browse' ? state.category : '',
+      q:    state.mode === 'search' ? state.q        : ''
+    });
 
-  $('#empty').style.display = grid.children.length ? 'none' : 'block';
-}
+    const rows = await fetchJSON(url);
+    renderProducts(rows, { replace });
+
+    // pager visibility
+    if (!append && rows.length < state.limit) {
+      $('#more').style.display = 'none';
+    } else {
+      $('#more').style.display = 'block';
+    }
+    return rows;
+  } catch (e) {
+    showErr('Cannot load products: ' + e.message);
+    return [];
+  }
 </script>
 
 
