@@ -150,23 +150,31 @@ async function loadNav() {
   }
 }
 
-/* ================= Products ================= */
-const PRODUCTS_VIEW = 'site_products_live'; // your view; see SQL instructions
+/* ============== Products ============== */
+const PRODUCTS_VIEW = 'site_products_live';
 
 function buildProductsUrl({ limit, offset, slug, q }) {
   const fields = [
-    'id,title,price,currency,image_url,final_url,merchant_category,site_category,shop_name'
+    'id',
+    'title',
+    'price',
+    'currency',
+    'image_url',
+    'final_url',
+    'merchant_category',
+    'site_category',
+    'shop_name',
   ].join(',');
 
   const params = new URLSearchParams({
-    select: fields, limit, offset, order: 'price.asc'
+    select: fields,
+    limit,
+    offset,
+    order: 'price.asc',
   });
 
-  if (slug) {
-    // Match either merchant_category OR site_category
-    params.append('or', `(merchant_category.eq.${slug},site_category.eq.${slug})`);
-  }
-  if (q) params.append('title', `ilike.*${q}*`);
+  if (slug) params.append('or', `(merchant_category.eq.${slug},site_category.eq.${slug})`);
+  if (q)    params.append('title', `ilike.*${q}*`);
 
   return `${SUPABASE_URL}/rest/v1/${PRODUCTS_VIEW}?${params.toString()}`;
 }
