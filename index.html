@@ -155,10 +155,7 @@ const PRODUCTS_VIEW = 'site_products_live'; // your view; see SQL instructions
 
 function buildProductsUrl({ limit, offset, slug, q }) {
   const fields = [
-    'id','title','price','currency','image_url',
-    'final_url','product_url','product_url_clean',
-    'merchant_category','site_category','shop_name',
-    'affiliate_suffix'
+    'id,title,price,currency,image_url,final_url,merchant_category,site_category,shop_name'
   ].join(',');
 
   const params = new URLSearchParams({
