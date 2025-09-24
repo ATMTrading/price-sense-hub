@@ -8,19 +8,26 @@
   :root { --fg:#111; --muted:#666; --border:#e5e7eb; --bg:#fff; --chip:#fff; --chipb:#ddd; }
   body { margin:0; font:14px/1.4 system-ui,Segoe UI,Roboto,Arial,sans-serif; color:var(--fg); background:var(--bg); }
   .wrap { max-width:1100px; margin:24px auto; padding:0 16px; }
+
   header { display:flex; flex-wrap:wrap; align-items:center; gap:12px; margin-bottom:12px; }
   h1 { margin:0; font-size:20px }
-  #q { flex:1; min-width:240px; padding:10px 12px; border:1px solid var(--border); border-radius:10px; }
+  #q { flex:1; min-width:260px; padding:10px 12px; border:1px solid var(--border); border-radius:10px; }
+
+  /* Category chips */
   nav { display:flex; flex-wrap:wrap; gap:8px; margin:8px 0 16px; }
   .chip { padding:8px 12px; border:1px solid var(--chipb); background:var(--chip); border-radius:999px; cursor:pointer; }
+  .chip small { color:var(--muted); margin-left:6px; }
   .chip.active { border-color:#000; font-weight:600; }
+
+  /* Product grid/cards */
   #grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(180px,1fr)); gap:16px; }
-  .card { border:1px solid var(--border); border-radius:12px; padding:12px; text-decoration:none; color:inherit; display:block; }
+  .card { border:1px solid var(--border); border-radius:12px; padding:12px; text-decoration:none; color:inherit; display:block; background:#fff; }
   .img { aspect-ratio:1/1; background:#f7f7f7; border-radius:8px; overflow:hidden; display:flex; align-items:center; justify-content:center; }
   .img img { max-width:100%; max-height:100%; object-fit:contain; }
   .title { margin-top:8px; font-size:14px; line-height:1.3; height:3.4em; overflow:hidden; }
   .price { margin-top:6px; font-weight:700; }
   .cat { font-size:12px; color:var(--muted); margin-top:2px; }
+
   #more { margin:20px auto; display:block; padding:10px 16px; border:1px solid var(--border); border-radius:10px; background:#fff; cursor:pointer; }
   #empty { text-align:center; color:var(--muted); margin:24px 0; display:none; }
   #err { color:#b00020; margin:8px 0; display:none; white-space:pre-wrap; }
@@ -49,7 +56,7 @@ const ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsI
 const baseHeaders = { apikey: ANON_KEY, Authorization: 'Bearer ' + ANON_KEY };
 
 /* ================= State & helpers ================= */
-const state = { limit: 24, offset: 0, category: '', q: '', mode: 'browse' };
+const state = { limit: 24, offset: 0, categoryLabel: '', q: '', mode: 'browse' };
 
 const $  = (s, r=document) => r.querySelector(s);
 const $$ = (s, r=document) => Array.from(r.querySelectorAll(s));
@@ -88,57 +95,42 @@ function appendSuffix(rawUrl, suffix) {
 }
 
 function pickBestUrl(p) {
-  if (p.product_url_clean) return p.product_url_clean;                  // canonical from feeds
+  if (p.product_url_clean) return p.product_url_clean;                  // canonical from feeds if present
   if (p.product_url && !/\/detail\/fromId\//i.test(p.product_url)) {
     return p.product_url;                                               // a “non-redirect” url
   }
-  if (p.final_url) return p.final_url;                                  // last fallback
+  if (p.final_url) return p.final_url;                                  // last fallback from view
   return '#';
 }
 
 function affiliateLink(p) {
   const base   = pickBestUrl(p);
-  const suffix = p.affiliate_suffix || ''; // per shop/network, from DB
+  const suffix = p.affiliate_suffix || ''; // per shop/network, from DB/view
   return appendSuffix(base, suffix);
 }
 
-/* ================= Categories (robust) ================= */
-/* Build labels from both merchant_category and site_category client-side.
-   This avoids tricky PostgREST filter syntax and works for every merchant. */
+/* ================= Categories from MV (like Midovo) ================= */
 async function loadNav() {
   try {
-    // pull two fields only; dedupe/aggregate in JS
-    const limit = 20000; // tune this based on data size
-    const url = `${SUPABASE_URL}/rest/v1/site_products_live?select=merchant_category,site_category&limit=${limit}`;
+    // pull curated categories from MV (you can raise the limit)
+    const url = `${SUPABASE_URL}/rest/v1/mv_category_summaries?select=category_label,product_count&order=product_count.desc&limit=30`;
     const rows = await fetchJSON(url);
-
-    const counts = new Map();
-    for (const r of rows) {
-      const a = (r.merchant_category || '').trim();
-      const b = (r.site_category || '').trim();
-      if (a) counts.set(a, (counts.get(a) || 0) + 1);
-      if (b) counts.set(b, (counts.get(b) || 0) + 1);
-    }
-
-    const MIN_OCCURRENCES = 3; // don’t spam with singletons
-    const labels = Array.from(counts.entries())
-      .filter(([, n]) => n >= MIN_OCCURRENCES)
-      .map(([name]) => name)
-      .sort((x, y) => x.localeCompare(y, 'sk', { sensitivity: 'base' }));
 
     const nav = $('#nav');
     nav.innerHTML = [
-      `<button class="chip active" data-cat="">All</button>`,
-      ...labels.map(name =>
-        `<button class="chip" data-cat="${encodeURIComponent(name)}">${name}</button>`
+      `<button class="chip active" data-label="">All</button>`,
+      ...rows.map(r =>
+        `<button class="chip" data-label="${encodeURIComponent(r.category_label)}">
+           ${r.category_label} <small>${r.product_count}</small>
+         </button>`
       )
     ].join('');
 
     nav.addEventListener('click', async (ev) => {
-      const btn = ev.target.closest('button[data-cat]');
+      const btn = ev.target.closest('button[data-label]');
       if (!btn) return;
       $$('.chip', nav).forEach(b => b.classList.toggle('active', b === btn));
-      state.category = decodeURIComponent(btn.dataset.cat || '');
+      state.categoryLabel = decodeURIComponent(btn.dataset.label || '');
       state.mode = 'browse';
       state.q = '';
       $('#q').value = '';
@@ -153,17 +145,15 @@ async function loadNav() {
 /* ============== Products ============== */
 const PRODUCTS_VIEW = 'site_products_live';
 
-function buildProductsUrl({ limit, offset, slug, q }) {
+/* Build a PostgREST URL:
+   - Filters products by the chosen category **label** (matches either merchant_category OR site_category)
+   - Supports search via ilike on title
+*/
+function buildProductsUrl({ limit, offset, categoryLabel, q }) {
   const fields = [
-    'id',
-    'title',
-    'price',
-    'currency',
-    'image_url',
-    'final_url',
-    'merchant_category',
-    'site_category',
-    'shop_name',
+    'id','title','price','currency','image_url','final_url',
+    'merchant_category','site_category','shop_name',
+    'product_url','product_url_clean','affiliate_suffix'  // keep for affiliate selection
   ].join(',');
 
   const params = new URLSearchParams({
@@ -173,8 +163,14 @@ function buildProductsUrl({ limit, offset, slug, q }) {
     order: 'price.asc',
   });
 
-  if (slug) params.append('or', `(merchant_category.eq.${slug},site_category.eq.${slug})`);
-  if (q)    params.append('title', `ilike.*${q}*`);
+  // If a category is selected, filter by exact label on either source field
+  if (categoryLabel) {
+    const quoted = `%22${encodeURIComponent(categoryLabel)}%22`; // URL encoded double quotes
+    // or=(merchant_category.eq."Label",site_category.eq."Label")
+    params.append('or', `(merchant_category.eq.${quoted},site_category.eq.${quoted})`);
+  }
+
+  if (q) params.append('title', `ilike.*${q}*`);
 
   return `${SUPABASE_URL}/rest/v1/${PRODUCTS_VIEW}?${params.toString()}`;
 }
@@ -202,13 +198,14 @@ async function loadProducts({ append=false, replace=false } = {}) {
     const url = buildProductsUrl({
       limit: state.limit,
       offset: state.offset,
-      slug: state.mode === 'browse' ? state.category : '',
+      categoryLabel: state.mode === 'browse' ? state.categoryLabel : '',
       q:    state.mode === 'search' ? state.q        : ''
     });
 
     const rows = await fetchJSON(url);
     renderProducts(rows, { replace });
 
+    // pager button visibility
     if (!append && rows.length < state.limit) $('#more').style.display = 'none';
     else $('#more').style.display = 'block';
 
