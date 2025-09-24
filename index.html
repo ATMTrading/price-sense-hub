@@ -7,20 +7,32 @@
 <style>
   :root { --fg:#111; --muted:#666; --border:#e5e7eb; --bg:#fff; --chip:#fff; --chipb:#ddd; }
   body { margin:0; font:14px/1.4 system-ui,Segoe UI,Roboto,Arial,sans-serif; color:var(--fg); background:var(--bg); }
-  .wrap { max-width:1100px; margin:24px auto; padding:0 16px; }
+  .wrap { max-width:1200px; margin:24px auto; padding:0 16px; }
 
   header { display:flex; flex-wrap:wrap; align-items:center; gap:12px; margin-bottom:12px; }
   h1 { margin:0; font-size:20px }
   #q { flex:1; min-width:260px; padding:10px 12px; border:1px solid var(--border); border-radius:10px; }
 
-  /* Category chips */
+  /* chips */
   nav { display:flex; flex-wrap:wrap; gap:8px; margin:8px 0 16px; }
   .chip { padding:8px 12px; border:1px solid var(--chipb); background:var(--chip); border-radius:999px; cursor:pointer; }
   .chip small { color:var(--muted); margin-left:6px; }
   .chip.active { border-color:#000; font-weight:600; }
 
-  /* Product grid/cards */
-  #grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(180px,1fr)); gap:16px; }
+  /* tiles */
+  #tiles { display:grid; grid-template-columns:repeat(auto-fill,minmax(320px,1fr)); gap:16px; margin:6px 0 18px; }
+  .tile { border:1px solid var(--border); border-radius:12px; background:#fff; overflow:hidden; display:flex; flex-direction:column; }
+  .tileHdr { padding:12px 14px; font-weight:700; display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid var(--border); }
+  .tileHdr button { border:1px solid var(--border); background:#fff; border-radius:999px; padding:6px 10px; cursor:pointer; font-size:12px; }
+  .tileRow { display:grid; grid-template-columns:repeat(4,1fr); gap:10px; padding:12px; }
+  .miniCard { text-decoration:none; color:inherit; display:block; }
+  .miniImg { aspect-ratio:1/1; background:#f7f7f7; border-radius:8px; display:flex; align-items:center; justify-content:center; overflow:hidden; }
+  .miniImg img { max-width:100%; max-height:100%; object-fit:contain; }
+  .miniTitle { font-size:12px; margin-top:6px; height:2.6em; overflow:hidden; }
+  .miniPrice { font-weight:700; font-size:12px; margin-top:2px; }
+
+  /* product grid */
+  #grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(200px,1fr)); gap:16px; }
   .card { border:1px solid var(--border); border-radius:12px; padding:12px; text-decoration:none; color:inherit; display:block; background:#fff; }
   .img { aspect-ratio:1/1; background:#f7f7f7; border-radius:8px; overflow:hidden; display:flex; align-items:center; justify-content:center; }
   .img img { max-width:100%; max-height:100%; object-fit:contain; }
@@ -41,28 +53,31 @@
   </header>
 
   <div id="err"></div>
-  <nav id="nav"></nav>
 
+  <!-- tiles (homepage style like Midovo) -->
+  <div id="tiles"></div>
+
+  <!-- chips & product grid (visible when a category or search is active) -->
+  <nav id="nav" style="display:none;"></nav>
   <div id="grid"></div>
   <div id="empty">No products found.</div>
-  <button id="more">Load more</button>
+  <button id="more" style="display:none;">Load more</button>
 </div>
 
 <script>
 /* ================= Supabase config ================= */
 const SUPABASE_URL = 'https://xxplocdervsfftnnalah.supabase.co';
 const ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inh4cGxvY2RlcnZzZmZ0bm5hbGFoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTU4OTIyODYsImV4cCI6MjA3MTQ2ODI4Nn0.Gh8AShwePYUuiJjj_G1qFuMaTRC_6HZOSERifIvjZro';
-
 const baseHeaders = { apikey: ANON_KEY, Authorization: 'Bearer ' + ANON_KEY };
 
 /* ================= State & helpers ================= */
-const state = { limit: 24, offset: 0, categoryLabel: '', q: '', mode: 'browse' };
+const state = { limit: 24, offset: 0, categoryLabel: '', q: '', mode: 'home' };
 
 const $  = (s, r=document) => r.querySelector(s);
 const $$ = (s, r=document) => Array.from(r.querySelectorAll(s));
 
 function showErr(msg=''){ const el=$('#err'); el.textContent=msg; el.style.display=msg?'block':'none'; }
-const fmtPrice = (n, c='EUR') => Number.isFinite(+n) ? `${(+n).toFixed(2)} €` : '';
+const fmtPrice = (n) => Number.isFinite(+n) ? `${(+n).toFixed(2)} €` : '';
 
 async function fetchJSON(url, opts={}) {
   const res = await fetch(url, { ...opts, headers: { ...baseHeaders, ...(opts.headers||{}) } });
@@ -70,7 +85,7 @@ async function fetchJSON(url, opts={}) {
   return res.json();
 }
 
-/* ================= Affiliate helpers (multi-merchant) ================= */
+/* ================= Affiliate helpers ================= */
 function parseQueryString(qs) {
   const out = [];
   if (!qs) return out;
@@ -83,93 +98,135 @@ function parseQueryString(qs) {
   }
   return out;
 }
-
 function appendSuffix(rawUrl, suffix) {
   if (!rawUrl) return '#';
   let u; try { u = new URL(rawUrl); } catch { return rawUrl; }
   if (suffix && typeof suffix === 'string') {
-    const pairs = parseQueryString(suffix);
-    for (const [k, v] of pairs) u.searchParams.set(k, v);
+    for (const [k, v] of parseQueryString(suffix)) u.searchParams.set(k, v);
   }
   return u.toString();
 }
-
 function pickBestUrl(p) {
-  if (p.product_url_clean) return p.product_url_clean;                  // canonical from feeds if present
-  if (p.product_url && !/\/detail\/fromId\//i.test(p.product_url)) {
-    return p.product_url;                                               // a “non-redirect” url
-  }
-  if (p.final_url) return p.final_url;                                  // last fallback from view
+  // no product_url_clean usage (your view doesn't have it)
+  if (p.product_url && !/\/detail\/fromId\//i.test(p.product_url)) return p.product_url;
+  if (p.final_url) return p.final_url;
+  if (p.product_url) return p.product_url;
   return '#';
 }
-
 function affiliateLink(p) {
   const base   = pickBestUrl(p);
-  const suffix = p.affiliate_suffix || ''; // per shop/network, from DB/view
+  const suffix = p.affiliate_suffix || '';
   return appendSuffix(base, suffix);
 }
 
-/* ================= Categories from MV (like Midovo) ================= */
-async function loadNav() {
+/* ================= Tiles (Midovo-style home) ================= */
+async function loadTiles() {
   try {
-    // pull curated categories from MV (you can raise the limit)
-    const url = `${SUPABASE_URL}/rest/v1/mv_category_summaries?select=category_label,product_count&order=product_count.desc&limit=30`;
-    const rows = await fetchJSON(url);
+    // top categories by count
+    const mvUrl = `${SUPABASE_URL}/rest/v1/mv_category_summaries?select=category_label,product_count&order=product_count.desc&limit=8`;
+    const cats = await fetchJSON(mvUrl);
+    const tiles = $('#tiles');
+    tiles.innerHTML = '';
 
+    for (const c of cats) {
+      const products = await fetchCategoryProducts(c.category_label, 4);
+      const tile = document.createElement('div');
+      tile.className = 'tile';
+      tile.innerHTML = `
+        <div class="tileHdr">
+          <div>${c.category_label}</div>
+          <button data-label="${encodeURIComponent(c.category_label)}">See all</button>
+        </div>
+        <div class="tileRow">
+          ${products.map(p => `
+            <a class="miniCard" href="${affiliateLink(p)}" target="_blank" rel="nofollow noopener">
+              <div class="miniImg"><img src="${p.image_url||''}" alt=""></div>
+              <div class="miniTitle">${p.title||''}</div>
+              <div class="miniPrice">${fmtPrice(p.price)}</div>
+            </a>`).join('')}
+        </div>`;
+      tiles.appendChild(tile);
+    }
+
+    tiles.addEventListener('click', (e) => {
+      const btn = e.target.closest('button[data-label]');
+      if (!btn) return;
+      // go into browse mode for that category
+      state.mode = 'browse';
+      state.categoryLabel = decodeURIComponent(btn.dataset.label);
+      state.q = '';
+      $('#q').value = '';
+      state.offset = 0;
+      showListUI();
+      loadChips(); // render chips row if not yet
+      loadProducts({ replace:true });
+    });
+  } catch (e) {
+    showErr('Cannot load tiles: ' + e.message);
+  }
+}
+async function fetchCategoryProducts(label, limit=4) {
+  const fields = [
+    'id','title','price','image_url',
+    'product_url','final_url','affiliate_suffix',
+    'merchant_category','site_category','shop_name'
+  ].join(',');
+
+  const params = new URLSearchParams({ select: fields, limit, order:'price.asc' });
+  const quoted = `%22${encodeURIComponent(label)}%22`;
+  params.append('or', `(merchant_category.eq.${quoted},site_category.eq.${quoted})`);
+
+  const url = `${SUPABASE_URL}/rest/v1/site_products_live?${params.toString()}`;
+  return fetchJSON(url);
+}
+
+/* ================= Chips row for browsing ================= */
+async function loadChips() {
+  try {
+    const url = `${SUPABASE_URL}/rest/v1/mv_category_summaries?select=category_label,product_count&order=product_count.desc&limit=60`;
+    const rows = await fetchJSON(url);
     const nav = $('#nav');
     nav.innerHTML = [
-      `<button class="chip active" data-label="">All</button>`,
+      `<button class="chip${state.categoryLabel ? '' : ' active'}" data-label="">All</button>`,
       ...rows.map(r =>
-        `<button class="chip" data-label="${encodeURIComponent(r.category_label)}">
+        `<button class="chip${r.category_label===state.categoryLabel ? ' active':''}" data-label="${encodeURIComponent(r.category_label)}">
            ${r.category_label} <small>${r.product_count}</small>
          </button>`
       )
     ].join('');
 
-    nav.addEventListener('click', async (ev) => {
+    nav.onclick = async (ev) => {
       const btn = ev.target.closest('button[data-label]');
       if (!btn) return;
-      $$('.chip', nav).forEach(b => b.classList.toggle('active', b === btn));
+      $$('.chip', nav).forEach(b => b.classList.toggle('active', b===btn));
       state.categoryLabel = decodeURIComponent(btn.dataset.label || '');
       state.mode = 'browse';
       state.q = '';
       $('#q').value = '';
       state.offset = 0;
-      await loadProducts({ replace: true });
-    });
+      await loadProducts({ replace:true });
+    };
   } catch (e) {
     showErr('Cannot load categories: ' + e.message);
   }
 }
 
-/* ============== Products ============== */
+/* ============== List products (browse/search) ============== */
 const PRODUCTS_VIEW = 'site_products_live';
 
-/* Build a PostgREST URL:
-   - Filters products by the chosen category **label** (matches either merchant_category OR site_category)
-   - Supports search via ilike on title
-*/
 function buildProductsUrl({ limit, offset, categoryLabel, q }) {
   const fields = [
     'id','title','price','currency','image_url','final_url',
     'merchant_category','site_category','shop_name',
-    'product_url','product_url_clean','affiliate_suffix'  // keep for affiliate selection
+    'product_url','affiliate_suffix'
   ].join(',');
 
-  const params = new URLSearchParams({
-    select: fields,
-    limit,
-    offset,
-    order: 'price.asc',
-  });
+  const params = new URLSearchParams({ select: fields, limit, offset, order:'price.asc' });
 
-  // If a category is selected, filter by exact label on either source field
   if (categoryLabel) {
-    const quoted = `%22${encodeURIComponent(categoryLabel)}%22`; // URL encoded double quotes
-    // or=(merchant_category.eq."Label",site_category.eq."Label")
+    const quoted = `%22${encodeURIComponent(categoryLabel)}%22`;
     params.append('or', `(merchant_category.eq.${quoted},site_category.eq.${quoted})`);
   }
-
   if (q) params.append('title', `ilike.*${q}*`);
 
   return `${SUPABASE_URL}/rest/v1/${PRODUCTS_VIEW}?${params.toString()}`;
@@ -181,7 +238,7 @@ function renderProducts(items, { replace=false } = {}) {
     <a class="card" href="${affiliateLink(p)}" target="_blank" rel="nofollow noopener">
       <div class="img"><img src="${p.image_url||''}" alt=""></div>
       <div class="title">${p.title||''}</div>
-      <div class="price">${fmtPrice(p.price, p.currency)}</div>
+      <div class="price">${fmtPrice(p.price)}</div>
       <div class="cat">${(p.merchant_category || p.site_category || '')}${p.shop_name ? ' • ' + p.shop_name : ''}</div>
     </a>
   `).join('');
@@ -205,7 +262,7 @@ async function loadProducts({ append=false, replace=false } = {}) {
     const rows = await fetchJSON(url);
     renderProducts(rows, { replace });
 
-    // pager button visibility
+    // pager
     if (!append && rows.length < state.limit) $('#more').style.display = 'none';
     else $('#more').style.display = 'block';
 
@@ -216,13 +273,33 @@ async function loadProducts({ append=false, replace=false } = {}) {
   }
 }
 
+/* ================= UI mode helpers ================= */
+function showHomeUI() {
+  $('#tiles').style.display = 'grid';
+  $('#nav').style.display   = 'none';
+  $('#grid').innerHTML = '';
+  $('#more').style.display  = 'none';
+  $('#empty').style.display = 'none';
+}
+function showListUI() {
+  $('#tiles').style.display = 'none';
+  $('#nav').style.display   = 'flex';
+}
+
 /* ================= Search ================= */
 $('#q').addEventListener('input', async (e) => {
   const v = e.target.value.trim();
-  state.mode = v ? 'search' : 'browse';
+  state.mode = v ? 'search' : 'home';
   state.q = v;
   state.offset = 0;
-  await loadProducts({ replace:true });
+  if (state.mode === 'home') {
+    showHomeUI();
+    await loadTiles();
+  } else {
+    showListUI();
+    await loadChips();
+    await loadProducts({ replace:true });
+  }
 });
 
 /* ================= Pager ================= */
@@ -234,8 +311,8 @@ $('#more').addEventListener('click', async () => {
 
 /* ================= Boot ================= */
 (async function init(){
-  await loadNav();
-  await loadProducts({ replace:true });
+  showHomeUI();
+  await loadTiles();            // Midovo-like homepage
 })();
 </script>
 </body>
