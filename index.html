@@ -1,48 +1,49 @@
 <!doctype html>
-<html lang="en">
+<html lang="sk">
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>bestpric.eu — Products</title>
+<title>bestpric.eu</title>
 <style>
-  :root { --fg:#111; --muted:#666; --border:#e5e7eb; --bg:#fff; --chip:#fff; --chipb:#ddd; }
-  body { margin:0; font:14px/1.4 system-ui,Segoe UI,Roboto,Arial,sans-serif; color:var(--fg); background:var(--bg); }
-  .wrap { max-width:1200px; margin:24px auto; padding:0 16px; }
+  :root{
+    --fg:#111;--muted:#60646c;--bg:#fff;--chip:#fff;--chipb:#e5e7eb;--card:#fafafa;--brand:#0d9488;
+    --border:#e5e7eb;--shadow:0 1px 2px rgba(0,0,0,.05),0 4px 12px rgba(0,0,0,.04)
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font:14px/1.45 system-ui,Segoe UI,Roboto,Arial,sans-serif;color:var(--fg);background:var(--bg)}
+  .wrap{max-width:1180px;margin:20px auto;padding:0 16px}
+  header{display:flex;gap:12px;align-items:center;margin-bottom:16px}
+  h1{margin:0;font-size:20px}
+  #q{flex:1;min-width:240px;padding:10px 12px;border:1px solid var(--border);border-radius:10px}
+  .toolbar{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin:10px 0 14px}
+  select,input[type="range"]{padding:8px 10px;border:1px solid var(--border);border-radius:10px;background:#fff}
+  #err{color:#b00020;margin:8px 0;display:none;white-space:pre-wrap}
 
-  header { display:flex; flex-wrap:wrap; align-items:center; gap:12px; margin-bottom:12px; }
-  h1 { margin:0; font-size:20px }
-  #q { flex:1; min-width:260px; padding:10px 12px; border:1px solid var(--border); border-radius:10px; }
+  /* Tiles (category wall) */
+  #tiles{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:16px;margin:10px 0}
+  .tile{display:block;border:1px solid var(--border);background:#fff;border-radius:14px;box-shadow:var(--shadow);
+        text-decoration:none;color:inherit;overflow:hidden}
+  .tile .thumb{aspect-ratio:5/3;background:#f6f7f8;display:flex;align-items:center;justify-content:center}
+  .tile .thumb img{max-width:100%;max-height:100%;object-fit:contain}
+  .tile .meta{padding:10px 12px}
+  .tile .title{font-weight:700}
+  .tile .count{color:var(--muted);font-size:12px;margin-top:4px}
 
-  /* chips */
-  nav { display:flex; flex-wrap:wrap; gap:8px; margin:8px 0 16px; }
-  .chip { padding:8px 12px; border:1px solid var(--chipb); background:var(--chip); border-radius:999px; cursor:pointer; }
-  .chip small { color:var(--muted); margin-left:6px; }
-  .chip.active { border-color:#000; font-weight:600; }
-
-  /* tiles */
-  #tiles { display:grid; grid-template-columns:repeat(auto-fill,minmax(320px,1fr)); gap:16px; margin:6px 0 18px; }
-  .tile { border:1px solid var(--border); border-radius:12px; background:#fff; overflow:hidden; display:flex; flex-direction:column; }
-  .tileHdr { padding:12px 14px; font-weight:700; display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid var(--border); }
-  .tileHdr button { border:1px solid var(--border); background:#fff; border-radius:999px; padding:6px 10px; cursor:pointer; font-size:12px; }
-  .tileRow { display:grid; grid-template-columns:repeat(4,1fr); gap:10px; padding:12px; }
-  .miniCard { text-decoration:none; color:inherit; display:block; }
-  .miniImg { aspect-ratio:1/1; background:#f7f7f7; border-radius:8px; display:flex; align-items:center; justify-content:center; overflow:hidden; }
-  .miniImg img { max-width:100%; max-height:100%; object-fit:contain; }
-  .miniTitle { font-size:12px; margin-top:6px; height:2.6em; overflow:hidden; }
-  .miniPrice { font-weight:700; font-size:12px; margin-top:2px; }
-
-  /* product grid */
-  #grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(200px,1fr)); gap:16px; }
-  .card { border:1px solid var(--border); border-radius:12px; padding:12px; text-decoration:none; color:inherit; display:block; background:#fff; }
-  .img { aspect-ratio:1/1; background:#f7f7f7; border-radius:8px; overflow:hidden; display:flex; align-items:center; justify-content:center; }
-  .img img { max-width:100%; max-height:100%; object-fit:contain; }
-  .title { margin-top:8px; font-size:14px; line-height:1.3; height:3.4em; overflow:hidden; }
-  .price { margin-top:6px; font-weight:700; }
-  .cat { font-size:12px; color:var(--muted); margin-top:2px; }
-
-  #more { margin:20px auto; display:block; padding:10px 16px; border:1px solid var(--border); border-radius:10px; background:#fff; cursor:pointer; }
-  #empty { text-align:center; color:var(--muted); margin:24px 0; display:none; }
-  #err { color:#b00020; margin:8px 0; display:none; white-space:pre-wrap; }
+  /* Grid (products) */
+  #grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:16px}
+  .card{border:1px solid var(--border);border-radius:14px;background:#fff;box-shadow:var(--shadow);
+        text-decoration:none;color:inherit;display:block;overflow:hidden}
+  .img{aspect-ratio:1/1;background:#f7f7f7;display:flex;align-items:center;justify-content:center}
+  .img img{max-width:100%;max-height:100%;object-fit:contain}
+  .pad{padding:10px 12px}
+  .title{font-size:14px;line-height:1.3;height:3.4em;overflow:hidden}
+  .price{margin-top:6px;font-weight:800}
+  .cat{font-size:12px;color:var(--muted);margin-top:2px}
+  .breadcrumbs{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0}
+  .crumb{color:var(--brand);cursor:pointer}
+  .controls{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:8px 0 14px}
+  .btn{padding:10px 16px;border:1px solid var(--border);border-radius:10px;background:#fff;cursor:pointer}
+  #empty{display:none;color:var(--muted);text-align:center;margin:24px 0}
 </style>
 </head>
 <body>
@@ -54,31 +55,56 @@
 
   <div id="err"></div>
 
-  <!-- tiles (homepage style like Midovo) -->
+  <!-- Tile wall -->
   <div id="tiles"></div>
 
-  <!-- chips & product grid (visible when a category or search is active) -->
-  <nav id="nav" style="display:none;"></nav>
-  <div id="grid"></div>
-  <div id="empty">No products found.</div>
-  <button id="more" style="display:none;">Load more</button>
+  <!-- Category / listing mode -->
+  <div id="categoryArea" style="display:none">
+    <div class="breadcrumbs">
+      <span class="crumb" id="crumbHome">🏠 Domov</span>
+      <span>›</span>
+      <span id="crumbCat"></span>
+    </div>
+
+    <div class="toolbar">
+      <select id="brand">
+        <option value="">Všetky obchody</option>
+      </select>
+      <select id="sort">
+        <option value="price.asc">Najlacnejšie</option>
+        <option value="price.desc">Najdrahšie</option>
+      </select>
+    </div>
+
+    <div id="grid"></div>
+    <div id="empty">Žiadne produkty.</div>
+    <button id="more" class="btn">Načítať viac</button>
+  </div>
 </div>
 
 <script>
-/* ================= Supabase config ================= */
+/* ================= Supabase config (kept exactly) ================= */
 const SUPABASE_URL = 'https://xxplocdervsfftnnalah.supabase.co';
-const ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inh4cGxvY2RlcnZzZmZ0bm5hbGFoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTU4OTIyODYsImV4cCI6MjA3MTQ2ODI4Nn0.Gh8AShwePYUuiJjj_G1qFuMaTRC_6HZOSERifIvjZro';
-const baseHeaders = { apikey: ANON_KEY, Authorization: 'Bearer ' + ANON_KEY };
+const ANON_KEY     = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inh4cGxvY2RlcnZzZmZ0bm5hbGFoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTU4OTIyODYsImV4cCI6MjA3MTQ2ODI4Nn0.Gh8AShwePYUuiJjj_G1qFuMaTRC_6HZOSERifIvjZro';
+const baseHeaders  = { apikey: ANON_KEY, Authorization: 'Bearer ' + ANON_KEY };
 
-/* ================= State & helpers ================= */
-const state = { limit: 24, offset: 0, categoryLabel: '', q: '', mode: 'home' };
+/* ================= State ================= */
+const state = {
+  mode: 'tiles',            // 'tiles' | 'list' | 'search'
+  category: '',
+  brand: '',
+  sort: 'price.asc',
+  q: '',
+  limit: 24,
+  offset: 0
+};
 
-const $  = (s, r=document) => r.querySelector(s);
-const $$ = (s, r=document) => Array.from(r.querySelectorAll(s));
+const $  = (s, r=document)=>r.querySelector(s);
+const $$ = (s, r=document)=>Array.from(r.querySelectorAll(s));
+const showErr = (m='')=>{ const el=$('#err'); el.textContent=m; el.style.display=m?'block':'none' };
+const fmtPrice=(n)=>Number.isFinite(+n)?`${(+n).toFixed(2)} €`:'';
 
-function showErr(msg=''){ const el=$('#err'); el.textContent=msg; el.style.display=msg?'block':'none'; }
-const fmtPrice = (n) => Number.isFinite(+n) ? `${(+n).toFixed(2)} €` : '';
-
+/* ================= Small fetch helper ================= */
 async function fetchJSON(url, opts={}) {
   const res = await fetch(url, { ...opts, headers: { ...baseHeaders, ...(opts.headers||{}) } });
   if (!res.ok) throw new Error(await res.text());
@@ -86,233 +112,207 @@ async function fetchJSON(url, opts={}) {
 }
 
 /* ================= Affiliate helpers ================= */
-function parseQueryString(qs) {
-  const out = [];
-  if (!qs) return out;
-  const s = qs.replace(/^\?/, '');
-  for (const part of s.split('&')) {
-    if (!part) continue;
-    const [k, v=''] = part.split('=', 2);
-    if (!k) continue;
-    out.push([decodeURIComponent(k), decodeURIComponent(v)]);
-  }
+function parseQueryString(qs){
+  const out=[]; if(!qs) return out; const s=qs.replace(/^\?/,'');
+  for(const part of s.split('&')){ if(!part) continue; const [k,v='']=part.split('=',2); if(!k) continue; out.push([decodeURIComponent(k), decodeURIComponent(v)]) }
   return out;
 }
-function appendSuffix(rawUrl, suffix) {
-  if (!rawUrl) return '#';
-  let u; try { u = new URL(rawUrl); } catch { return rawUrl; }
-  if (suffix && typeof suffix === 'string') {
-    for (const [k, v] of parseQueryString(suffix)) u.searchParams.set(k, v);
+function appendSuffix(rawUrl, suffix){
+  if(!rawUrl) return '#';
+  let u; try{ u=new URL(rawUrl) }catch{ return rawUrl }
+  if(suffix && typeof suffix==='string'){
+    for(const [k,v] of parseQueryString(suffix)) u.searchParams.set(k,v);
   }
   return u.toString();
 }
-function pickBestUrl(p) {
-  // no product_url_clean usage (your view doesn't have it)
-  if (p.product_url && !/\/detail\/fromId\//i.test(p.product_url)) return p.product_url;
-  if (p.final_url) return p.final_url;
-  if (p.product_url) return p.product_url;
+function pickBestUrl(p){
+  if(p.product_url_clean) return p.product_url_clean;
+  if(p.product_url && !/\/detail\/fromId\//i.test(p.product_url)) return p.product_url;
+  if(p.final_url) return p.final_url;
   return '#';
 }
-function affiliateLink(p) {
+function affiliateLink(p){
   const base   = pickBestUrl(p);
   const suffix = p.affiliate_suffix || '';
   return appendSuffix(base, suffix);
 }
 
-/* ================= Tiles (Midovo-style home) ================= */
-async function loadTiles() {
-  try {
-    // top categories by count
-    const mvUrl = `${SUPABASE_URL}/rest/v1/mv_category_summaries?select=category_label,product_count&order=product_count.desc&limit=8`;
-    const cats = await fetchJSON(mvUrl);
-    const tiles = $('#tiles');
-    tiles.innerHTML = '';
+/* ================= 1) Category tiles ================= */
+async function loadTiles(){
+  try{
+    // pull everything; we’ll map common field names
+    const url = `${SUPABASE_URL}/rest/v1/mv_category_summaries?select=*`;
+    const rows = await fetchJSON(url);
 
-    for (const c of cats) {
-      const products = await fetchCategoryProducts(c.category_label, 4);
-      const tile = document.createElement('div');
-      tile.className = 'tile';
-      tile.innerHTML = `
-        <div class="tileHdr">
-          <div>${c.category_label}</div>
-          <button data-label="${encodeURIComponent(c.category_label)}">See all</button>
-        </div>
-        <div class="tileRow">
-          ${products.map(p => `
-            <a class="miniCard" href="${affiliateLink(p)}" target="_blank" rel="nofollow noopener">
-              <div class="miniImg"><img src="${p.image_url||''}" alt=""></div>
-              <div class="miniTitle">${p.title||''}</div>
-              <div class="miniPrice">${fmtPrice(p.price)}</div>
-            </a>`).join('')}
-        </div>`;
-      tiles.appendChild(tile);
-    }
+    // heuristics for label/count/image
+    const labelKey = ['label','name','category','title'].find(k => k in (rows[0]||{})) || 'label';
+    const countKey = ['n_products','total','product_count','count'].find(k => k in (rows[0]||{})) || 'n_products';
+    const imgKey   = ['image_url','thumb','sample_image','hero_image'].find(k => k in (rows[0]||{}));
 
-    tiles.addEventListener('click', (e) => {
-      const btn = e.target.closest('button[data-label]');
-      if (!btn) return;
-      // go into browse mode for that category
-      state.mode = 'browse';
-      state.categoryLabel = decodeURIComponent(btn.dataset.label);
-      state.q = '';
-      $('#q').value = '';
-      state.offset = 0;
-      showListUI();
-      loadChips(); // render chips row if not yet
-      loadProducts({ replace:true });
+    $('#tiles').innerHTML = rows.map(r=>{
+      const label = r[labelKey] || '';
+      const n     = r[countKey] ?? '';
+      const img   = imgKey ? (r[imgKey]||'') : '';
+      return `
+        <a class="tile" data-label="${encodeURIComponent(label)}" href="#">
+          <div class="thumb">${img?`<img src="${img}" alt="">`:''}</div>
+          <div class="meta">
+            <div class="title">${label||'—'}</div>
+            <div class="count">${n?`${n} produktov`:''}</div>
+          </div>
+        </a>`;
+    }).join('');
+
+    $('#tiles').addEventListener('click', (ev)=>{
+      const a = ev.target.closest('.tile');
+      if(!a) return;
+      ev.preventDefault();
+      const label = decodeURIComponent(a.dataset.label||'');
+      enterCategory(label);
     });
-  } catch (e) {
+  }catch(e){
     showErr('Cannot load tiles: ' + e.message);
   }
 }
-async function fetchCategoryProducts(label, limit=4) {
+
+/* ================= 2) Listing (category/search) ================= */
+function buildProductsUrl({category, brand, sort, q, limit, offset}){
   const fields = [
-    'id','title','price','image_url',
-    'product_url','final_url','affiliate_suffix',
-    'merchant_category','site_category','shop_name'
+    'id','title','price','currency','image_url',
+    'final_url','product_url','product_url_clean',
+    'merchant_category','site_category','shop_name','affiliate_suffix'
   ].join(',');
 
-  const params = new URLSearchParams({ select: fields, limit, order:'price.asc' });
-  const quoted = `%22${encodeURIComponent(label)}%22`;
-  params.append('or', `(merchant_category.eq.${quoted},site_category.eq.${quoted})`);
+  const params = new URLSearchParams({ select: fields, limit, offset, order: sort });
 
-  const url = `${SUPABASE_URL}/rest/v1/site_products_live?${params.toString()}`;
-  return fetchJSON(url);
-}
-
-/* ================= Chips row for browsing ================= */
-async function loadChips() {
-  try {
-    const url = `${SUPABASE_URL}/rest/v1/mv_category_summaries?select=category_label,product_count&order=product_count.desc&limit=60`;
-    const rows = await fetchJSON(url);
-    const nav = $('#nav');
-    nav.innerHTML = [
-      `<button class="chip${state.categoryLabel ? '' : ' active'}" data-label="">All</button>`,
-      ...rows.map(r =>
-        `<button class="chip${r.category_label===state.categoryLabel ? ' active':''}" data-label="${encodeURIComponent(r.category_label)}">
-           ${r.category_label} <small>${r.product_count}</small>
-         </button>`
-      )
-    ].join('');
-
-    nav.onclick = async (ev) => {
-      const btn = ev.target.closest('button[data-label]');
-      if (!btn) return;
-      $$('.chip', nav).forEach(b => b.classList.toggle('active', b===btn));
-      state.categoryLabel = decodeURIComponent(btn.dataset.label || '');
-      state.mode = 'browse';
-      state.q = '';
-      $('#q').value = '';
-      state.offset = 0;
-      await loadProducts({ replace:true });
-    };
-  } catch (e) {
-    showErr('Cannot load categories: ' + e.message);
+  // category match (merchant OR site category)
+  if(category){
+    const slug = encodeURIComponent(category);
+    params.append('or', `(merchant_category.eq.${slug},site_category.eq.${slug})`);
   }
+  if(brand) params.append('shop_name', `eq.${brand}`);
+  if(q)     params.append('title', `ilike.*${q}*`);
+
+  return `${SUPABASE_URL}/rest/v1/site_products_live?${params.toString()}`;
 }
 
-/* ============== List products (browse/search) ============== */
-const PRODUCTS_VIEW = 'site_products_live';
-
-function buildProductsUrl({ limit, offset, categoryLabel, q }) {
-  const fields = [
-    'id','title','price','currency','image_url','final_url',
-    'merchant_category','site_category','shop_name',
-    'product_url','affiliate_suffix'
-  ].join(',');
-
-  const params = new URLSearchParams({ select: fields, limit, offset, order:'price.asc' });
-
-  if (categoryLabel) {
-    const quoted = `%22${encodeURIComponent(categoryLabel)}%22`;
-    params.append('or', `(merchant_category.eq.${quoted},site_category.eq.${quoted})`);
-  }
-  if (q) params.append('title', `ilike.*${q}*`);
-
-  return `${SUPABASE_URL}/rest/v1/${PRODUCTS_VIEW}?${params.toString()}`;
-}
-
-function renderProducts(items, { replace=false } = {}) {
+function renderProducts(rows,{replace=false}={}){
   const grid = $('#grid');
-  const html = items.map(p => `
+  const html = rows.map(p=>`
     <a class="card" href="${affiliateLink(p)}" target="_blank" rel="nofollow noopener">
       <div class="img"><img src="${p.image_url||''}" alt=""></div>
-      <div class="title">${p.title||''}</div>
-      <div class="price">${fmtPrice(p.price)}</div>
-      <div class="cat">${(p.merchant_category || p.site_category || '')}${p.shop_name ? ' • ' + p.shop_name : ''}</div>
+      <div class="pad">
+        <div class="title">${p.title||''}</div>
+        <div class="price">${fmtPrice(p.price)}</div>
+        <div class="cat">${(p.merchant_category||p.site_category||'')}${p.shop_name?' • '+p.shop_name:''}</div>
+      </div>
     </a>
   `).join('');
-
-  if (replace) grid.innerHTML = html;
+  if(replace) grid.innerHTML = html;
   else grid.insertAdjacentHTML('beforeend', html);
-
   $('#empty').style.display = grid.children.length ? 'none' : 'block';
 }
 
-async function loadProducts({ append=false, replace=false } = {}) {
-  try {
-    showErr('');
-    const url = buildProductsUrl({
-      limit: state.limit,
-      offset: state.offset,
-      categoryLabel: state.mode === 'browse' ? state.categoryLabel : '',
-      q:    state.mode === 'search' ? state.q        : ''
-    });
-
+async function loadBrandsFor(category){
+  try{
+    const slug = encodeURIComponent(category);
+    const url  = `${SUPABASE_URL}/rest/v1/site_products_live?select=shop_name&or=(merchant_category.eq.${slug},site_category.eq.${slug})&shop_name=not.is.null`;
     const rows = await fetchJSON(url);
-    renderProducts(rows, { replace });
+    const names = [...new Set(rows.map(r=>r.shop_name).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'sk'));
+    $('#brand').innerHTML = `<option value="">Všetky obchody</option>` + names.map(n=>`<option>${n}</option>`).join('');
+  }catch(e){
+    // don’t block listing on brand load failure
+    console.warn('Brand load failed', e);
+    $('#brand').innerHTML = `<option value="">Všetky obchody</option>`;
+  }
+}
 
-    // pager
-    if (!append && rows.length < state.limit) $('#more').style.display = 'none';
-    else $('#more').style.display = 'block';
-
+async function loadProducts({append=false, replace=false}={}){
+  try{
+    showErr('');
+    const url  = buildProductsUrl({
+      category: state.mode==='list' ? state.category : '',
+      brand:    state.mode==='list' ? state.brand    : '',
+      sort:     state.sort,
+      q:        state.mode==='search' ? state.q : '',
+      limit:    state.limit,
+      offset:   state.offset
+    });
+    const rows = await fetchJSON(url);
+    renderProducts(rows,{replace});
+    $('#more').style.display = rows.length < state.limit ? 'none' : 'inline-block';
     return rows;
-  } catch (e) {
+  }catch(e){
     showErr('Cannot load products: ' + e.message);
     return [];
   }
 }
 
-/* ================= UI mode helpers ================= */
-function showHomeUI() {
-  $('#tiles').style.display = 'grid';
-  $('#nav').style.display   = 'none';
-  $('#grid').innerHTML = '';
-  $('#more').style.display  = 'none';
-  $('#empty').style.display = 'none';
-}
-function showListUI() {
-  $('#tiles').style.display = 'none';
-  $('#nav').style.display   = 'flex';
+/* ================= Navigation / mode switches ================= */
+function showTiles(){
+  state.mode='tiles';
+  $('#tiles').style.display='grid';
+  $('#categoryArea').style.display='none';
 }
 
-/* ================= Search ================= */
-$('#q').addEventListener('input', async (e) => {
-  const v = e.target.value.trim();
-  state.mode = v ? 'search' : 'home';
-  state.q = v;
-  state.offset = 0;
-  if (state.mode === 'home') {
-    showHomeUI();
-    await loadTiles();
-  } else {
-    showListUI();
-    await loadChips();
-    await loadProducts({ replace:true });
-  }
+async function enterCategory(label){
+  state.mode='list';
+  state.category = label;
+  state.brand=''; state.sort='price.asc';
+  state.q=''; state.offset=0;
+  $('#crumbCat').textContent = label;
+  $('#q').value='';
+  $('#tiles').style.display='none';
+  $('#categoryArea').style.display='block';
+  await loadBrandsFor(label);
+  await loadProducts({replace:true});
+}
+
+$('#crumbHome').addEventListener('click',()=>{ showTiles() });
+
+/* ================= Controls ================= */
+$('#brand').addEventListener('change', async (e)=>{
+  state.brand = e.target.value;
+  state.offset=0;
+  await loadProducts({replace:true});
+});
+$('#sort').addEventListener('change', async (e)=>{
+  state.sort = e.target.value;
+  state.offset=0;
+  await loadProducts({replace:true});
 });
 
-/* ================= Pager ================= */
-$('#more').addEventListener('click', async () => {
+$('#more').addEventListener('click', async ()=>{
   state.offset += state.limit;
-  const items = await loadProducts({ append:true });
-  if (!items.length) state.offset -= state.limit;
+  const rows = await loadProducts({append:true});
+  if(!rows.length) state.offset -= state.limit;
+});
+
+/* Search (global) */
+$('#q').addEventListener('input', async (e)=>{
+  const v = e.target.value.trim();
+  if(!v){
+    if(state.mode==='search') showTiles();
+    return;
+  }
+  state.mode='search';
+  state.q=v; state.offset=0;
+  $('#tiles').style.display='none';
+  $('#categoryArea').style.display='block';
+  $('#brand').innerHTML = `<option value="">Všetky obchody</option>`;
+  $('#crumbCat').textContent = `Hľadanie: "${v}"`;
+  await loadProducts({replace:true});
 });
 
 /* ================= Boot ================= */
 (async function init(){
-  showHomeUI();
-  await loadTiles();            // Midovo-like homepage
+  try{
+    showErr('');
+    await loadTiles();
+    showTiles(); // start on tiles
+  }catch(e){
+    showErr(e.message||String(e));
+  }
 })();
 </script>
 </body>
