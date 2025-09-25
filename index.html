@@ -41,7 +41,6 @@
   .cat{font-size:12px;color:var(--muted);margin-top:2px}
   .breadcrumbs{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0}
   .crumb{color:var(--brand);cursor:pointer}
-  .controls{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:8px 0 14px}
   .btn{padding:10px 16px;border:1px solid var(--border);border-radius:10px;background:#fff;cursor:pointer}
   #empty{display:none;color:var(--muted);text-align:center;margin:24px 0}
 </style>
@@ -83,7 +82,7 @@
 </div>
 
 <script>
-/* ================= Supabase config (unchanged) ================= */
+/* ================= Supabase config (kept exactly) ================= */
 const SUPABASE_URL = 'https://xxplocdervsfftnnalah.supabase.co';
 const ANON_KEY     = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inh4cGxvY2RlcnZzZmZ0bm5hbGFoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTU4OTIyODYsImV4cCI6MjA3MTQ2ODI4Nn0.Gh8AShwePYUuiJjj_G1qFuMaTRC_6HZOSERifIvjZro';
 const baseHeaders  = { apikey: ANON_KEY, Authorization: 'Bearer ' + ANON_KEY };
@@ -104,71 +103,51 @@ const $$ = (s, r=document)=>Array.from(r.querySelectorAll(s));
 const showErr = (m='')=>{ const el=$('#err'); el.textContent=m; el.style.display=m?'block':'none' };
 const fmtPrice=(n)=>Number.isFinite(+n)?`${(+n).toFixed(2)} €`:'';
 
-/* Fetch helper */
+/* ================= Small fetch helper ================= */
 async function fetchJSON(url, opts={}) {
   const res = await fetch(url, { ...opts, headers: { ...baseHeaders, ...(opts.headers||{}) } });
   if (!res.ok) throw new Error(await res.text());
   return res.json();
 }
 
-/* ======== URL / quoting helpers ======== */
-/* PostgREST needs values with spaces/pipes quoted, e.g. eq."Nábytok | ..." */
-const qv = (value) => `%22${encodeURIComponent(value)}%22`;
-
-/* Pick best outgoing URL.
-   final_url should already include affiliate params if your DB view adds them. */
-function pickOutgoingUrl(p){
-  if (p.final_url) return p.final_url;
-  if (p.product_url_clean) return p.product_url_clean;
-  if (p.product_url) return p.product_url;
+/* ================= Link builder ================= */
+function safeUrl(u){ try{ return new URL(u).toString() }catch{ return '#' } }
+function bestProductUrl(p){
+  // Only use columns that *exist* in your view
+  if (p.final_url)   return safeUrl(p.final_url);
+  if (p.product_url) return safeUrl(p.product_url);
   return '#';
 }
 
 /* ================= 1) Category tiles ================= */
 async function loadTiles(){
   try{
-    // We read all rows from the MV and collapse to top-level groups (before " | ")
     const url = `${SUPABASE_URL}/rest/v1/mv_category_summaries?select=*`;
     const rows = await fetchJSON(url);
 
-    // Heuristics for label/count/image
     const labelKey = ['label','name','category','title'].find(k => k in (rows[0]||{})) || 'label';
     const countKey = ['n_products','total','product_count','count'].find(k => k in (rows[0]||{})) || 'n_products';
     const imgKey   = ['image_url','thumb','sample_image','hero_image'].find(k => k in (rows[0]||{}));
 
-    // Collapse to top-level like Midovo
-    const map = new Map();
-    for (const r of rows) {
-      const full = (r[labelKey] || '').trim();
-      if (!full) continue;
-      const top = full.split(' | ')[0]; // top-level name
-      const n   = Number(r[countKey] ?? 0) || 0;
-      const img = imgKey ? (r[imgKey] || '') : '';
-      if (!map.has(top)) map.set(top, { label: top, count: 0, img: '' });
-      const m = map.get(top);
-      m.count += n;
-      if (!m.img && img) m.img = img;
-    }
-
-    // Sort by total count desc and show (e.g.) top 12 – tune as you like
-    const tiles = [...map.values()].sort((a,b)=>b.count-a.count).slice(0, 12);
-
-    $('#tiles').innerHTML = tiles.map(r => `
-      <a class="tile" data-label="${encodeURIComponent(r.label)}" href="#">
-        <div class="thumb">${r.img?`<img src="${r.img}" alt="">`:''}</div>
-        <div class="meta">
-          <div class="title">${r.label}</div>
-          <div class="count">${r.count?`${r.count} produktov`:''}</div>
-        </div>
-      </a>
-    `).join('');
+    $('#tiles').innerHTML = rows.map(r=>{
+      const label = r[labelKey] || '';
+      const n     = r[countKey] ?? '';
+      const img   = imgKey ? (r[imgKey]||'') : '';
+      return `
+        <a class="tile" data-label="${encodeURIComponent(label)}" href="#">
+          <div class="thumb">${img?`<img src="${img}" alt="">`:''}</div>
+          <div class="meta">
+            <div class="title">${label||'—'}</div>
+            <div class="count">${n?`${n} produktov`:''}</div>
+          </div>
+        </a>`;
+    }).join('');
 
     $('#tiles').onclick = (ev)=>{
       const a = ev.target.closest('.tile');
       if(!a) return;
       ev.preventDefault();
-      const label = decodeURIComponent(a.dataset.label||'');
-      enterCategory(label);
+      enterCategory(decodeURIComponent(a.dataset.label||''));
     };
   }catch(e){
     showErr('Cannot load tiles: ' + e.message);
@@ -177,20 +156,28 @@ async function loadTiles(){
 
 /* ================= 2) Listing (category/search) ================= */
 function buildProductsUrl({category, brand, sort, q, limit, offset}){
+  // IMPORTANT: only fields that exist
   const fields = [
     'id','title','price','currency','image_url',
-    'final_url','product_url','product_url_clean',
+    'final_url','product_url',
     'merchant_category','site_category','shop_name'
   ].join(',');
 
   const params = new URLSearchParams({ select: fields, limit, offset, order: sort });
 
-  // category match (merchant OR site category), properly quoted
+  // category match (merchant OR site category). Encode value because it may contain pipes/commas.
   if(category){
-    params.append('or', `(merchant_category.eq.${qv(category)},site_category.eq.${qv(category)})`);
+    const val = encodeURIComponent(category);
+    params.append('or', `(merchant_category.eq.${val},site_category.eq.${val})`);
   }
-  if(brand) params.append('shop_name', `eq.${qv(brand)}`);
-  if(q)     params.append('title', `ilike.*${encodeURIComponent(q)}*`);
+
+  if(brand){
+    params.append('shop_name', `eq.${encodeURIComponent(brand)}`);
+  }
+
+  if(q){
+    params.append('title', `ilike.*${encodeURIComponent(q)}*`);
+  }
 
   return `${SUPABASE_URL}/rest/v1/site_products_live?${params.toString()}`;
 }
@@ -198,7 +185,7 @@ function buildProductsUrl({category, brand, sort, q, limit, offset}){
 function renderProducts(rows,{replace=false}={}){
   const grid = $('#grid');
   const html = rows.map(p=>`
-    <a class="card" href="${pickOutgoingUrl(p)}" target="_blank" rel="nofollow noopener">
+    <a class="card" href="${bestProductUrl(p)}" target="_blank" rel="nofollow noopener">
       <div class="img"><img src="${p.image_url||''}" alt=""></div>
       <div class="pad">
         <div class="title">${p.title||''}</div>
@@ -214,10 +201,10 @@ function renderProducts(rows,{replace=false}={}){
 
 async function loadBrandsFor(category){
   try{
-    const url  = `${SUPABASE_URL}/rest/v1/site_products_live?select=shop_name&or=(merchant_category.eq.${qv(category)},site_category.eq.${qv(category)})&shop_name=not.is.null`;
+    const val = encodeURIComponent(category);
+    const url  = `${SUPABASE_URL}/rest/v1/site_products_live?select=shop_name&or=(merchant_category.eq.${val},site_category.eq.${val})&shop_name=not.is.null`;
     const rows = await fetchJSON(url);
-    const names = [...new Set(rows.map(r=>r.shop_name).filter(Boolean))]
-      .sort((a,b)=>a.localeCompare(b,'sk'));
+    const names = [...new Set(rows.map(r=>r.shop_name).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'sk'));
     $('#brand').innerHTML = `<option value="">Všetky obchody</option>` + names.map(n=>`<option>${n}</option>`).join('');
   }catch(e){
     console.warn('Brand load failed', e);
