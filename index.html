@@ -41,6 +41,7 @@
   .cat{font-size:12px;color:var(--muted);margin-top:2px}
   .breadcrumbs{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0}
   .crumb{color:var(--brand);cursor:pointer}
+  .controls{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:8px 0 14px}
   .btn{padding:10px 16px;border:1px solid var(--border);border-radius:10px;background:#fff;cursor:pointer}
   #empty{display:none;color:var(--muted);text-align:center;margin:24px 0}
 </style>
@@ -82,14 +83,14 @@
 </div>
 
 <script>
-/* ================= Supabase config (kept exactly) ================= */
+/* ================= Supabase config ================= */
 const SUPABASE_URL = 'https://xxplocdervsfftnnalah.supabase.co';
 const ANON_KEY     = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inh4cGxvY2RlcnZzZmZ0bm5hbGFoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTU4OTIyODYsImV4cCI6MjA3MTQ2ODI4Nn0.Gh8AShwePYUuiJjj_G1qFuMaTRC_6HZOSERifIvjZro';
 const baseHeaders  = { apikey: ANON_KEY, Authorization: 'Bearer ' + ANON_KEY };
 
 /* ================= State ================= */
 const state = {
-  mode: 'tiles',            // 'tiles' | 'list' | 'search'
+  mode: 'tiles',
   category: '',
   brand: '',
   sort: 'price.asc',
@@ -103,20 +104,20 @@ const $$ = (s, r=document)=>Array.from(r.querySelectorAll(s));
 const showErr = (m='')=>{ const el=$('#err'); el.textContent=m; el.style.display=m?'block':'none' };
 const fmtPrice=(n)=>Number.isFinite(+n)?`${(+n).toFixed(2)} €`:'';
 
-/* ================= Small fetch helper ================= */
+/* ================= Fetch helper ================= */
 async function fetchJSON(url, opts={}) {
   const res = await fetch(url, { ...opts, headers: { ...baseHeaders, ...(opts.headers||{}) } });
   if (!res.ok) throw new Error(await res.text());
   return res.json();
 }
 
-/* ================= Link builder ================= */
-function safeUrl(u){ try{ return new URL(u).toString() }catch{ return '#' } }
-function bestProductUrl(p){
-  // Only use columns that *exist* in your view
-  if (p.final_url)   return safeUrl(p.final_url);
-  if (p.product_url) return safeUrl(p.product_url);
+/* ================= Affiliate link helpers ================= */
+function pickBestUrl(p){
+  if(p.product_url) return p.product_url; // main field
   return '#';
+}
+function affiliateLink(p){
+  return pickBestUrl(p);
 }
 
 /* ================= 1) Category tiles ================= */
@@ -143,41 +144,34 @@ async function loadTiles(){
         </a>`;
     }).join('');
 
-    $('#tiles').onclick = (ev)=>{
+    $('#tiles').addEventListener('click', (ev)=>{
       const a = ev.target.closest('.tile');
       if(!a) return;
       ev.preventDefault();
-      enterCategory(decodeURIComponent(a.dataset.label||''));
-    };
+      const label = decodeURIComponent(a.dataset.label||'');
+      enterCategory(label);
+    });
   }catch(e){
     showErr('Cannot load tiles: ' + e.message);
   }
 }
 
-/* ================= 2) Listing (category/search) ================= */
+/* ================= 2) Listing ================= */
 function buildProductsUrl({category, brand, sort, q, limit, offset}){
-  // IMPORTANT: only fields that exist
   const fields = [
     'id','title','price','currency','image_url',
-    'final_url','product_url',
+    'product_url',
     'merchant_category','site_category','shop_name'
   ].join(',');
 
   const params = new URLSearchParams({ select: fields, limit, offset, order: sort });
 
-  // category match (merchant OR site category). Encode value because it may contain pipes/commas.
   if(category){
-    const val = encodeURIComponent(category);
-    params.append('or', `(merchant_category.eq.${val},site_category.eq.${val})`);
+    const slug = encodeURIComponent(category);
+    params.append('or', `(merchant_category.eq.${slug},site_category.eq.${slug})`);
   }
-
-  if(brand){
-    params.append('shop_name', `eq.${encodeURIComponent(brand)}`);
-  }
-
-  if(q){
-    params.append('title', `ilike.*${encodeURIComponent(q)}*`);
-  }
+  if(brand) params.append('shop_name', `eq.${brand}`);
+  if(q)     params.append('title', `ilike.*${q}*`);
 
   return `${SUPABASE_URL}/rest/v1/site_products_live?${params.toString()}`;
 }
@@ -185,7 +179,7 @@ function buildProductsUrl({category, brand, sort, q, limit, offset}){
 function renderProducts(rows,{replace=false}={}){
   const grid = $('#grid');
   const html = rows.map(p=>`
-    <a class="card" href="${bestProductUrl(p)}" target="_blank" rel="nofollow noopener">
+    <a class="card" href="${affiliateLink(p)}" target="_blank" rel="nofollow noopener">
       <div class="img"><img src="${p.image_url||''}" alt=""></div>
       <div class="pad">
         <div class="title">${p.title||''}</div>
@@ -201,8 +195,8 @@ function renderProducts(rows,{replace=false}={}){
 
 async function loadBrandsFor(category){
   try{
-    const val = encodeURIComponent(category);
-    const url  = `${SUPABASE_URL}/rest/v1/site_products_live?select=shop_name&or=(merchant_category.eq.${val},site_category.eq.${val})&shop_name=not.is.null`;
+    const slug = encodeURIComponent(category);
+    const url  = `${SUPABASE_URL}/rest/v1/site_products_live?select=shop_name&or=(merchant_category.eq.${slug},site_category.eq.${slug})&shop_name=not.is.null`;
     const rows = await fetchJSON(url);
     const names = [...new Set(rows.map(r=>r.shop_name).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'sk'));
     $('#brand').innerHTML = `<option value="">Všetky obchody</option>` + names.map(n=>`<option>${n}</option>`).join('');
@@ -233,7 +227,7 @@ async function loadProducts({append=false, replace=false}={}){
   }
 }
 
-/* ================= Navigation / mode switches ================= */
+/* ================= Navigation ================= */
 function showTiles(){
   state.mode='tiles';
   $('#tiles').style.display='grid';
@@ -266,14 +260,11 @@ $('#sort').addEventListener('change', async (e)=>{
   state.offset=0;
   await loadProducts({replace:true});
 });
-
 $('#more').addEventListener('click', async ()=>{
   state.offset += state.limit;
   const rows = await loadProducts({append:true});
   if(!rows.length) state.offset -= state.limit;
 });
-
-/* Search (global) */
 $('#q').addEventListener('input', async (e)=>{
   const v = e.target.value.trim();
   if(!v){
@@ -294,7 +285,7 @@ $('#q').addEventListener('input', async (e)=>{
   try{
     showErr('');
     await loadTiles();
-    showTiles(); // start on tiles
+    showTiles();
   }catch(e){
     showErr(e.message||String(e));
   }
