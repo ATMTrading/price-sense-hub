@@ -16,7 +16,8 @@
   h1{margin:0;font-size:20px}
   #q{flex:1;min-width:240px;padding:10px 12px;border:1px solid var(--border);border-radius:10px}
   .toolbar{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin:10px 0 14px}
-  select,input[type="range"]{padding:8px 10px;border:1px solid var(--border);border-radius:10px;background:#fff}
+  select{padding:8px 10px;border:1px solid var(--border);border-radius:10px;background:#fff}
+  .btn{padding:10px 16px;border:1px solid var(--border);border-radius:10px;background:#fff;cursor:pointer}
   #err{color:#b00020;margin:8px 0;display:none;white-space:pre-wrap}
 
   /* Tiles (category wall) */
@@ -41,8 +42,6 @@
   .cat{font-size:12px;color:var(--muted);margin-top:2px}
   .breadcrumbs{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0}
   .crumb{color:var(--brand);cursor:pointer}
-  .controls{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:8px 0 14px}
-  .btn{padding:10px 16px;border:1px solid var(--border);border-radius:10px;background:#fff;cursor:pointer}
   #empty{display:none;color:var(--muted);text-align:center;margin:24px 0}
 </style>
 </head>
@@ -83,15 +82,17 @@
 </div>
 
 <script>
-/* ================= Supabase config ================= */
+/* ================= Supabase config (kept exactly) ================= */
 const SUPABASE_URL = 'https://xxplocdervsfftnnalah.supabase.co';
 const ANON_KEY     = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inh4cGxvY2RlcnZzZmZ0bm5hbGFoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTU4OTIyODYsImV4cCI6MjA3MTQ2ODI4Nn0.Gh8AShwePYUuiJjj_G1qFuMaTRC_6HZOSERifIvjZro';
 const baseHeaders  = { apikey: ANON_KEY, Authorization: 'Bearer ' + ANON_KEY };
 
 /* ================= State ================= */
 const state = {
-  mode: 'tiles',
-  category: '',
+  mode: 'tiles',            // 'tiles' | 'list' | 'search'
+  // for listing:
+  categoryLabel: '',        // raw label for UI (breadcrumbs)
+  categoryTerm: '',         // right-most segment used for filtering
   brand: '',
   sort: 'price.asc',
   q: '',
@@ -104,20 +105,49 @@ const $$ = (s, r=document)=>Array.from(r.querySelectorAll(s));
 const showErr = (m='')=>{ const el=$('#err'); el.textContent=m; el.style.display=m?'block':'none' };
 const fmtPrice=(n)=>Number.isFinite(+n)?`${(+n).toFixed(2)} €`:'';
 
-/* ================= Fetch helper ================= */
+/* ================= Small fetch helper ================= */
 async function fetchJSON(url, opts={}) {
   const res = await fetch(url, { ...opts, headers: { ...baseHeaders, ...(opts.headers||{}) } });
   if (!res.ok) throw new Error(await res.text());
   return res.json();
 }
 
-/* ================= Affiliate link helpers ================= */
+/* ================= Helpers ================= */
+const splitSegments = (label='') => label.split('|').map(s=>s.trim()).filter(Boolean);
+const rightMostTerm = (label='') => {
+  const segs = splitSegments(label);
+  return (segs.pop() || label).trim();
+};
+const topLevel = (label='') => {
+  const segs = splitSegments(label);
+  return (segs[0] || label).trim();
+};
+
+/* ================= Affiliate helpers ================= */
+function parseQueryString(qs){
+  const out=[]; if(!qs) return out; const s=qs.replace(/^\?/,'');
+
+  for(const part of s.split('&')){ if(!part) continue; const [k,v='']=part.split('=',2); if(!k) continue; out.push([decodeURIComponent(k), decodeURIComponent(v)]) }
+  return out;
+}
+function appendSuffix(rawUrl, suffix){
+  if(!rawUrl) return '#';
+  let u; try{ u=new URL(rawUrl) }catch{ return rawUrl }
+  if(suffix && typeof suffix==='string'){
+    for(const [k,v] of parseQueryString(suffix)) u.searchParams.set(k,v);
+  }
+  return u.toString();
+}
 function pickBestUrl(p){
-  if(p.product_url) return p.product_url; // main field
+  // Prefer final_url if you have it; otherwise fall back to product_url
+  if(p.final_url) return p.final_url;
+  if(p.product_url) return p.product_url;
   return '#';
 }
 function affiliateLink(p){
-  return pickBestUrl(p);
+  const base   = pickBestUrl(p);
+  const suffix = p.affiliate_suffix || '';
+  return appendSuffix(base, suffix);
 }
 
 /* ================= 1) Category tiles ================= */
@@ -126,23 +156,34 @@ async function loadTiles(){
     const url = `${SUPABASE_URL}/rest/v1/mv_category_summaries?select=*`;
     const rows = await fetchJSON(url);
 
-    const labelKey = ['label','name','category','title'].find(k => k in (rows[0]||{})) || 'label';
-    const countKey = ['n_products','total','product_count','count'].find(k => k in (rows[0]||{})) || 'n_products';
-    const imgKey   = ['image_url','thumb','sample_image','hero_image'].find(k => k in (rows[0]||{}));
+    // Group by FIRST segment (top-level) and aggregate counts + sample image
+    const groups = new Map();
+    for(const r of rows){
+      const label = r.label || r.name || '';
+      const first = topLevel(label);
+      const n = Number(r.n_products ?? r.total ?? r.product_count ?? 0) || 0;
+      const img = r.image_url || r.thumb || r.sample_image || '';
+      const g = groups.get(first) || { label:first, n:0, img:'' };
+      g.n += n;
+      if(!g.img && img) g.img = img;
+      groups.set(first, g);
+    }
 
-    $('#tiles').innerHTML = rows.map(r=>{
-      const label = r[labelKey] || '';
-      const n     = r[countKey] ?? '';
-      const img   = imgKey ? (r[imgKey]||'') : '';
-      return `
-        <a class="tile" data-label="${encodeURIComponent(label)}" href="#">
-          <div class="thumb">${img?`<img src="${img}" alt="">`:''}</div>
-          <div class="meta">
-            <div class="title">${label||'—'}</div>
-            <div class="count">${n?`${n} produktov`:''}</div>
-          </div>
-        </a>`;
-    }).join('');
+    // Take top 12 by count, then sort alphabetically for nice layout
+    const list = Array.from(groups.values())
+      .sort((a,b)=>b.n-a.n)
+      .slice(0,12)
+      .sort((a,b)=>a.label.localeCompare(b.label,'sk',{sensitivity:'base'}));
+
+    $('#tiles').innerHTML = list.map(r=>`
+      <a class="tile" data-label="${encodeURIComponent(r.label)}" href="#">
+        <div class="thumb">${r.img?`<img src="${r.img}" alt="">`:''}</div>
+        <div class="meta">
+          <div class="title">${r.label||'—'}</div>
+          <div class="count">${r.n?`${r.n} produktov`:''}</div>
+        </div>
+      </a>
+    `).join('');
 
     $('#tiles').addEventListener('click', (ev)=>{
       const a = ev.target.closest('.tile');
@@ -156,19 +197,21 @@ async function loadTiles(){
   }
 }
 
-/* ================= 2) Listing ================= */
-function buildProductsUrl({category, brand, sort, q, limit, offset}){
+/* ================= 2) Listing (category/search) ================= */
+function buildProductsUrl({categoryTerm, brand, sort, q, limit, offset}){
   const fields = [
     'id','title','price','currency','image_url',
-    'product_url',
-    'merchant_category','site_category','shop_name'
+    'final_url','product_url',
+    'merchant_category','site_category','shop_name','affiliate_suffix'
   ].join(',');
 
   const params = new URLSearchParams({ select: fields, limit, offset, order: sort });
 
-  if(category){
-    const slug = encodeURIComponent(category);
-    params.append('or', `(merchant_category.eq.${slug},site_category.eq.${slug})`);
+  // Use ILIKE on both merchant_category & site_category with the RIGHT-MOST segment
+  if(categoryTerm){
+    const enc = encodeURIComponent(categoryTerm);
+    // or=(merchant_category.ilike.*term*,site_category.ilike.*term*)
+    params.append('or', `(merchant_category.ilike.*${enc}*,site_category.ilike.*${enc}*)`);
   }
   if(brand) params.append('shop_name', `eq.${brand}`);
   if(q)     params.append('title', `ilike.*${q}*`);
@@ -193,10 +236,10 @@ function renderProducts(rows,{replace=false}={}){
   $('#empty').style.display = grid.children.length ? 'none' : 'block';
 }
 
-async function loadBrandsFor(category){
+async function loadBrandsFor(categoryTerm){
   try{
-    const slug = encodeURIComponent(category);
-    const url  = `${SUPABASE_URL}/rest/v1/site_products_live?select=shop_name&or=(merchant_category.eq.${slug},site_category.eq.${slug})&shop_name=not.is.null`;
+    const enc = encodeURIComponent(categoryTerm);
+    const url  = `${SUPABASE_URL}/rest/v1/site_products_live?select=shop_name&or=(merchant_category.ilike.*${enc}*,site_category.ilike.*${enc}*)&shop_name=not.is.null`;
     const rows = await fetchJSON(url);
     const names = [...new Set(rows.map(r=>r.shop_name).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'sk'));
     $('#brand').innerHTML = `<option value="">Všetky obchody</option>` + names.map(n=>`<option>${n}</option>`).join('');
@@ -210,12 +253,12 @@ async function loadProducts({append=false, replace=false}={}){
   try{
     showErr('');
     const url  = buildProductsUrl({
-      category: state.mode==='list' ? state.category : '',
-      brand:    state.mode==='list' ? state.brand    : '',
-      sort:     state.sort,
-      q:        state.mode==='search' ? state.q : '',
-      limit:    state.limit,
-      offset:   state.offset
+      categoryTerm: state.mode==='list' ? state.categoryTerm : '',
+      brand:        state.mode==='list' ? state.brand        : '',
+      sort:         state.sort,
+      q:            state.mode==='search' ? state.q : '',
+      limit:        state.limit,
+      offset:       state.offset
     });
     const rows = await fetchJSON(url);
     renderProducts(rows,{replace});
@@ -227,7 +270,7 @@ async function loadProducts({append=false, replace=false}={}){
   }
 }
 
-/* ================= Navigation ================= */
+/* ================= Navigation / mode switches ================= */
 function showTiles(){
   state.mode='tiles';
   $('#tiles').style.display='grid';
@@ -236,14 +279,15 @@ function showTiles(){
 
 async function enterCategory(label){
   state.mode='list';
-  state.category = label;
+  state.categoryLabel = label;
+  state.categoryTerm  = rightMostTerm(label);    // critical fix
   state.brand=''; state.sort='price.asc';
   state.q=''; state.offset=0;
   $('#crumbCat').textContent = label;
   $('#q').value='';
   $('#tiles').style.display='none';
   $('#categoryArea').style.display='block';
-  await loadBrandsFor(label);
+  await loadBrandsFor(state.categoryTerm);
   await loadProducts({replace:true});
 }
 
@@ -260,11 +304,14 @@ $('#sort').addEventListener('change', async (e)=>{
   state.offset=0;
   await loadProducts({replace:true});
 });
+
 $('#more').addEventListener('click', async ()=>{
   state.offset += state.limit;
   const rows = await loadProducts({append:true});
   if(!rows.length) state.offset -= state.limit;
 });
+
+/* Search (global) */
 $('#q').addEventListener('input', async (e)=>{
   const v = e.target.value.trim();
   if(!v){
@@ -285,7 +332,7 @@ $('#q').addEventListener('input', async (e)=>{
   try{
     showErr('');
     await loadTiles();
-    showTiles();
+    showTiles(); // start on tiles
   }catch(e){
     showErr(e.message||String(e));
   }
