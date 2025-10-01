@@ -1,96 +1,299 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="sk">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Bestpric.eu - Porovnanie cien</title>
-  <link rel="stylesheet" href="styles.css" />
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <style>
-    body { font-family: Arial, sans-serif; margin: 0; background: #fafafa; }
-    header { display: flex; align-items: center; padding: 1rem; background: #fff; border-bottom: 1px solid #ddd; }
-    header input { flex: 1; margin-left: 1rem; padding: 0.5rem; border: 1px solid #ccc; border-radius: 4px; }
-    .container { max-width: 1200px; margin: 2rem auto; padding: 0 1rem; }
-    h2 { margin-top: 2rem; font-size: 1.5rem; color: #333; }
-    .category-block { margin-bottom: 3rem; }
-    .products { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 1rem; }
-    .product { background: #fff; border-radius: 8px; padding: 1rem; box-shadow: 0 1px 3px rgba(0,0,0,0.1); text-align: center; }
-    .product img { max-width: 100%; height: 150px; object-fit: contain; }
-    .product h3 { font-size: 0.9rem; margin: 0.5rem 0; }
-    .product p { font-size: 0.85rem; margin: 0; color: #333; }
-    .product a { text-decoration: none; color: inherit; }
-    .price { color: #007b00; font-weight: bold; }
-  </style>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>bestpric.eu</title>
+<style>
+  :root{
+    --fg:#111;--muted:#60646c;--bg:#fff;--chip:#fff;--chipb:#e5e7eb;--card:#fafafa;--brand:#0d9488;
+    --border:#e5e7eb;--shadow:0 1px 2px rgba(0,0,0,.05),0 4px 12px rgba(0,0,0,.04)
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font:14px/1.45 system-ui,Segoe UI,Roboto,Arial,sans-serif;color:var(--fg);background:var(--bg)}
+  .wrap{max-width:1180px;margin:20px auto;padding:0 16px}
+  header{display:flex;gap:12px;align-items:center;margin-bottom:16px}
+  h1{margin:0;font-size:20px}
+  #q{flex:1;min-width:240px;padding:10px 12px;border:1px solid var(--border);border-radius:10px}
+  .toolbar{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin:10px 0 14px}
+  select,input[type="range"]{padding:8px 10px;border:1px solid var(--border);border-radius:10px;background:#fff}
+  #err{color:#b00020;margin:8px 0;display:none;white-space:pre-wrap}
+
+  /* Category sections like Midovo */
+  .section{background:#fff;border:1px solid var(--border);border-radius:14px;box-shadow:var(--shadow);margin:20px 0}
+  .section-head{display:flex;align-items:center;justify-content:space-between;padding:14px 16px;border-bottom:1px solid var(--border)}
+  .section-title{font-size:18px;font-weight:800}
+  .section-sub{color:var(--muted);font-size:12px;margin-left:8px}
+  .section-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:16px;padding:16px}
+
+  /* Product cards */
+  .card{border:1px solid var(--border);border-radius:14px;background:#fff;box-shadow:var(--shadow);
+        text-decoration:none;color:inherit;display:block;overflow:hidden}
+  .img{aspect-ratio:1/1;background:#f7f7f7;display:flex;align-items:center;justify-content:center}
+  .img img{max-width:100%;max-height:100%;object-fit:contain}
+  .pad{padding:10px 12px}
+  .title{font-size:14px;line-height:1.3;height:3.4em;overflow:hidden}
+  .price{margin-top:6px;font-weight:800}
+  .cat{font-size:12px;color:var(--muted);margin-top:2px}
+  .breadcrumbs{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0}
+  .crumb{color:var(--brand);cursor:pointer}
+  .controls{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:8px 0 14px}
+  .btn{padding:10px 16px;border:1px solid var(--border);border-radius:10px;background:#fff;cursor:pointer}
+  #empty{display:none;color:var(--muted);text-align:center;margin:24px 0}
+  .more-link{color:var(--brand);font-weight:600;text-decoration:none}
+</style>
 </head>
 <body>
+<div class="wrap">
   <header>
-    <a href="/"><strong>bestpric.eu</strong></a>
-    <input type="text" id="search" placeholder="Search products..." />
+    <h1>bestpric.eu</h1>
+    <input id="q" placeholder="Search products…" />
   </header>
 
-  <div class="container" id="home"></div>
+  <div id="err"></div>
 
-  <script>
-    // 🟢 Supabase keys
-    const SUPABASE_URL = "https://YOUR_PROJECT.supabase.co"; 
-    const SUPABASE_ANON_KEY = "YOUR_ANON_KEY"; 
-    const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+  <!-- HOME (Midovo-style curated sections) -->
+  <div id="home"></div>
 
-    // 🏠 Load curated categories like Midovo
-    async function loadHomeCategories() {
-      const container = document.getElementById('home');
-      container.innerHTML = `<p>Načítavam kategórie...</p>`;
+  <!-- Category / listing mode -->
+  <div id="categoryArea" style="display:none">
+    <div class="breadcrumbs">
+      <span class="crumb" id="crumbHome">🏠 Domov</span>
+      <span>›</span>
+      <span id="crumbCat"></span>
+    </div>
 
-      const { data: categories, error } = await supabase
-        .from('mv_category_summaries')
-        .select('label, label_key, item_count, min_price, sample_image')
-        .order('item_count', { ascending: false })
-        .limit(8); // show only top 8
+    <div class="toolbar">
+      <select id="brand">
+        <option value="">Všetky obchody</option>
+      </select>
+      <select id="sort">
+        <option value="price.asc">Najlacnejšie</option>
+        <option value="price.desc">Najdrahšie</option>
+      </select>
+    </div>
 
-      if (error) {
-        container.innerHTML = `<p>Chyba: ${error.message}</p>`;
-        return;
-      }
+    <div id="grid"></div>
+    <div id="empty">Žiadne produkty.</div>
+    <button id="more" class="btn">Načítať viac</button>
+  </div>
+</div>
 
-      container.innerHTML = '';
-      for (const cat of categories) {
-        const catDiv = document.createElement('div');
-        catDiv.classList.add('category-block');
+<script>
+/* ================= Supabase config (kept exactly) ================= */
+const SUPABASE_URL = 'https://xxplocdervsfftnnalah.supabase.co';
+const ANON_KEY     = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inh4cGxvY2RlcnZzZmZ0bm5hbGFoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTU4OTIyODYsImV4cCI6MjA3MTQ2ODI4Nn0.Gh8AShwePYUuiJjj_G1qFuMaTRC_6HZOSERifIvjZro';
+const baseHeaders  = { apikey: ANON_KEY, Authorization: 'Bearer ' + ANON_KEY };
 
-        const catTitle = document.createElement('h2');
-        catTitle.innerText = `${cat.label} (${cat.item_count} produktov)`;
-        catDiv.appendChild(catTitle);
+/* ================= State ================= */
+const state = {
+  mode: 'home',             // 'home' | 'list' | 'search'
+  category: '',
+  brand: '',
+  sort: 'price.asc',
+  q: '',
+  limit: 24,
+  offset: 0
+};
 
-        const grid = document.createElement('div');
-        grid.classList.add('products');
+const $  = (s, r=document)=>r.querySelector(s);
+const $$ = (s, r=document)=>Array.from(r.querySelectorAll(s));
+const showErr = (m='')=>{ const el=$('#err'); el.textContent=m; el.style.display=m?'block':'none' };
+const fmtPrice=(n,c='€')=>Number.isFinite(+n)?`${(+n).toFixed(2)} ${c}`:'';
 
-        // Load 6 sample products from this category
-        const { data: products } = await supabase
-          .from('site_products_live')
-          .select('id, title, price, currency, image_url, final_url')
-          .ilike('site_category', `%${cat.label_key}%`)
-          .limit(6);
+/* ================= Small fetch helper ================= */
+async function fetchJSON(url, opts={}) {
+  const res = await fetch(url, { ...opts, headers: { ...baseHeaders, ...(opts.headers||{}) } });
+  if (!res.ok) throw new Error(await res.text());
+  return res.json();
+}
 
-        if (products) {
-          for (const p of products) {
-            const card = document.createElement('div');
-            card.classList.add('product');
-            card.innerHTML = `
-              <a href="${p.final_url}" target="_blank">
-                <img src="${p.image_url || ''}" alt="${p.title}">
-                <h3>${p.title}</h3>
-                <p class="price">${p.price} ${p.currency}</p>
-              </a>`;
-            grid.appendChild(card);
-          }
-        }
+/* ================= Affiliate helpers ================= */
+function pickBestUrl(p){
+  // your feeds already embed tracking in product_url (we expose it as final_url)
+  return p.final_url || '#';
+}
 
-        catDiv.appendChild(grid);
-        container.appendChild(catDiv);
-      }
+/* ================= HOME: Curated Midovo-style sections ================= */
+async function loadHome(){
+  state.mode='home';
+  $('#home').style.display='block';
+  $('#categoryArea').style.display='none';
+
+  const container = $('#home');
+  container.innerHTML = '';
+
+  try{
+    // take top 8 categories by item_count
+    const catsUrl = `${SUPABASE_URL}/rest/v1/mv_category_summaries?select=label,label_key,item_count,sample_image&order=item_count.desc&limit=8`;
+    const cats = await fetchJSON(catsUrl);
+
+    for(const cat of cats){
+      const section = document.createElement('div');
+      section.className='section';
+      section.innerHTML = `
+        <div class="section-head">
+          <div class="section-title">${cat.label} <span class="section-sub">(${cat.item_count} produktov)</span></div>
+          <a class="more-link" href="#" data-label="${encodeURIComponent(cat.label)}">Zobraziť viac →</a>
+        </div>
+        <div class="section-grid"></div>
+      `;
+      container.appendChild(section);
+
+      // Load 6 sample products for each category
+      const sampleUrl = new URL(`${SUPABASE_URL}/rest/v1/site_products_live`);
+      sampleUrl.searchParams.set('select','id,title,price,currency,image_url,final_url,shop_name,site_category');
+      // try to match by label_key as substring inside site_category
+      sampleUrl.searchParams.append('site_category','ilike.*'+cat.label_key+'*');
+      sampleUrl.searchParams.set('limit','6');
+      sampleUrl.searchParams.set('order','price.asc');
+
+      const prods = await fetchJSON(sampleUrl.toString());
+
+      const grid = section.querySelector('.section-grid');
+      grid.innerHTML = prods.map(p=>`
+        <a class="card" href="${pickBestUrl(p)}" target="_blank" rel="nofollow noopener">
+          <div class="img"><img src="${p.image_url||''}" alt=""></div>
+          <div class="pad">
+            <div class="title">${p.title||''}</div>
+            <div class="price">${fmtPrice(p.price, p.currency||'€')}</div>
+            <div class="cat">${(p.site_category||'')}${p.shop_name?' • '+p.shop_name:''}</div>
+          </div>
+        </a>
+      `).join('');
+
+      // wire "Zobraziť viac"
+      section.querySelector('.more-link').addEventListener('click', (ev)=>{
+        ev.preventDefault();
+        enterCategory(decodeURIComponent(ev.currentTarget.dataset.label));
+      });
     }
+  }catch(e){
+    showErr('Chyba pri načítaní kategórií: ' + e.message);
+  }
+}
 
-    loadHomeCategories();
-  </script>
+/* ================= LISTING (category/search) ================= */
+function buildProductsUrl({category, brand, sort, q, limit, offset}){
+  const fields = [
+    'id','title','price','currency','image_url',
+    'final_url','site_category','shop_name'
+  ].join(',');
+
+  const params = new URLSearchParams({ select: fields, limit, offset, order: sort });
+
+  // category match by substring of site_category (works with your mv_category_summaries.label_key)
+  if(category){
+    const key = encodeURIComponent(category);
+    params.append('site_category', `ilike.*${key}*`);
+  }
+  if(brand) params.append('shop_name', `eq.${brand}`);
+  if(q)     params.append('title', `ilike.*${q}*`);
+
+  return `${SUPABASE_URL}/rest/v1/site_products_live?${params.toString()}`;
+}
+
+function renderProducts(rows,{replace=false}={}){
+  const grid = $('#grid');
+  const html = rows.map(p=>`
+    <a class="card" href="${pickBestUrl(p)}" target="_blank" rel="nofollow noopener">
+      <div class="img"><img src="${p.image_url||''}" alt=""></div>
+      <div class="pad">
+        <div class="title">${p.title||''}</div>
+        <div class="price">${fmtPrice(p.price, p.currency||'€')}</div>
+        <div class="cat">${(p.site_category||'')}${p.shop_name?' • '+p.shop_name:''}</div>
+      </div>
+    </a>
+  `).join('');
+  if(replace) grid.innerHTML = html;
+  else grid.insertAdjacentHTML('beforeend', html);
+  $('#empty').style.display = grid.children.length ? 'none' : 'block';
+}
+
+async function loadBrandsFor(category){
+  try{
+    const url  = `${SUPABASE_URL}/rest/v1/site_products_live?select=shop_name&site_category=ilike.*${encodeURIComponent(category)}*&shop_name=not.is.null`;
+    const rows = await fetchJSON(url);
+    const names = [...new Set(rows.map(r=>r.shop_name).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'sk'));
+    $('#brand').innerHTML = `<option value="">Všetky obchody</option>` + names.map(n=>`<option>${n}</option>`).join('');
+  }catch(e){
+    console.warn('Brand load failed', e);
+    $('#brand').innerHTML = `<option value="">Všetky obchody</option>`;
+  }
+}
+
+async function loadProducts({append=false, replace=false}={}){
+  try{
+    showErr('');
+    const url  = buildProductsUrl({
+      category: state.mode==='list' ? state.category : '',
+      brand:    state.mode==='list' ? state.brand    : '',
+      sort:     state.sort,
+      q:        state.mode==='search' ? state.q : '',
+      limit:    state.limit,
+      offset:   state.offset
+    });
+    const rows = await fetchJSON(url);
+    renderProducts(rows,{replace});
+    $('#more').style.display = rows.length < state.limit ? 'none' : 'inline-block';
+    return rows;
+  }catch(e){
+    showErr('Cannot load products: ' + e.message);
+    return [];
+  }
+}
+
+/* ================= Navigation / mode switches ================= */
+async function enterCategory(label){
+  state.mode='list';
+  state.category = label;
+  state.brand=''; state.sort='price.asc';
+  state.q=''; state.offset=0;
+  $('#crumbCat').textContent = label;
+  $('#q').value='';
+  $('#home').style.display='none';
+  $('#categoryArea').style.display='block';
+  await loadBrandsFor(label);
+  await loadProducts({replace:true});
+}
+
+$('#crumbHome').addEventListener('click',()=>{ loadHome() });
+
+/* ================= Controls ================= */
+$('#brand').addEventListener('change', async (e)=>{
+  state.brand = e.target.value;
+  state.offset=0;
+  await loadProducts({replace:true});
+});
+$('#sort').addEventListener('change', async (e)=>{
+  state.sort = e.target.value;
+  state.offset=0;
+  await loadProducts({replace:true});
+});
+$('#more').addEventListener('click', async ()=>{
+  state.offset += state.limit;
+  const rows = await loadProducts({append:true});
+  if(!rows.length) state.offset -= state.limit;
+});
+
+/* Search (global) */
+$('#q').addEventListener('input', async (e)=>{
+  const v = e.target.value.trim();
+  if(!v){
+    if(state.mode!=='home') loadHome();
+    return;
+  }
+  state.mode='search';
+  state.q=v; state.offset=0;
+  $('#home').style.display='none';
+  $('#categoryArea').style.display='block';
+  $('#brand').innerHTML = `<option value="">Všetky obchody</option>`;
+  $('#crumbCat').textContent = `Hľadanie: "${v}"`;
+  await loadProducts({replace:true});
+});
+
+/* ================= Boot ================= */
+loadHome();
+</script>
 </body>
 </html>
