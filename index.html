@@ -1,299 +1,409 @@
 <!doctype html>
 <html lang="sk">
 <head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>bestpric.eu</title>
-<style>
-  :root{
-    --fg:#111;--muted:#60646c;--bg:#fff;--chip:#fff;--chipb:#e5e7eb;--card:#fafafa;--brand:#0d9488;
-    --border:#e5e7eb;--shadow:0 1px 2px rgba(0,0,0,.05),0 4px 12px rgba(0,0,0,.04)
-  }
-  *{box-sizing:border-box}
-  body{margin:0;font:14px/1.45 system-ui,Segoe UI,Roboto,Arial,sans-serif;color:var(--fg);background:var(--bg)}
-  .wrap{max-width:1180px;margin:20px auto;padding:0 16px}
-  header{display:flex;gap:12px;align-items:center;margin-bottom:16px}
-  h1{margin:0;font-size:20px}
-  #q{flex:1;min-width:240px;padding:10px 12px;border:1px solid var(--border);border-radius:10px}
-  .toolbar{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin:10px 0 14px}
-  select,input[type="range"]{padding:8px 10px;border:1px solid var(--border);border-radius:10px;background:#fff}
-  #err{color:#b00020;margin:8px 0;display:none;white-space:pre-wrap}
-
-  /* Category sections like Midovo */
-  .section{background:#fff;border:1px solid var(--border);border-radius:14px;box-shadow:var(--shadow);margin:20px 0}
-  .section-head{display:flex;align-items:center;justify-content:space-between;padding:14px 16px;border-bottom:1px solid var(--border)}
-  .section-title{font-size:18px;font-weight:800}
-  .section-sub{color:var(--muted);font-size:12px;margin-left:8px}
-  .section-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:16px;padding:16px}
-
-  /* Product cards */
-  .card{border:1px solid var(--border);border-radius:14px;background:#fff;box-shadow:var(--shadow);
-        text-decoration:none;color:inherit;display:block;overflow:hidden}
-  .img{aspect-ratio:1/1;background:#f7f7f7;display:flex;align-items:center;justify-content:center}
-  .img img{max-width:100%;max-height:100%;object-fit:contain}
-  .pad{padding:10px 12px}
-  .title{font-size:14px;line-height:1.3;height:3.4em;overflow:hidden}
-  .price{margin-top:6px;font-weight:800}
-  .cat{font-size:12px;color:var(--muted);margin-top:2px}
-  .breadcrumbs{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0}
-  .crumb{color:var(--brand);cursor:pointer}
-  .controls{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:8px 0 14px}
-  .btn{padding:10px 16px;border:1px solid var(--border);border-radius:10px;background:#fff;cursor:pointer}
-  #empty{display:none;color:var(--muted);text-align:center;margin:24px 0}
-  .more-link{color:var(--brand);font-weight:600;text-decoration:none}
-</style>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>bestpric.eu</title>
+  <link rel="icon" href="/favicon.ico">
+  <style>
+    :root{--gap:16px;--card:12px;--muted:#6b7280;--bg:#fafafa;--ink:#0f172a;--brand:#16a34a}
+    *{box-sizing:border-box} body{margin:0;font:16px/1.45 system-ui,Segoe UI,Roboto,Inter,sans-serif;color:var(--ink);background:var(--bg)}
+    header{position:sticky;top:0;z-index:10;background:#fff;border-bottom:1px solid #eee}
+    .wrap{max-width:1200px;margin:0 auto;padding:12px var(--gap)}
+    .brand{font-weight:800;font-size:22px;margin-right:14px}
+    .search{display:flex;gap:10px;align-items:center}
+    .search input{flex:1;padding:10px 12px;border:1px solid #e5e7eb;border-radius:10px}
+    .crumbs{font-size:14px;color:var(--muted);display:flex;gap:6px;align-items:center;margin:10px 0}
+    .lane{background:#fff;border:1px solid #eee;border-radius:14px;margin:var(--gap) 0}
+    .lane-hd{display:flex;justify-content:space-between;align-items:center;padding:12px var(--gap);border-bottom:1px solid #f1f5f9}
+    .lane-hd h2{margin:0;font-size:20px}
+    .lane-grid{display:grid;gap:var(--gap);padding:var(--gap);grid-template-columns:repeat(4,1fr)}
+    .tile{background:#fff;border:1px solid #eee;border-radius:14px;overflow:hidden;display:flex;flex-direction:column}
+    .thumb{aspect-ratio:4/3;display:grid;place-items:center;background:#f6f7f8}
+    .thumb img{max-width:100%;max-height:100%;object-fit:contain}
+    .tile h3,.tile h4{margin:10px 12px 6px 12px;font-size:16px}
+    .muted{color:var(--muted);font-size:13px;margin:0 12px 12px 12px}
+    .price{font-weight:700;margin:0 12px 12px 12px}
+    .btn-link{color:#2563eb;text-decoration:none;font-weight:600}
+    .filters{display:flex;gap:10px;align-items:center;padding:0 var(--gap) var(--gap)}
+    select{padding:8px 10px;border:1px solid #e5e7eb;border-radius:10px;background:#fff}
+    .center{display:grid;place-items:center;padding:40px;color:var(--muted)}
+    @media (max-width: 960px){ .lane-grid{grid-template-columns:repeat(2,1fr)} }
+    @media (max-width: 560px){ .lane-grid{grid-template-columns:1fr} }
+  </style>
+  <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
 </head>
 <body>
-<div class="wrap">
-  <header>
-    <h1>bestpric.eu</h1>
-    <input id="q" placeholder="Search products…" />
-  </header>
 
-  <div id="err"></div>
-
-  <!-- HOME (Midovo-style curated sections) -->
-  <div id="home"></div>
-
-  <!-- Category / listing mode -->
-  <div id="categoryArea" style="display:none">
-    <div class="breadcrumbs">
-      <span class="crumb" id="crumbHome">🏠 Domov</span>
-      <span>›</span>
-      <span id="crumbCat"></span>
-    </div>
-
-    <div class="toolbar">
-      <select id="brand">
-        <option value="">Všetky obchody</option>
-      </select>
-      <select id="sort">
-        <option value="price.asc">Najlacnejšie</option>
-        <option value="price.desc">Najdrahšie</option>
-      </select>
-    </div>
-
-    <div id="grid"></div>
-    <div id="empty">Žiadne produkty.</div>
-    <button id="more" class="btn">Načítať viac</button>
+<header>
+  <div class="wrap search">
+    <div class="brand">bestpric.eu</div>
+    <input id="q" type="search" placeholder="Search products…" />
   </div>
-</div>
+</header>
+
+<main class="wrap" id="app"></main>
 
 <script>
-/* ================= Supabase config (kept exactly) ================= */
+/* ------------------- CONFIG ------------------- */
 const SUPABASE_URL = 'https://xxplocdervsfftnnalah.supabase.co';
 const ANON_KEY     = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inh4cGxvY2RlcnZzZmZ0bm5hbGFoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTU4OTIyODYsImV4cCI6MjA3MTQ2ODI4Nn0.Gh8AShwePYUuiJjj_G1qFuMaTRC_6HZOSERifIvjZro';
-const baseHeaders  = { apikey: ANON_KEY, Authorization: 'Bearer ' + ANON_KEY };
+const supa = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-/* ================= State ================= */
-const state = {
-  mode: 'home',             // 'home' | 'list' | 'search'
-  category: '',
-  brand: '',
-  sort: 'price.asc',
-  q: '',
-  limit: 24,
-  offset: 0
-};
+/* Helpers */
+const $ = sel => document.querySelector(sel);
+const app = $("#app");
 
-const $  = (s, r=document)=>r.querySelector(s);
-const $$ = (s, r=document)=>Array.from(r.querySelectorAll(s));
-const showErr = (m='')=>{ const el=$('#err'); el.textContent=m; el.style.display=m?'block':'none' };
-const fmtPrice=(n,c='€')=>Number.isFinite(+n)?`${(+n).toFixed(2)} ${c}`:'';
-
-/* ================= Small fetch helper ================= */
-async function fetchJSON(url, opts={}) {
-  const res = await fetch(url, { ...opts, headers: { ...baseHeaders, ...(opts.headers||{}) } });
-  if (!res.ok) throw new Error(await res.text());
-  return res.json();
+function fmtPrice(price, currency){
+  if (price == null) return "";
+  return new Intl.NumberFormat('sk-SK', {style:'currency', currency: currency || 'EUR'}).format(price);
 }
 
-/* ================= Affiliate helpers ================= */
-function pickBestUrl(p){
-  // your feeds already embed tracking in product_url (we expose it as final_url)
-  return p.final_url || '#';
+function slugParts(label){
+  // labels look like "Dom a záhrada | Bývanie a doplnky | Domové alarmy"
+  return (label || "").split("|").map(s => s.trim()).filter(Boolean);
 }
 
-/* ================= HOME: Curated Midovo-style sections ================= */
-async function loadHome(){
-  state.mode='home';
-  $('#home').style.display='block';
-  $('#categoryArea').style.display='none';
+function linkToCategory(parts){
+  // parts array -> ?c=Dom%20a%20záhrada|Bývanie%20a%20doplnky or include third for leaf
+  return `?c=${encodeURIComponent(parts.join(" | "))}`;
+}
 
-  const container = $('#home');
-  container.innerHTML = '';
+function getRoute(){
+  const url = new URL(location.href);
+  const search = url.searchParams.get("search") || "";
+  const cParam = url.searchParams.get("c");
+  const parts = cParam ? cParam.split("|").map(s=>s.trim()).filter(Boolean) : [];
+  return {search, parts};
+}
+
+function setRoute(params){
+  const url = new URL(location.href);
+  Object.entries(params).forEach(([k,v])=>{
+    if (v == null || v==="") url.searchParams.delete(k);
+    else url.searchParams.set(k,v);
+  });
+  history.pushState({}, "", url);
+  render();
+}
+
+window.addEventListener("popstate", render);
+$("#q").addEventListener("keydown", e => {
+  if (e.key === "Enter"){
+    const val = $("#q").value.trim();
+    setRoute({search: val || null, c: null});
+  }
+});
+
+/* ------------------- DATA ------------------- */
+
+// Home sections (main categories) from mv_category_summaries
+async function fetchHomeSections(limitCats=8, itemsPerCat=5){
+  // get most populated first-level categories
+  const { data, error } = await supa
+    .from("mv_category_summaries")
+    .select("label, item_count, sample_image")
+    .order("item_count", {ascending:false})
+    .limit(400); // enough to group
+
+  if (error) throw error;
+
+  // Group by first-level
+  const groups = new Map();
+  for (const row of data){
+    const parts = slugParts(row.label);
+    if (parts.length < 1) continue;
+    const k = parts[0];
+    const prev = groups.get(k) || { label:k, total:0, children:[] };
+    prev.total += (row.item_count || 0);
+    prev.children.push(row);
+    groups.set(k, prev);
+  }
+
+  // Rank by total size, keep top N
+  const ranked = [...groups.values()]
+    .sort((a,b)=> b.total - a.total)
+    .slice(0, limitCats);
+
+  // For each main category, pick a few representative leaf summaries (deeper ones)
+  // We prioritize leaf rows (length >= 2) with highest counts
+  const lanes = [];
+  for (const g of ranked){
+    const leaves = g.children
+      .filter(r => slugParts(r.label).length >= 2)
+      .sort((a,b)=> (b.item_count||0)-(a.item_count||0))
+      .slice(0, itemsPerCat);
+
+    lanes.push({ main:g.label, items: leaves });
+  }
+  return lanes;
+}
+
+// Subcategories for a first-level category
+async function fetchSubcategories(level1){
+  // Filter rows whose label starts with `${level1} |`
+  const { data, error } = await supa
+    .from("mv_category_summaries")
+    .select("label, item_count, sample_image")
+    .ilike("label", `${level1} |%`);
+  if (error) throw error;
+
+  // Keep 2nd level
+  const map = new Map();
+  for (const row of data){
+    const parts = slugParts(row.label);
+    if (parts.length < 2) continue;
+    const key = parts[0] + " | " + parts[1];
+    const prev = map.get(key) || { label:key, item_count:0, sample_image:row.sample_image };
+    prev.item_count += (row.item_count || 0);
+    map.set(key, prev);
+  }
+  return [...map.values()].sort((a,b)=> (b.item_count||0)-(a.item_count||0));
+}
+
+// Products for a leaf (level1 | level2 | optional level3)
+async function fetchProductsForCategory(label, page=1, pageSize=24, shop=null, sort="price.asc"){
+  // We’ll filter products by matching the last segment against both merchant_category & site_category
+  // This is robust across mixed feeds.
+  const parts = slugParts(label);
+  const needle = parts[parts.length-1];
+
+  // Columns to return
+  let query = supa
+    .from("site_products_live")
+    .select("id,title,price,currency,image_url,final_url,shop_name,merchant_category,site_category", {count:"exact"})
+    .or(`merchant_category.ilike.%${needle}%,site_category.ilike.%${needle}%`);
+
+  if (shop && shop !== "all") query = query.eq("shop_name", shop);
+
+  // Sorting
+  let [col, dir] = sort.split(".");
+  if (!col) col = "price";
+  if (!dir) dir = "asc";
+  query = query.order(col, {ascending: dir==="asc"});
+
+  // Paging
+  const from = (page-1)*pageSize;
+  const to = from + pageSize - 1;
+  query = query.range(from, to);
+
+  const { data, error, count } = await query;
+  if (error) throw error;
+  return {items:data||[], total: count||0};
+}
+
+// Shops for filter (optional)
+async function fetchShops(){
+  // derive from products to keep it simple
+  const { data, error } = await supa
+    .from("site_products_live")
+    .select("shop_name")
+    .not("shop_name","is",null)
+    .limit(10000);
+  if (error) throw error;
+  const set = new Set((data||[]).map(d=>d.shop_name).filter(Boolean));
+  return ["all", ...[...set].sort()];
+}
+
+/* ------------------- RENDER ------------------- */
+
+function crumbs(parts){
+  if (!parts.length) return "";
+  const nodes = [];
+  nodes.push(`<a class="btn-link" href="?" onclick="event.preventDefault(); setRoute({c:null})">Domov</a>`);
+  if (parts[0]) nodes.push(`<a class="btn-link" href="${linkToCategory([parts[0]])}" onclick="event.preventDefault(); setRoute({c:'${parts[0]}'})">${parts[0]}</a>`);
+  if (parts[1]) nodes.push(`<span>${parts[1]}</span>`);
+  if (parts[2]) nodes.push(`<span>${parts[2]}</span>`);
+  return `<div class="crumbs">🏠 ${nodes.join(" › ")}</div>`;
+}
+
+function productCard(p){
+  return `
+  <a class="tile" href="${p.final_url}" target="_blank" rel="nofollow noopener">
+    <div class="thumb"><img loading="lazy" src="${p.image_url || ""}" alt=""></div>
+    <h4>${p.title || ""}</h4>
+    <div class="price">${fmtPrice(p.price, p.currency)}</div>
+    <p class="muted">${p.site_category || p.merchant_category || ""} • ${p.shop_name || ""}</p>
+  </a>`;
+}
+
+function subcatCard(label, count, img){
+  const parts = slugParts(label);
+  const href = linkToCategory([parts[0], parts[1]]);
+  return `
+    <a class="tile" href="${href}" onclick="event.preventDefault(); setRoute({c:'${parts[0]} | ${parts[1]}'})">
+      <div class="thumb"><img loading="lazy" src="${img || ""}" alt=""></div>
+      <h3>${parts[1]}</h3>
+      <p class="muted">${count} produktov</p>
+    </a>`;
+}
+
+function homeLane(lane){
+  // lane.main is the main category, lane.items are representative leaves
+  const mainHref = linkToCategory([lane.main]);
+  const tiles = lane.items.map(it => {
+    const parts = slugParts(it.label);
+    // Link to that subcategory list (level-2 if exists, else level-1 leaf)
+    const linkParts = parts.slice(0, Math.min(2, parts.length));
+    const href = linkToCategory(linkParts);
+    const subtitle = parts.slice(1).join(" › ");
+    return `
+      <a class="tile" href="${href}" onclick="event.preventDefault(); setRoute({c:'${linkParts.join(" | ")}'})">
+        <div class="thumb"><img loading="lazy" src="${it.sample_image || ""}" alt=""></div>
+        <h4>${subtitle || lane.main}</h4>
+        <p class="muted">${it.item_count} produktov</p>
+      </a>`;
+  }).join("");
+
+  return `
+  <section class="lane">
+    <div class="lane-hd">
+      <h2>${lane.main}</h2>
+      <a class="btn-link" href="${mainHref}" onclick="event.preventDefault(); setRoute({c:'${lane.main}'})">Zobraziť viac →</a>
+    </div>
+    <div class="lane-grid">${tiles}</div>
+  </section>`;
+}
+
+/* Views */
+
+async function viewHome(){
+  $("#q").value = "";
+  app.innerHTML = `<div class="lane"><div class="lane-hd"><h2>Načítavam…</h2></div></div>`;
+  try{
+    const lanes = await fetchHomeSections(8, 5);
+    app.innerHTML = lanes.map(homeLane).join("");
+  }catch(e){
+    app.innerHTML = `<div class="center">Chyba: ${e.message}</div>`;
+  }
+}
+
+async function viewCategory(level1){
+  $("#q").value = "";
+  app.innerHTML = `${crumbs([level1])}
+  <section class="lane">
+    <div class="lane-hd"><h2>${level1}</h2></div>
+    <div class="lane-grid" id="subgrid"></div>
+  </section>`;
+  try{
+    const subs = await fetchSubcategories(level1);
+    const html = subs.map(s => subcatCard(s.label, s.item_count, s.sample_image)).join("");
+    $("#subgrid").innerHTML = html || `<div class="center">Žiadne podkategórie.</div>`;
+  }catch(e){
+    $("#subgrid").innerHTML = `<div class="center">Chyba: ${e.message}</div>`;
+  }
+}
+
+async function viewLeaf(label){
+  const parts = slugParts(label);
+  $("#q").value = "";
+
+  // filters
+  const shops = await fetchShops();
+
+  // read filter state from URL
+  const url = new URL(location.href);
+  const shop = url.searchParams.get("shop") || "all";
+  const sort = url.searchParams.get("sort") || "price.asc";
+  const page = parseInt(url.searchParams.get("page") || "1", 10);
+
+  app.innerHTML = `
+    ${crumbs(parts)}
+    <div class="lane">
+      <div class="lane-hd"><h2>${parts.join(" › ")}</h2></div>
+      <div class="filters">
+        <label>Obchody
+          <select id="shop">
+            ${shops.map(s => `<option value="${s}" ${s===shop?'selected':''}>${s==='all'?'Všetky obchody':s}</option>`).join("")}
+          </select>
+        </label>
+        <label>Zoradiť
+          <select id="sort">
+            <option value="price.asc"  ${sort==='price.asc'?'selected':''}>Najlacnejšie</option>
+            <option value="price.desc" ${sort==='price.desc'?'selected':''}>Najdrahšie</option>
+          </select>
+        </label>
+      </div>
+      <div class="lane-grid" id="grid"></div>
+      <div class="center" id="pager"></div>
+    </div>`;
+
+  $("#shop").addEventListener("change", e => {
+    const v = e.target.value;
+    setRoute({shop: v==='all'?null:v, sort, page:null}); // reset page
+  });
+  $("#sort").addEventListener("change", e => {
+    const v = e.target.value;
+    setRoute({sort: v, page:null});
+  });
 
   try{
-    // take top 8 categories by item_count
-    const catsUrl = `${SUPABASE_URL}/rest/v1/mv_category_summaries?select=label,label_key,item_count,sample_image&order=item_count.desc&limit=8`;
-    const cats = await fetchJSON(catsUrl);
+    const {items, total} = await fetchProductsForCategory(label, page, 24, shop, sort);
+    $("#grid").innerHTML = items.map(productCard).join("") || `<div class="center">Žiadne produkty.</div>`;
 
-    for(const cat of cats){
-      const section = document.createElement('div');
-      section.className='section';
-      section.innerHTML = `
-        <div class="section-head">
-          <div class="section-title">${cat.label} <span class="section-sub">(${cat.item_count} produktov)</span></div>
-          <a class="more-link" href="#" data-label="${encodeURIComponent(cat.label)}">Zobraziť viac →</a>
-        </div>
-        <div class="section-grid"></div>
-      `;
-      container.appendChild(section);
-
-      // Load 6 sample products for each category
-      const sampleUrl = new URL(`${SUPABASE_URL}/rest/v1/site_products_live`);
-      sampleUrl.searchParams.set('select','id,title,price,currency,image_url,final_url,shop_name,site_category');
-      // try to match by label_key as substring inside site_category
-      sampleUrl.searchParams.append('site_category','ilike.*'+cat.label_key+'*');
-      sampleUrl.searchParams.set('limit','6');
-      sampleUrl.searchParams.set('order','price.asc');
-
-      const prods = await fetchJSON(sampleUrl.toString());
-
-      const grid = section.querySelector('.section-grid');
-      grid.innerHTML = prods.map(p=>`
-        <a class="card" href="${pickBestUrl(p)}" target="_blank" rel="nofollow noopener">
-          <div class="img"><img src="${p.image_url||''}" alt=""></div>
-          <div class="pad">
-            <div class="title">${p.title||''}</div>
-            <div class="price">${fmtPrice(p.price, p.currency||'€')}</div>
-            <div class="cat">${(p.site_category||'')}${p.shop_name?' • '+p.shop_name:''}</div>
-          </div>
-        </a>
-      `).join('');
-
-      // wire "Zobraziť viac"
-      section.querySelector('.more-link').addEventListener('click', (ev)=>{
-        ev.preventDefault();
-        enterCategory(decodeURIComponent(ev.currentTarget.dataset.label));
-      });
+    // pager
+    if (total > 24){
+      const last = Math.ceil(total / 24);
+      const prev = page > 1 ? `<a class="btn-link" href="#" onclick="event.preventDefault(); setRoute({page:${page-1}})">‹ Predchádzajúca</a>` : "";
+      const next = page < last ? `<a class="btn-link" href="#" onclick="event.preventDefault(); setRoute({page:${page+1}})">Ďalšia ›</a>` : "";
+      $("#pager").innerHTML = `${prev} &nbsp; Strana ${page}/${last} &nbsp; ${next}`;
+    }else{
+      $("#pager").innerHTML = "";
     }
   }catch(e){
-    showErr('Chyba pri načítaní kategórií: ' + e.message);
+    $("#grid").innerHTML = `<div class="center">Chyba: ${e.message}</div>`;
   }
 }
 
-/* ================= LISTING (category/search) ================= */
-function buildProductsUrl({category, brand, sort, q, limit, offset}){
-  const fields = [
-    'id','title','price','currency','image_url',
-    'final_url','site_category','shop_name'
-  ].join(',');
-
-  const params = new URLSearchParams({ select: fields, limit, offset, order: sort });
-
-  // category match by substring of site_category (works with your mv_category_summaries.label_key)
-  if(category){
-    const key = encodeURIComponent(category);
-    params.append('site_category', `ilike.*${key}*`);
-  }
-  if(brand) params.append('shop_name', `eq.${brand}`);
-  if(q)     params.append('title', `ilike.*${q}*`);
-
-  return `${SUPABASE_URL}/rest/v1/site_products_live?${params.toString()}`;
-}
-
-function renderProducts(rows,{replace=false}={}){
-  const grid = $('#grid');
-  const html = rows.map(p=>`
-    <a class="card" href="${pickBestUrl(p)}" target="_blank" rel="nofollow noopener">
-      <div class="img"><img src="${p.image_url||''}" alt=""></div>
-      <div class="pad">
-        <div class="title">${p.title||''}</div>
-        <div class="price">${fmtPrice(p.price, p.currency||'€')}</div>
-        <div class="cat">${(p.site_category||'')}${p.shop_name?' • '+p.shop_name:''}</div>
-      </div>
-    </a>
-  `).join('');
-  if(replace) grid.innerHTML = html;
-  else grid.insertAdjacentHTML('beforeend', html);
-  $('#empty').style.display = grid.children.length ? 'none' : 'block';
-}
-
-async function loadBrandsFor(category){
+async function viewSearch(term){
+  $("#q").value = term;
+  // simple search against title
+  app.innerHTML = `
+    <div class="lane">
+      <div class="lane-hd"><h2>Hľadanie: “${term}”</h2></div>
+      <div class="lane-grid" id="grid"></div>
+    </div>`;
   try{
-    const url  = `${SUPABASE_URL}/rest/v1/site_products_live?select=shop_name&site_category=ilike.*${encodeURIComponent(category)}*&shop_name=not.is.null`;
-    const rows = await fetchJSON(url);
-    const names = [...new Set(rows.map(r=>r.shop_name).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'sk'));
-    $('#brand').innerHTML = `<option value="">Všetky obchody</option>` + names.map(n=>`<option>${n}</option>`).join('');
+    const { data, error } = await supa
+      .from("site_products_live")
+      .select("id,title,price,currency,image_url,final_url,shop_name,merchant_category,site_category")
+      .ilike("title", `%${term}%`)
+      .limit(96);
+    if (error) throw error;
+    $("#grid").innerHTML = (data||[]).map(productCard).join("") || `<div class="center">Žiadne produkty.</div>`;
   }catch(e){
-    console.warn('Brand load failed', e);
-    $('#brand').innerHTML = `<option value="">Všetky obchody</option>`;
+    $("#grid").innerHTML = `<div class="center">Chyba: ${e.message}</div>`;
   }
 }
 
-async function loadProducts({append=false, replace=false}={}){
+async function render(){
+  const {search, parts} = getRoute();
+
+  // Route map:
+  // no search & no parts -> home
+  // parts = [L1]        -> subcategory tiles
+  // parts = [L1,L2...]  -> leaf products
+  // search only         -> search results
   try{
-    showErr('');
-    const url  = buildProductsUrl({
-      category: state.mode==='list' ? state.category : '',
-      brand:    state.mode==='list' ? state.brand    : '',
-      sort:     state.sort,
-      q:        state.mode==='search' ? state.q : '',
-      limit:    state.limit,
-      offset:   state.offset
-    });
-    const rows = await fetchJSON(url);
-    renderProducts(rows,{replace});
-    $('#more').style.display = rows.length < state.limit ? 'none' : 'inline-block';
-    return rows;
+    if (search){
+      await viewSearch(search);
+      return;
+    }
+    if (parts.length === 0){
+      await viewHome();
+      return;
+    }
+    if (parts.length === 1){
+      await viewCategory(parts[0]);
+      return;
+    }
+    await viewLeaf(parts.join(" | "));
   }catch(e){
-    showErr('Cannot load products: ' + e.message);
-    return [];
+    app.innerHTML = `<div class="center">Chyba: ${e.message}</div>`;
   }
 }
 
-/* ================= Navigation / mode switches ================= */
-async function enterCategory(label){
-  state.mode='list';
-  state.category = label;
-  state.brand=''; state.sort='price.asc';
-  state.q=''; state.offset=0;
-  $('#crumbCat').textContent = label;
-  $('#q').value='';
-  $('#home').style.display='none';
-  $('#categoryArea').style.display='block';
-  await loadBrandsFor(label);
-  await loadProducts({replace:true});
-}
-
-$('#crumbHome').addEventListener('click',()=>{ loadHome() });
-
-/* ================= Controls ================= */
-$('#brand').addEventListener('change', async (e)=>{
-  state.brand = e.target.value;
-  state.offset=0;
-  await loadProducts({replace:true});
-});
-$('#sort').addEventListener('change', async (e)=>{
-  state.sort = e.target.value;
-  state.offset=0;
-  await loadProducts({replace:true});
-});
-$('#more').addEventListener('click', async ()=>{
-  state.offset += state.limit;
-  const rows = await loadProducts({append:true});
-  if(!rows.length) state.offset -= state.limit;
-});
-
-/* Search (global) */
-$('#q').addEventListener('input', async (e)=>{
-  const v = e.target.value.trim();
-  if(!v){
-    if(state.mode!=='home') loadHome();
-    return;
-  }
-  state.mode='search';
-  state.q=v; state.offset=0;
-  $('#home').style.display='none';
-  $('#categoryArea').style.display='block';
-  $('#brand').innerHTML = `<option value="">Všetky obchody</option>`;
-  $('#crumbCat').textContent = `Hľadanie: "${v}"`;
-  await loadProducts({replace:true});
-});
-
-/* ================= Boot ================= */
-loadHome();
+render();
 </script>
 </body>
 </html>
