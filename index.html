@@ -48,7 +48,8 @@
 /* ------------------- CONFIG ------------------- */
 const SUPABASE_URL = "https://xxplocdervsfftnnalah.supabase.co";
 const SUPABASE_PUBLISHABLE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inh4cGxvY2RlcnZzZmZ0bm5hbGFoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTU4OTIyODYsImV4cCI6MjA3MTQ2ODI4Nn0.Gh8AShwePYUuiJjj_G1qFuMaTRC_6HZOSERifIvjZro";
-
+const supa = supabase.createClient(SUPABASE_URL, ANON_KEY);
+  
 /* Helpers */
 const $ = sel => document.querySelector(sel);
 const app = $("#app");
