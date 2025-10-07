@@ -155,18 +155,6 @@
       text-decoration: none;
     }
 
-    .pill-count {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      min-width: 32px;
-      padding: 2px 8px;
-      border-radius: 999px;
-      background: var(--brand-soft);
-      color: var(--brand);
-      font-size: 13px;
-    }
-
     .lane {
       background: var(--surface);
       border: 1px solid rgba(148, 163, 184, 0.18);
@@ -205,7 +193,7 @@
       text-decoration: none;
       color: inherit;
       overflow: hidden;
-      transition: transform 0.15s ease, box-shadow 0.15s ease.
+      transition: transform 0.15s ease, box-shadow 0.15s ease;
     }
 
     .tile:hover {
@@ -242,7 +230,7 @@
       margin: 12px 18px 18px;
       font-weight: 700;
       font-size: 18px;
-      color: var(--ink).
+      color: var(--ink);
     }
 
     .crumbs {
@@ -266,7 +254,7 @@
       flex-wrap: wrap;
       gap: 12px;
       align-items: center;
-      padding: 0 clamp(16px, 4vw, 28px) 12px.
+      padding: 0 clamp(16px, 4vw, 28px) 12px;
     }
 
     select {
@@ -274,7 +262,7 @@
       border-radius: 999px;
       border: 1px solid rgba(148, 163, 184, 0.4);
       background: #fff;
-      font: inherit.
+      font: inherit;
     }
 
     .center {
@@ -282,14 +270,14 @@
       place-items: center;
       padding: 48px;
       color: var(--muted);
-      text-align: center.
+      text-align: center;
     }
 
     footer {
       padding: 40px var(--gap);
       text-align: center;
       color: var(--muted);
-      font-size: 14px.
+      font-size: 14px;
     }
 
     @media (max-width: 720px) {
@@ -323,7 +311,7 @@
     const ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inh4cGxvY2RlcnZzZmZ0bm5hbGFoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTU4OTIyODYsImV4cCI6MjA3MTQ2ODI4Nn0.Gh8AShwePYUuiJjj_G1qFuMaTRC_6HZOSERifIvjZro';
     const supa = supabase.createClient(SUPABASE_URL, ANON_KEY);
 
-    const $ = (sel) => document.querySelector(sel);
+    const $ = (selector) => document.querySelector(selector);
     const app = $('#app');
     const searchInput = $('#search');
     const footerEl = $('#foot');
@@ -335,25 +323,38 @@
       categoryBySlug: new Map(),
       categoryById: new Map(),
       childrenByParent: new Map(),
-      shops: [],
-      shopById: new Map(),
-      shopRawIdByString: new Map(),
     };
 
-    function escapeHtml(str) {
-      return (str || '').replace(/[&<>"']/g, (ch) => ({
+    function escapeHtml(value) {
+      return (value || '').replace(/[&<>\"']/g, (character) => ({
         '&': '&amp;',
         '<': '&lt;',
         '>': '&gt;',
         '"': '&quot;',
         "'": '&#39;',
-      })[ch] || ch);
+      }[character] || character));
     }
 
-    function slugParts(slugPath) {
-      return (slugPath || '')
+    function formatPrice(value, currency) {
+      if (value == null) {
+        return '';
+      }
+
+      try {
+        return new Intl.NumberFormat('sk-SK', {
+          style: 'currency',
+          currency: currency || 'EUR',
+          minimumFractionDigits: 0,
+        }).format(value);
+      } catch (error) {
+        return `${value} ${currency || 'EUR'}`;
+      }
+    }
+
+    function slugParts(path) {
+      return (path || '')
         .split('|')
-        .map((p) => p.trim())
+        .map((segment) => segment.trim())
         .filter(Boolean);
     }
 
@@ -379,7 +380,7 @@
     searchInput.addEventListener('keydown', (event) => {
       if (event.key === 'Enter') {
         const value = searchInput.value.trim();
-        updateRoute({ search: value || null, c: null, shop: null, sort: null, page: null });
+        updateRoute({ search: value || null, c: null, shop: null, sort: null });
       }
     });
 
@@ -389,110 +390,26 @@
       const search = url.searchParams.get('search') || '';
       const shop = url.searchParams.get('shop') || '';
       const sort = url.searchParams.get('sort') || 'price.asc';
-      const page = parseInt(url.searchParams.get('page') || '1', 10);
-      return { slugPath, search, shop, sort, page };
+      return { slugPath, search, shop, sort };
     }
 
     async function detectMarket() {
-      const { data } = await supa
-        .from('products')
-        .select('market_code')
-        .eq('is_active', true)
-        .limit(1);
-      if (data && data.length && data[0].market_code) {
-        state.marketCode = data[0].market_code;
-      }
-    }
+      try {
+        const { data } = await supa
+          .from('products')
+          .select('market_code')
+          .eq('is_active', true)
+          .limit(1);
 
-    async function loadShops() {
-      const { data, error } = await supa
-        .from('shops')
-        .select('id, name, website_url')
-        .eq('market_code', state.marketCode)
-        .eq('is_active', true)
-        .order('name');
-      if (error) throw error;
-      state.shops = (data || []).map((shop) => ({
-        ...shop,
-        rawId: shop.id,
-        id: shop.id != null ? String(shop.id) : '',
-      }));
-      state.shopById = new Map(state.shops.map((shop) => [shop.id, shop]));
-      state.shopRawIdByString = new Map(
-        state.shops.map((shop) => [shop.id, shop.rawId != null ? shop.rawId : shop.id])
-      );
-    }
-
-    async function ensureChildren(parentId) {
-      if (state.childrenByParent.has(parentId)) {
-        return state.childrenByParent.get(parentId);
-      }
-      const { data, error } = await supa
-        .from('categories')
-        .select('id, name, slug, description, image_url, parent_id')
-        .eq('market_code', state.marketCode)
-        .eq('is_active', true)
-        .eq('parent_id', parentId)
-        .order('name');
-      if (error) throw error;
-      (data || []).forEach((cat) => {
-        state.categoryBySlug.set(cat.slug, cat);
-        state.categoryById.set(cat.id, cat);
-      });
-      state.childrenByParent.set(parentId, data || []);
-      return state.childrenByParent.get(parentId);
-    }
-
-    async function hydrateCategoriesByIds(ids) {
-      const missing = Array.from(
-        new Set((ids || []).filter((id) => id && !state.categoryById.has(id)))
-      );
-      if (!missing.length) {
-        return;
-      }
-      const { data, error } = await supa
-        .from('categories')
-        .select('id, name, slug, description, image_url, parent_id')
-        .in('id', missing);
-      if (error) throw error;
-      (data || []).forEach((cat) => {
-        state.categoryBySlug.set(cat.slug, cat);
-        state.categoryById.set(cat.id, cat);
-        if (cat.parent_id) {
-          const bucket = state.childrenByParent.get(cat.parent_id) || [];
-          if (!bucket.some((existing) => existing.id === cat.id)) {
-            bucket.push(cat);
-            state.childrenByParent.set(cat.parent_id, bucket);
-          }
+        if (data && data.length && data[0].market_code) {
+          state.marketCode = String(data[0].market_code).toUpperCase();
+          return;
         }
-      });
-    }
+      } catch (error) {
+        console.warn('Nepodarilo sa načítať market_code, používam SK.', error);
+      }
 
-    async function ensureCategoryBySlug(slug) {
-      if (state.categoryBySlug.has(slug)) {
-        return state.categoryBySlug.get(slug);
-      }
-      const { data, error } = await supa
-        .from('categories')
-        .select('id, name, slug, description, image_url, parent_id')
-        .eq('market_code', state.marketCode)
-        .eq('is_active', true)
-        .eq('slug', slug)
-        .maybeSingle();
-      if (error) throw error;
-      if (!data) {
-        return null;
-      }
-      state.categoryBySlug.set(slug, data);
-      state.categoryById.set(data.id, data);
-      if (data.parent_id) {
-        const bucket = state.childrenByParent.get(data.parent_id) || [];
-        if (!bucket.some((item) => item.id === data.id)) {
-          bucket.push(data);
-          state.childrenByParent.set(data.parent_id, bucket);
-        }
-      }
-      return data;
+      state.marketCode = 'SK';
     }
 
     async function loadCategories() {
@@ -504,21 +421,26 @@
         .is('parent_id', null)
         .order('name')
         .limit(12);
-      if (error) throw error;
+
+      if (error) {
+        throw error;
+      }
+
       state.categories = data || [];
       state.categoryBySlug = new Map();
       state.categoryById = new Map();
       state.childrenByParent = new Map();
-      state.categories.forEach((cat) => {
-        state.categoryBySlug.set(cat.slug, cat);
-        state.categoryById.set(cat.id, cat);
+
+      state.categories.forEach((category) => {
+        state.categoryBySlug.set(category.slug, category);
+        state.categoryById.set(category.id, category);
       });
 
       if (!state.categories.length) {
         return;
       }
 
-      const parentIds = state.categories.map((cat) => cat.id);
+      const parentIds = state.categories.map((category) => category.id);
       const { data: children, error: childError } = await supa
         .from('categories')
         .select('id, name, slug, description, image_url, parent_id')
@@ -526,64 +448,194 @@
         .eq('is_active', true)
         .in('parent_id', parentIds)
         .order('name');
-      if (childError) throw childError;
-      (children || []).forEach((cat) => {
-        state.categoryBySlug.set(cat.slug, cat);
-        state.categoryById.set(cat.id, cat);
-        const bucket = state.childrenByParent.get(cat.parent_id) || [];
-        bucket.push(cat);
-        state.childrenByParent.set(cat.parent_id, bucket);
+
+      if (childError) {
+        throw childError;
+      }
+
+      (children || []).forEach((child) => {
+        state.categoryBySlug.set(child.slug, child);
+        state.categoryById.set(child.id, child);
+        const bucket = state.childrenByParent.get(child.parent_id) || [];
+        bucket.push(child);
+        state.childrenByParent.set(child.parent_id, bucket);
       });
     }
 
-    async function boot() {
-      try {
-        app.innerHTML = '<div class="center">Načítavam katalóg…</div>';
-        await detectMarket();
-        await Promise.all([loadCategories(), loadShops()]);
-        state.ready = true;
-        render();
-        footerEl.textContent = `Aktualizované ${new Date().toLocaleString('sk-SK')}`;
-      } catch (error) {
-        app.innerHTML = `<div class="center">Chyba: ${escapeHtml(error.message)}</div>`;
+    async function ensureCategoryBySlug(slug) {
+      if (!slug) {
+        return null;
       }
+
+      if (state.categoryBySlug.has(slug)) {
+        return state.categoryBySlug.get(slug) || null;
+      }
+
+      const { data, error } = await supa
+        .from('categories')
+        .select('id, name, slug, description, image_url, parent_id')
+        .eq('market_code', state.marketCode)
+        .eq('is_active', true)
+        .eq('slug', slug)
+        .maybeSingle();
+
+      if (error) {
+        throw error;
+      }
+
+      if (!data) {
+        return null;
+      }
+
+      state.categoryBySlug.set(data.slug, data);
+      state.categoryById.set(data.id, data);
+
+      if (data.parent_id) {
+        const bucket = state.childrenByParent.get(data.parent_id) || [];
+        if (!bucket.some((existing) => existing.id === data.id)) {
+          bucket.push(data);
+          state.childrenByParent.set(data.parent_id, bucket);
+        }
+      }
+
+      return data;
+    }
+
+    async function ensureChildren(parentId) {
+      if (!parentId) {
+        return [];
+      }
+
+      if (state.childrenByParent.has(parentId)) {
+        return state.childrenByParent.get(parentId) || [];
+      }
+
+      const { data, error } = await supa
+        .from('categories')
+        .select('id, name, slug, description, image_url, parent_id')
+        .eq('market_code', state.marketCode)
+        .eq('is_active', true)
+        .eq('parent_id', parentId)
+        .order('name');
+
+      if (error) {
+        throw error;
+      }
+
+      const rows = data || [];
+      rows.forEach((child) => {
+        state.categoryBySlug.set(child.slug, child);
+        state.categoryById.set(child.id, child);
+      });
+      state.childrenByParent.set(parentId, rows);
+      return rows;
+    }
+
+    async function hydrateCategoriesByIds(ids) {
+      const missing = Array.from(
+        new Set((ids || []).filter((id) => id && !state.categoryById.has(id)))
+      );
+
+      if (!missing.length) {
+        return;
+      }
+
+      const { data, error } = await supa
+        .from('categories')
+        .select('id, name, slug, description, image_url, parent_id')
+        .eq('market_code', state.marketCode)
+        .eq('is_active', true)
+        .in('id', missing);
+
+      if (error) {
+        throw error;
+      }
+
+      (data || []).forEach((category) => {
+        state.categoryBySlug.set(category.slug, category);
+        state.categoryById.set(category.id, category);
+        if (category.parent_id) {
+          const bucket = state.childrenByParent.get(category.parent_id) || [];
+          if (!bucket.some((existing) => existing.id === category.id)) {
+            bucket.push(category);
+            state.childrenByParent.set(category.parent_id, bucket);
+          }
+        }
+      });
+    }
+
+    async function collectDescendants(categoryId) {
+      const stack = categoryId ? [categoryId] : [];
+      const collected = new Set();
+
+      while (stack.length) {
+        const current = stack.pop();
+        if (!current || collected.has(current)) {
+          continue;
+        }
+
+        collected.add(current);
+        const children = await ensureChildren(current);
+        children.forEach((child) => stack.push(child.id));
+      }
+
+      return Array.from(collected);
     }
 
     function crumbs(parts) {
-      if (!parts.length) return '';
-      const links = [`<a href="?" onclick="event.preventDefault(); updateRoute({ c: null, page: null, shop: null })">Domov</a>`];
-      parts.forEach((slug, index) => {
+      if (!parts.length) {
+        return '';
+      }
+
+      const links = [
+        '<a href="?" onclick="event.preventDefault(); updateRoute({ c: null, shop: null, sort: null })">Domov</a>'
+      ];
+
+      const chain = [];
+      parts.forEach((slug) => {
+        chain.push(slug);
         const category = state.categoryBySlug.get(slug);
-        if (!category) return;
-        const chain = parts.slice(0, index + 1);
+        if (!category) {
+          return;
+        }
         const href = `?c=${encodeURIComponent(buildSlugPath(chain))}`;
-        links.push(`<a href="${href}" onclick="event.preventDefault(); updateRoute({ c: '${buildSlugPath(chain)}', page: null, shop: null })">${escapeHtml(category.name)}</a>`);
+        links.push(`
+          <a href="${href}" onclick="event.preventDefault(); updateRoute({ c: '${buildSlugPath(chain)}', shop: null, sort: null })">
+            ${escapeHtml(category.name)}
+          </a>
+        `);
       });
+
       return `<div class="crumbs">${links.join(' › ')}</div>`;
     }
 
     function productCard(product) {
       const title = escapeHtml(product.title || 'Produkt');
-      const categoryName = escapeHtml(product.category_name || '');
-      const shop = escapeHtml(product.shop?.name || '');
-      const price = product.price != null ? formatPrice(product.price, product.currency) : '';
-      const image = escapeHtml(product.image_url || 'https://images.placeholders.dev/?width=320&height=240&text=Produkt');
+      const price = formatPrice(product.price, product.currency);
+      const merchant = escapeHtml(product.merchant || '');
+      const categoryName = escapeHtml(product.categoryName || '');
+      const image = escapeHtml(
+        product.imageUrl || 'https://images.placeholders.dev/?width=320&height=240&text=Produkt'
+      );
       const url = escapeHtml(product.link || '#');
+
       return `
         <a class="tile" href="${url}" target="_blank" rel="nofollow noopener">
           <div class="thumb"><img loading="lazy" src="${image}" alt="${title}" /></div>
           <h4>${title}</h4>
           <p class="price">${price}</p>
-          <p class="muted">${categoryName}${shop ? ' • ' + shop : ''}</p>
+          <p class="muted">${categoryName}${merchant ? ` • ${merchant}` : ''}</p>
         </a>
       `;
     }
 
     function subcategoryCard(category, parentSlug) {
       const href = buildSlugPath([parentSlug, category.slug]);
-      const image = escapeHtml(category.image_url || 'https://images.placeholders.dev/?width=320&height=240&text=Kateg%C3%B3ria');
+      const image = escapeHtml(
+        category.image_url || 'https://images.placeholders.dev/?width=320&height=240&text=Kategória'
+      );
       return `
-        <a class="tile" href="?c=${encodeURIComponent(href)}" onclick="event.preventDefault(); updateRoute({ c: '${href}', page: null, shop: null })">
+        <a class="tile" href="?c=${encodeURIComponent(href)}" onclick="event.preventDefault(); updateRoute({ c: '${href}', shop: null, sort: null })">
           <div class="thumb"><img loading="lazy" src="${image}" alt="${escapeHtml(category.name)}" /></div>
           <h3>${escapeHtml(category.name)}</h3>
           <p class="muted">${escapeHtml(category.description || '')}</p>
@@ -591,110 +643,77 @@
       `;
     }
 
-    function formatPrice(value, currency) {
-      try {
-        return new Intl.NumberFormat('sk-SK', {
-          style: 'currency',
-          currency: currency || 'EUR',
-          minimumFractionDigits: 0,
-        }).format(value);
-      } catch (_) {
-        return `${value} ${currency || 'EUR'}`;
+    async function fetchProducts(categoryId, { merchant = null, sort = 'price.asc' } = {}) {
+      if (!categoryId) {
+        return [];
       }
-    }
 
-    async function collectDescendants(categoryId) {
-      const stack = [categoryId];
-      const all = new Set();
-      while (stack.length) {
-        const current = stack.pop();
-        if (all.has(current)) continue;
-        all.add(current);
-        const children = state.childrenByParent.get(current) || [];
-        if (!children.length) {
-          const fetched = await ensureChildren(current);
-          fetched.forEach((child) => {
-            stack.push(child.id);
-          });
-        } else {
-          children.forEach((child) => stack.push(child.id));
-        }
+      const scope = await collectDescendants(categoryId);
+      if (!scope.includes(categoryId)) {
+        scope.push(categoryId);
       }
-      return Array.from(all);
-    }
 
-    async function fetchProducts(categoryId, { shopId = null, sort = 'price.asc' }) {
-      const categoryIds = await collectDescendants(categoryId);
-      if (!categoryIds.includes(categoryId)) {
-        categoryIds.push(categoryId);
-      }
       let query = supa
         .from('products')
-        .select(`
-          id,
-          title,
-          price,
-          currency,
-          image_url,
-          availability,
-          category_id,
-          shop_id,
-          affiliate_links(affiliate_url),
-          shop:shops(id, name, website_url)
-        `)
+        .select('id, title, description, price, currency, image_url, availability, category_id, merchant_name, affiliate_url, product_url')
         .eq('market_code', state.marketCode)
         .eq('is_active', true)
-        .in('category_id', categoryIds)
+        .in('category_id', scope)
         .limit(120);
+
+      if (merchant) {
+        query = query.eq('merchant_name', merchant);
+      }
 
       const [column, direction] = sort.split('.');
       const ascending = direction !== 'desc';
-      const orderColumn = column === 'title' ? 'title' : 'price';
-      query = query.order(orderColumn, { ascending });
-
-      if (shopId) {
-        const rawId = state.shopRawIdByString.get(shopId) ?? shopId;
-        query = query.eq('shop_id', rawId);
-      }
+      const columnName = column === 'title' ? 'title' : 'price';
+      query = query.order(columnName, { ascending });
 
       const { data, error } = await query;
-      if (error) throw error;
+      if (error) {
+        throw error;
+      }
 
       await hydrateCategoriesByIds((data || []).map((item) => item.category_id));
 
       return (data || []).map((item) => {
         const category = state.categoryById.get(item.category_id);
         return {
-          ...item,
-          link:
-            (item.affiliate_links && item.affiliate_links[0] && item.affiliate_links[0].affiliate_url) ||
-            (item.shop && item.shop.website_url) ||
-            '#',
-          category_name: category ? category.name : '',
+          id: item.id,
+          title: item.title,
+          price: item.price,
+          currency: item.currency,
+          imageUrl: item.image_url,
+          merchant: item.merchant_name || '',
+          link: item.affiliate_url || item.product_url || '#',
+          categoryName: category ? category.name : '',
         };
       });
     }
 
     async function renderHome() {
-      const heroPills = state.categories.slice(0, 6).map((cat) => {
-        const path = encodeURIComponent(cat.slug);
+      searchInput.value = '';
+
+      const heroPills = state.categories.slice(0, 6).map((category) => {
+        const path = encodeURIComponent(category.slug);
         return `
-          <a class="pill" href="?c=${path}" onclick="event.preventDefault(); updateRoute({ c: '${cat.slug}', page: null, shop: null, sort: null })">
-            ${escapeHtml(cat.name)}
+          <a class="pill" href="?c=${path}" onclick="event.preventDefault(); updateRoute({ c: '${category.slug}', shop: null, sort: null })">
+            ${escapeHtml(category.name)}
           </a>
         `;
       });
 
-      const lanes = state.categories.slice(0, 6).map((cat) => {
-        const children = (state.childrenByParent.get(cat.id) || []).slice(0, 6);
+      const lanes = state.categories.slice(0, 6).map((category) => {
+        const children = (state.childrenByParent.get(category.id) || []).slice(0, 6);
         const tiles = children.length
-          ? children.map((child) => subcategoryCard(child, cat.slug)).join('')
+          ? children.map((child) => subcategoryCard(child, category.slug)).join('')
           : '<div class="center">Žiadne podkategórie.</div>';
         return `
           <section class="lane">
             <div class="lane-header">
-              <h2>${escapeHtml(cat.name)}</h2>
-              <a class="pill" href="?c=${encodeURIComponent(cat.slug)}" onclick="event.preventDefault(); updateRoute({ c: '${cat.slug}', page: null, shop: null, sort: null })">Prejsť do kategórie</a>
+              <h2>${escapeHtml(category.name)}</h2>
+              <a class="pill" href="?c=${encodeURIComponent(category.slug)}" onclick="event.preventDefault(); updateRoute({ c: '${category.slug}', shop: null, sort: null })">Prejsť do kategórie</a>
             </div>
             <div class="lane-grid">${tiles}</div>
           </section>
@@ -714,7 +733,7 @@
           </div>
         </section>
         <div id="catalog-start"></div>
-        ${lanes.join('')}
+        ${lanes.join('') || '<div class="center">Zatiaľ nemáme dostupné kategórie.</div>'}
       `;
     }
 
@@ -724,6 +743,8 @@
         app.innerHTML = '<div class="center">Kategória sa nenašla.</div>';
         return;
       }
+
+      searchInput.value = '';
       const children = await ensureChildren(category.id);
       const tiles = children.length
         ? children.map((child) => subcategoryCard(child, slug)).join('')
@@ -733,8 +754,10 @@
         ${crumbs([slug])}
         <section class="lane">
           <div class="lane-header">
-            <h2>${escapeHtml(category.name)}</h2>
-            <p class="muted">${escapeHtml(category.description || '')}</p>
+            <div>
+              <h2>${escapeHtml(category.name)}</h2>
+              <p class="muted">${escapeHtml(category.description || '')}</p>
+            </div>
           </div>
           <div class="lane-grid">${tiles}</div>
         </section>
@@ -742,71 +765,44 @@
     }
 
     async function renderLeaf(parts, options) {
+      searchInput.value = '';
+
       const slugs = [...parts];
-      for (const part of slugs) {
-        await ensureCategoryBySlug(part);
+      for (const slug of slugs) {
+        await ensureCategoryBySlug(slug);
       }
+
       const targetSlug = slugs[slugs.length - 1];
       const category = await ensureCategoryBySlug(targetSlug);
       if (!category) {
         app.innerHTML = '<div class="center">Kategória sa nenašla.</div>';
         return;
       }
+
       await ensureChildren(category.id);
 
       const normalizedOptions = {
-        shopId: options.shopId ? String(options.shopId) : null,
-        sort: options.sort,
+        merchant: options.merchant ? String(options.merchant) : null,
+        sort: options.sort || 'price.asc',
       };
 
       const products = await fetchProducts(category.id, normalizedOptions);
-      const uniqueShops = new Map();
-      products.forEach((product) => {
-        if (product.shop && product.shop.id) {
-          const key = String(product.shop.id);
-          uniqueShops.set(key, product.shop.name || '');
-        }
+      const merchantNames = Array.from(
+        new Set(products.map((product) => product.merchant).filter((name) => name && name.length))
+      ).sort((a, b) => a.localeCompare(b));
+
+      const shopOptions = [
+        `<option value="" ${normalizedOptions.merchant ? '' : 'selected'}>Všetky obchody</option>`
+      ];
+      merchantNames.forEach((name) => {
+        const escaped = escapeHtml(name);
+        const selected = normalizedOptions.merchant === name ? 'selected' : '';
+        shopOptions.push(`<option value="${escaped}" ${selected}>${escaped}</option>`);
       });
-
-      if (normalizedOptions.shopId && !uniqueShops.has(normalizedOptions.shopId)) {
-        const fallbackShop = state.shopById.get(normalizedOptions.shopId);
-        if (fallbackShop) {
-          uniqueShops.set(normalizedOptions.shopId, fallbackShop.name || '');
-        }
-      }
-
-      const shopOptions = [`<option value="" ${normalizedOptions.shopId ? '' : 'selected'}>Všetky obchody</option>`];
-      Array.from(uniqueShops.entries())
-        .sort((a, b) => a[1].localeCompare(b[1]))
-        .forEach(([id, name]) => {
-          const value = escapeHtml(id);
-          const selected = normalizedOptions.shopId && normalizedOptions.shopId === id ? 'selected' : '';
-          shopOptions.push(`<option value="${value}" ${selected}>${escapeHtml(name)}</option>`);
-        });
 
       const productGrid = products.length
         ? products.map((product) => productCard(product)).join('')
         : '<div class="center">Žiadne produkty pre túto kategóriu.</div>';
-
-      const filterBar = `
-        <div class="filters">
-          <label>
-            Obchod
-            <select id="shop-filter">
-              ${shopOptions.join('')}
-            </select>
-          </label>
-          <label>
-            Zoradiť
-            <select id="sort-filter">
-              <option value="price.asc" ${options.sort === 'price.asc' ? 'selected' : ''}>Najlacnejšie</option>
-              <option value="price.desc" ${options.sort === 'price.desc' ? 'selected' : ''}>Najdrahšie</option>
-              <option value="title.asc" ${options.sort === 'title.asc' ? 'selected' : ''}>A – Z</option>
-              <option value="title.desc" ${options.sort === 'title.desc' ? 'selected' : ''}>Z – A</option>
-            </select>
-          </label>
-        </div>
-      `;
 
       app.innerHTML = `
         ${crumbs(parts)}
@@ -818,7 +814,23 @@
             </div>
             <div class="muted">${products.length} produktov</div>
           </div>
-          ${filterBar}
+          <div class="filters">
+            <label>
+              Obchod
+              <select id="shop-filter">
+                ${shopOptions.join('')}
+              </select>
+            </label>
+            <label>
+              Zoradiť
+              <select id="sort-filter">
+                <option value="price.asc" ${normalizedOptions.sort === 'price.asc' ? 'selected' : ''}>Najlacnejšie</option>
+                <option value="price.desc" ${normalizedOptions.sort === 'price.desc' ? 'selected' : ''}>Najdrahšie</option>
+                <option value="title.asc" ${normalizedOptions.sort === 'title.asc' ? 'selected' : ''}>A – Z</option>
+                <option value="title.desc" ${normalizedOptions.sort === 'title.desc' ? 'selected' : ''}>Z – A</option>
+              </select>
+            </label>
+          </div>
           <div class="lane-grid">${productGrid}</div>
         </section>
       `;
@@ -828,7 +840,7 @@
 
       shopFilter?.addEventListener('change', (event) => {
         const value = event.target.value;
-        updateRoute({ shop: value || null, page: null });
+        updateRoute({ shop: value || null });
       });
 
       sortFilter?.addEventListener('change', (event) => {
@@ -838,42 +850,40 @@
 
     async function renderSearch(term) {
       searchInput.value = term;
+
       const { data, error } = await supa
         .from('products')
-        .select(`
-          id,
-          title,
-          price,
-          currency,
-          image_url,
-          category_id,
-          affiliate_links(affiliate_url),
-          shop:shops(id, name, website_url)
-        `)
+        .select('id, title, price, currency, image_url, category_id, merchant_name, affiliate_url, product_url')
         .eq('market_code', state.marketCode)
         .eq('is_active', true)
         .ilike('title', `%${term}%`)
         .limit(120);
+
       if (error) {
         app.innerHTML = `<div class="center">Chyba: ${escapeHtml(error.message)}</div>`;
         return;
       }
+
       await hydrateCategoriesByIds((data || []).map((item) => item.category_id));
 
       const products = (data || []).map((item) => {
         const category = state.categoryById.get(item.category_id);
         return {
-          ...item,
-          link:
-            (item.affiliate_links && item.affiliate_links[0] && item.affiliate_links[0].affiliate_url) ||
-            (item.shop && item.shop.website_url) ||
-            '#',
-          category_name: category ? category.name : '',
+          id: item.id,
+          title: item.title,
+          price: item.price,
+          currency: item.currency,
+          imageUrl: item.image_url,
+          merchant: item.merchant_name || '',
+          link: item.affiliate_url || item.product_url || '#',
+          categoryName: category ? category.name : '',
         };
       });
+
       const grid = products.length
         ? products.map((product) => productCard(product)).join('')
         : '<div class="center">Žiadne výsledky.</div>';
+
       app.innerHTML = `
         <section class="lane">
           <div class="lane-header">
@@ -889,25 +899,43 @@
       if (!state.ready) {
         return;
       }
+
       const { slugPath, search, shop, sort } = parseRoute();
       const parts = slugParts(slugPath);
 
-      if (search) {
-        await renderSearch(search);
-        return;
-      }
+      try {
+        if (search) {
+          await renderSearch(search);
+          return;
+        }
 
-      if (parts.length === 0) {
-        await renderHome();
-        return;
-      }
+        if (parts.length === 0) {
+          await renderHome();
+          return;
+        }
 
-      if (parts.length === 1) {
-        await renderCategory(parts[0]);
-        return;
-      }
+        if (parts.length === 1) {
+          await renderCategory(parts[0]);
+          return;
+        }
 
-      await renderLeaf(parts, { shopId: shop || null, sort });
+        await renderLeaf(parts, { merchant: shop || null, sort });
+      } catch (error) {
+        app.innerHTML = `<div class="center">Chyba: ${escapeHtml(error.message)}</div>`;
+      }
+    }
+
+    async function boot() {
+      app.innerHTML = '<div class="center">Načítavam katalóg…</div>';
+      try {
+        await detectMarket();
+        await loadCategories();
+        state.ready = true;
+        await render();
+        footerEl.textContent = `Aktualizované ${new Date().toLocaleString('sk-SK')}`;
+      } catch (error) {
+        app.innerHTML = `<div class="center">Chyba: ${escapeHtml(error.message)}</div>`;
+      }
     }
 
     boot();
