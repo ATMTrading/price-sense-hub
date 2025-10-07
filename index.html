@@ -4,407 +4,913 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>bestpric.eu</title>
+  <meta name="description" content="Porovnávač cien tisícov produktov – nájdite najlepšie ponuky z desiatok obchodov na jednom mieste." />
   <link rel="icon" href="/favicon.ico">
   <style>
-    :root{--gap:16px;--card:12px;--muted:#6b7280;--bg:#fafafa;--ink:#0f172a;--brand:#16a34a}
-    *{box-sizing:border-box} body{margin:0;font:16px/1.45 system-ui,Segoe UI,Roboto,Inter,sans-serif;color:var(--ink);background:var(--bg)}
-    header{position:sticky;top:0;z-index:10;background:#fff;border-bottom:1px solid #eee}
-    .wrap{max-width:1200px;margin:0 auto;padding:12px var(--gap)}
-    .brand{font-weight:800;font-size:22px;margin-right:14px}
-    .search{display:flex;gap:10px;align-items:center}
-    .search input{flex:1;padding:10px 12px;border:1px solid #e5e7eb;border-radius:10px}
-    .crumbs{font-size:14px;color:var(--muted);display:flex;gap:6px;align-items:center;margin:10px 0}
-    .lane{background:#fff;border:1px solid #eee;border-radius:14px;margin:var(--gap) 0}
-    .lane-hd{display:flex;justify-content:space-between;align-items:center;padding:12px var(--gap);border-bottom:1px solid #f1f5f9}
-    .lane-hd h2{margin:0;font-size:20px}
-    .lane-grid{display:grid;gap:var(--gap);padding:var(--gap);grid-template-columns:repeat(4,1fr)}
-    .tile{background:#fff;border:1px solid #eee;border-radius:14px;overflow:hidden;display:flex;flex-direction:column}
-    .thumb{aspect-ratio:4/3;display:grid;place-items:center;background:#f6f7f8}
-    .thumb img{max-width:100%;max-height:100%;object-fit:contain}
-    .tile h3,.tile h4{margin:10px 12px 6px 12px;font-size:16px}
-    .muted{color:var(--muted);font-size:13px;margin:0 12px 12px 12px}
-    .price{font-weight:700;margin:0 12px 12px 12px}
-    .btn-link{color:#2563eb;text-decoration:none;font-weight:600}
-    .filters{display:flex;gap:10px;align-items:center;padding:0 var(--gap) var(--gap)}
-    select{padding:8px 10px;border:1px solid #e5e7eb;border-radius:10px;background:#fff}
-    .center{display:grid;place-items:center;padding:40px;color:var(--muted)}
-    @media (max-width: 960px){ .lane-grid{grid-template-columns:repeat(2,1fr)} }
-    @media (max-width: 560px){ .lane-grid{grid-template-columns:1fr} }
+    :root {
+      --bg: #f8fafc;
+      --surface: #ffffff;
+      --ink: #0f172a;
+      --muted: #64748b;
+      --brand: #2563eb;
+      --brand-soft: rgba(37, 99, 235, 0.12);
+      --radius-lg: 28px;
+      --radius-md: 18px;
+      --gap: 18px;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      font: 16px/1.5 "Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: var(--bg);
+      color: var(--ink);
+    }
+
+    header {
+      position: sticky;
+      top: 0;
+      z-index: 20;
+      background: rgba(255, 255, 255, 0.95);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid rgba(148, 163, 184, 0.24);
+    }
+
+    .wrap {
+      max-width: 1180px;
+      margin: 0 auto;
+      padding: 14px var(--gap);
+    }
+
+    .brand {
+      font-weight: 800;
+      font-size: 24px;
+      letter-spacing: -0.02em;
+      color: var(--brand);
+    }
+
+    .search-bar {
+      display: flex;
+      gap: 14px;
+      align-items: center;
+    }
+
+    .search-bar input {
+      flex: 1;
+      padding: 12px 18px;
+      border: 1px solid rgba(148, 163, 184, 0.45);
+      border-radius: 999px;
+      background: #fff;
+      transition: border-color 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    .search-bar input:focus {
+      outline: none;
+      border-color: var(--brand);
+      box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.18);
+    }
+
+    main {
+      padding-bottom: 80px;
+    }
+
+    .hero {
+      margin: 36px 0 28px;
+      padding: 40px clamp(20px, 6vw, 48px);
+      border-radius: var(--radius-lg);
+      background: linear-gradient(135deg, rgba(37, 99, 235, 0.16), rgba(14, 116, 144, 0.08));
+      color: var(--ink);
+      box-shadow: 0 18px 40px rgba(15, 23, 42, 0.12);
+      display: grid;
+      gap: 24px;
+    }
+
+    .hero h1 {
+      margin: 0;
+      font-size: clamp(30px, 6vw, 44px);
+      line-height: 1.08;
+      letter-spacing: -0.02em;
+    }
+
+    .hero p {
+      margin: 0;
+      max-width: 620px;
+      color: rgba(15, 23, 42, 0.78);
+      font-size: 18px;
+    }
+
+    .hero-ctas {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+
+    .cta {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 12px 22px;
+      border-radius: 999px;
+      font-weight: 600;
+      text-decoration: none;
+      transition: transform 0.15s ease, box-shadow 0.15s ease;
+    }
+
+    .cta.primary {
+      background: var(--brand);
+      color: #fff;
+      box-shadow: 0 16px 32px rgba(37, 99, 235, 0.3);
+    }
+
+    .cta.primary:hover {
+      transform: translateY(-1px);
+    }
+
+    .cta.secondary {
+      background: rgba(255, 255, 255, 0.85);
+      color: var(--brand);
+      border: 1px solid rgba(37, 99, 235, 0.25);
+    }
+
+    .hero-pills {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 8px 14px;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.9);
+      border: 1px solid rgba(148, 163, 184, 0.25);
+      color: var(--ink);
+      font-weight: 600;
+      font-size: 14px;
+      text-decoration: none;
+    }
+
+    .pill-count {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 32px;
+      padding: 2px 8px;
+      border-radius: 999px;
+      background: var(--brand-soft);
+      color: var(--brand);
+      font-size: 13px;
+    }
+
+    .lane {
+      background: var(--surface);
+      border: 1px solid rgba(148, 163, 184, 0.18);
+      border-radius: var(--radius-lg);
+      box-shadow: 0 10px 26px rgba(15, 23, 42, 0.08);
+      margin-bottom: 28px;
+    }
+
+    .lane-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 20px clamp(16px, 4vw, 28px);
+      border-bottom: 1px solid rgba(148, 163, 184, 0.16);
+    }
+
+    .lane-header h2 {
+      margin: 0;
+      font-size: 22px;
+      letter-spacing: -0.01em;
+    }
+
+    .lane-grid {
+      display: grid;
+      gap: var(--gap);
+      padding: clamp(16px, 4vw, 28px);
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    }
+
+    .tile {
+      display: flex;
+      flex-direction: column;
+      border: 1px solid rgba(148, 163, 184, 0.14);
+      border-radius: var(--radius-md);
+      background: var(--surface);
+      text-decoration: none;
+      color: inherit;
+      overflow: hidden;
+      transition: transform 0.15s ease, box-shadow 0.15s ease;
+    }
+
+    .tile:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 16px 32px rgba(15, 23, 42, 0.12);
+    }
+
+    .thumb {
+      aspect-ratio: 4 / 3;
+      display: grid;
+      place-items: center;
+      background: rgba(37, 99, 235, 0.05);
+    }
+
+    .thumb img {
+      max-width: 100%;
+      max-height: 100%;
+      object-fit: contain;
+    }
+
+    .tile h3,
+    .tile h4 {
+      margin: 16px 18px 6px;
+      font-size: 18px;
+    }
+
+    .muted {
+      margin: 0 18px 18px;
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    .price {
+      margin: 12px 18px 18px;
+      font-weight: 700;
+      font-size: 18px;
+      color: var(--ink);
+    }
+
+    .crumbs {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: center;
+      font-size: 14px;
+      color: var(--muted);
+      margin-bottom: 18px;
+    }
+
+    .crumbs a {
+      color: var(--brand);
+      text-decoration: none;
+      font-weight: 600;
+    }
+
+    .filters {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      align-items: center;
+      padding: 0 clamp(16px, 4vw, 28px) 12px;
+    }
+
+    select {
+      padding: 10px 16px;
+      border-radius: 999px;
+      border: 1px solid rgba(148, 163, 184, 0.4);
+      background: #fff;
+      font: inherit;
+    }
+
+    .center {
+      display: grid;
+      place-items: center;
+      padding: 48px;
+      color: var(--muted);
+      text-align: center;
+    }
+
+    footer {
+      padding: 40px var(--gap);
+      text-align: center;
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    @media (max-width: 720px) {
+      .hero {
+        padding: 32px 24px;
+      }
+
+      .lane-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 12px;
+      }
+    }
   </style>
   <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
 </head>
 <body>
-
-<header>
-  <div class="wrap search">
-    <div class="brand">bestpric.eu</div>
-    <input id="q" type="search" placeholder="Search products…" />
-  </div>
-</header>
-
-<main class="wrap" id="app"></main>
-
-<script>
-/* ------------------- CONFIG ------------------- */
-const SUPABASE_URL = 'https://xxplocdervsfftnnalah.supabase.co';
-const ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inh4cGxvY2RlcnZzZmZ0bm5hbGFoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTU4OTIyODYsImV4cCI6MjA3MTQ2ODI4Nn0.Gh8AShwePYUuiJjj_G1qFuMaTRC_6HZOSERifIvjZro';
-// Use the publishable anonymous key when initializing the browser client
-const supa = supabase.createClient(SUPABASE_URL, ANON_KEY);
-  
-/* Helpers */
-const $ = sel => document.querySelector(sel);
-const app = $("#app");
-
-function fmtPrice(price, currency){
-  if (price == null) return "";
-  return new Intl.NumberFormat('sk-SK', {style:'currency', currency: currency || 'EUR'}).format(price);
-}
-
-function slugParts(label){
-  // labels look like "Dom a záhrada | Bývanie a doplnky | Domové alarmy"
-  return (label || "").split("|").map(s => s.trim()).filter(Boolean);
-}
-
-function linkToCategory(parts){
-  // parts array -> ?c=Dom%20a%20záhrada|Bývanie%20a%20doplnky or include third for leaf
-  return `?c=${encodeURIComponent(parts.join(" | "))}`;
-}
-
-function getRoute(){
-  const url = new URL(location.href);
-  const search = url.searchParams.get("search") || "";
-  const cParam = url.searchParams.get("c");
-  const parts = cParam ? cParam.split("|").map(s=>s.trim()).filter(Boolean) : [];
-  return {search, parts};
-}
-
-function setRoute(params){
-  const url = new URL(location.href);
-  Object.entries(params).forEach(([k,v])=>{
-    if (v == null || v==="") url.searchParams.delete(k);
-    else url.searchParams.set(k,v);
-  });
-  history.pushState({}, "", url);
-  render();
-}
-
-window.addEventListener("popstate", render);
-$("#q").addEventListener("keydown", e => {
-  if (e.key === "Enter"){
-    const val = $("#q").value.trim();
-    setRoute({search: val || null, c: null});
-  }
-});
-
-/* ------------------- DATA ------------------- */
-
-// Home sections (main categories) from mv_category_summaries
-async function fetchHomeSections(limitCats=8, itemsPerCat=5){
-  // get most populated first-level categories
-  const { data, error } = await supa
-    .from("mv_category_summaries")
-    .select("label, item_count, sample_image")
-    .order("item_count", {ascending:false})
-    .limit(400); // enough to group
-
-  if (error) throw error;
-
-  // Group by first-level
-  const groups = new Map();
-  for (const row of data){
-    const parts = slugParts(row.label);
-    if (parts.length < 1) continue;
-    const k = parts[0];
-    const prev = groups.get(k) || { label:k, total:0, children:[] };
-    prev.total += (row.item_count || 0);
-    prev.children.push(row);
-    groups.set(k, prev);
-  }
-
-  // Rank by total size, keep top N
-  const ranked = [...groups.values()]
-    .sort((a,b)=> b.total - a.total)
-    .slice(0, limitCats);
-
-  // For each main category, pick a few representative leaf summaries (deeper ones)
-  // We prioritize leaf rows (length >= 2) with highest counts
-  const lanes = [];
-  for (const g of ranked){
-    const leaves = g.children
-      .filter(r => slugParts(r.label).length >= 2)
-      .sort((a,b)=> (b.item_count||0)-(a.item_count||0))
-      .slice(0, itemsPerCat);
-
-    lanes.push({ main:g.label, items: leaves });
-  }
-  return lanes;
-}
-
-// Subcategories for a first-level category
-async function fetchSubcategories(level1){
-  // Filter rows whose label starts with `${level1} |`
-  const { data, error } = await supa
-    .from("mv_category_summaries")
-    .select("label, item_count, sample_image")
-    .ilike("label", `${level1} |%`);
-  if (error) throw error;
-
-  // Keep 2nd level
-  const map = new Map();
-  for (const row of data){
-    const parts = slugParts(row.label);
-    if (parts.length < 2) continue;
-    const key = parts[0] + " | " + parts[1];
-    const prev = map.get(key) || { label:key, item_count:0, sample_image:row.sample_image };
-    prev.item_count += (row.item_count || 0);
-    map.set(key, prev);
-  }
-  return [...map.values()].sort((a,b)=> (b.item_count||0)-(a.item_count||0));
-}
-
-// Products for a leaf (level1 | level2 | optional level3)
-async function fetchProductsForCategory(label, page=1, pageSize=24, shop=null, sort="price.asc"){
-  // We’ll filter products by matching the last segment against both merchant_category & site_category
-  // This is robust across mixed feeds.
-  const parts = slugParts(label);
-  const needle = parts[parts.length-1];
-
-  // Columns to return
-  let query = supa
-    .from("site_products_live")
-    .select("id,title,price,currency,image_url,final_url,shop_name,merchant_category,site_category", {count:"exact"})
-    .or(`merchant_category.ilike.%${needle}%,site_category.ilike.%${needle}%`);
-
-  if (shop && shop !== "all") query = query.eq("shop_name", shop);
-
-  // Sorting
-  let [col, dir] = sort.split(".");
-  if (!col) col = "price";
-  if (!dir) dir = "asc";
-  query = query.order(col, {ascending: dir==="asc"});
-
-  // Paging
-  const from = (page-1)*pageSize;
-  const to = from + pageSize - 1;
-  query = query.range(from, to);
-
-  const { data, error, count } = await query;
-  if (error) throw error;
-  return {items:data||[], total: count||0};
-}
-
-// Shops for filter (optional)
-async function fetchShops(){
-  // derive from products to keep it simple
-  const { data, error } = await supa
-    .from("site_products_live")
-    .select("shop_name")
-    .not("shop_name","is",null)
-    .limit(10000);
-  if (error) throw error;
-  const set = new Set((data||[]).map(d=>d.shop_name).filter(Boolean));
-  return ["all", ...[...set].sort()];
-}
-
-/* ------------------- RENDER ------------------- */
-
-function crumbs(parts){
-  if (!parts.length) return "";
-  const nodes = [];
-  nodes.push(`<a class="btn-link" href="?" onclick="event.preventDefault(); setRoute({c:null})">Domov</a>`);
-  if (parts[0]) nodes.push(`<a class="btn-link" href="${linkToCategory([parts[0]])}" onclick="event.preventDefault(); setRoute({c:'${parts[0]}'})">${parts[0]}</a>`);
-  if (parts[1]) nodes.push(`<span>${parts[1]}</span>`);
-  if (parts[2]) nodes.push(`<span>${parts[2]}</span>`);
-  return `<div class="crumbs">🏠 ${nodes.join(" › ")}</div>`;
-}
-
-function productCard(p){
-  return `
-  <a class="tile" href="${p.final_url}" target="_blank" rel="nofollow noopener">
-    <div class="thumb"><img loading="lazy" src="${p.image_url || ""}" alt=""></div>
-    <h4>${p.title || ""}</h4>
-    <div class="price">${fmtPrice(p.price, p.currency)}</div>
-    <p class="muted">${p.site_category || p.merchant_category || ""} • ${p.shop_name || ""}</p>
-  </a>`;
-}
-
-function subcatCard(label, count, img){
-  const parts = slugParts(label);
-  const href = linkToCategory([parts[0], parts[1]]);
-  return `
-    <a class="tile" href="${href}" onclick="event.preventDefault(); setRoute({c:'${parts[0]} | ${parts[1]}'})">
-      <div class="thumb"><img loading="lazy" src="${img || ""}" alt=""></div>
-      <h3>${parts[1]}</h3>
-      <p class="muted">${count} produktov</p>
-    </a>`;
-}
-
-function homeLane(lane){
-  // lane.main is the main category, lane.items are representative leaves
-  const mainHref = linkToCategory([lane.main]);
-  const tiles = lane.items.map(it => {
-    const parts = slugParts(it.label);
-    // Link to that subcategory list (level-2 if exists, else level-1 leaf)
-    const linkParts = parts.slice(0, Math.min(2, parts.length));
-    const href = linkToCategory(linkParts);
-    const subtitle = parts.slice(1).join(" › ");
-    return `
-      <a class="tile" href="${href}" onclick="event.preventDefault(); setRoute({c:'${linkParts.join(" | ")}'})">
-        <div class="thumb"><img loading="lazy" src="${it.sample_image || ""}" alt=""></div>
-        <h4>${subtitle || lane.main}</h4>
-        <p class="muted">${it.item_count} produktov</p>
-      </a>`;
-  }).join("");
-
-  return `
-  <section class="lane">
-    <div class="lane-hd">
-      <h2>${lane.main}</h2>
-      <a class="btn-link" href="${mainHref}" onclick="event.preventDefault(); setRoute({c:'${lane.main}'})">Zobraziť viac →</a>
+  <header>
+    <div class="wrap search-bar">
+      <div class="brand">bestpric.eu</div>
+      <input id="search" type="search" placeholder="Hľadať produkty" autocomplete="off" />
     </div>
-    <div class="lane-grid">${tiles}</div>
-  </section>`;
-}
+  </header>
 
-/* Views */
+  <main class="wrap" id="app"></main>
 
-async function viewHome(){
-  $("#q").value = "";
-  app.innerHTML = `<div class="lane"><div class="lane-hd"><h2>Načítavam…</h2></div></div>`;
-  try{
-    const lanes = await fetchHomeSections(8, 5);
-    app.innerHTML = lanes.map(homeLane).join("");
-  }catch(e){
-    app.innerHTML = `<div class="center">Chyba: ${e.message}</div>`;
-  }
-}
+  <footer id="foot"></footer>
 
-async function viewCategory(level1){
-  $("#q").value = "";
-  app.innerHTML = `${crumbs([level1])}
-  <section class="lane">
-    <div class="lane-hd"><h2>${level1}</h2></div>
-    <div class="lane-grid" id="subgrid"></div>
-  </section>`;
-  try{
-    const subs = await fetchSubcategories(level1);
-    const html = subs.map(s => subcatCard(s.label, s.item_count, s.sample_image)).join("");
-    $("#subgrid").innerHTML = html || `<div class="center">Žiadne podkategórie.</div>`;
-  }catch(e){
-    $("#subgrid").innerHTML = `<div class="center">Chyba: ${e.message}</div>`;
-  }
-}
+  <script>
+    const SUPABASE_URL = 'https://xxplocdervsfftnnalah.supabase.co';
+    const ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inh4cGxvY2RlcnZzZmZ0bm5hbGFoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTU4OTIyODYsImV4cCI6MjA3MTQ2ODI4Nn0.Gh8AShwePYUuiJjj_G1qFuMaTRC_6HZOSERifIvjZro';
+    const supa = supabase.createClient(SUPABASE_URL, ANON_KEY);
 
-async function viewLeaf(label){
-  const parts = slugParts(label);
-  $("#q").value = "";
+    const $ = (sel) => document.querySelector(sel);
+    const app = $('#app');
+    const searchInput = $('#search');
+    const footerEl = $('#foot');
 
-  // filters
-  const shops = await fetchShops();
+    const state = {
+      ready: false,
+      marketCode: 'SK',
+      categories: [],
+      categoryBySlug: new Map(),
+      categoryById: new Map(),
+      childrenByParent: new Map(),
+      shops: [],
+      shopById: new Map(),
+      shopRawIdByString: new Map(),
+    };
 
-  // read filter state from URL
-  const url = new URL(location.href);
-  const shop = url.searchParams.get("shop") || "all";
-  const sort = url.searchParams.get("sort") || "price.asc";
-  const page = parseInt(url.searchParams.get("page") || "1", 10);
-
-  app.innerHTML = `
-    ${crumbs(parts)}
-    <div class="lane">
-      <div class="lane-hd"><h2>${parts.join(" › ")}</h2></div>
-      <div class="filters">
-        <label>Obchody
-          <select id="shop">
-            ${shops.map(s => `<option value="${s}" ${s===shop?'selected':''}>${s==='all'?'Všetky obchody':s}</option>`).join("")}
-          </select>
-        </label>
-        <label>Zoradiť
-          <select id="sort">
-            <option value="price.asc"  ${sort==='price.asc'?'selected':''}>Najlacnejšie</option>
-            <option value="price.desc" ${sort==='price.desc'?'selected':''}>Najdrahšie</option>
-          </select>
-        </label>
-      </div>
-      <div class="lane-grid" id="grid"></div>
-      <div class="center" id="pager"></div>
-    </div>`;
-
-  $("#shop").addEventListener("change", e => {
-    const v = e.target.value;
-    setRoute({shop: v==='all'?null:v, sort, page:null}); // reset page
-  });
-  $("#sort").addEventListener("change", e => {
-    const v = e.target.value;
-    setRoute({sort: v, page:null});
-  });
-
-  try{
-    const {items, total} = await fetchProductsForCategory(label, page, 24, shop, sort);
-    $("#grid").innerHTML = items.map(productCard).join("") || `<div class="center">Žiadne produkty.</div>`;
-
-    // pager
-    if (total > 24){
-      const last = Math.ceil(total / 24);
-      const prev = page > 1 ? `<a class="btn-link" href="#" onclick="event.preventDefault(); setRoute({page:${page-1}})">‹ Predchádzajúca</a>` : "";
-      const next = page < last ? `<a class="btn-link" href="#" onclick="event.preventDefault(); setRoute({page:${page+1}})">Ďalšia ›</a>` : "";
-      $("#pager").innerHTML = `${prev} &nbsp; Strana ${page}/${last} &nbsp; ${next}`;
-    }else{
-      $("#pager").innerHTML = "";
+    function escapeHtml(str) {
+      return (str || '').replace(/[&<>"']/g, (ch) => ({
+        '&': '&amp;',
+        '<': '&lt;',
+        '>': '&gt;',
+        '"': '&quot;',
+        "'": '&#39;',
+      })[ch] || ch);
     }
-  }catch(e){
-    $("#grid").innerHTML = `<div class="center">Chyba: ${e.message}</div>`;
-  }
-}
 
-async function viewSearch(term){
-  $("#q").value = term;
-  // simple search against title
-  app.innerHTML = `
-    <div class="lane">
-      <div class="lane-hd"><h2>Hľadanie: “${term}”</h2></div>
-      <div class="lane-grid" id="grid"></div>
-    </div>`;
-  try{
-    const { data, error } = await supa
-      .from("site_products_live")
-      .select("id,title,price,currency,image_url,final_url,shop_name,merchant_category,site_category")
-      .ilike("title", `%${term}%`)
-      .limit(96);
-    if (error) throw error;
-    $("#grid").innerHTML = (data||[]).map(productCard).join("") || `<div class="center">Žiadne produkty.</div>`;
-  }catch(e){
-    $("#grid").innerHTML = `<div class="center">Chyba: ${e.message}</div>`;
-  }
-}
-
-async function render(){
-  const {search, parts} = getRoute();
-
-  // Route map:
-  // no search & no parts -> home
-  // parts = [L1]        -> subcategory tiles
-  // parts = [L1,L2...]  -> leaf products
-  // search only         -> search results
-  try{
-    if (search){
-      await viewSearch(search);
-      return;
+    function slugParts(slugPath) {
+      return (slugPath || '')
+        .split('|')
+        .map((p) => p.trim())
+        .filter(Boolean);
     }
-    if (parts.length === 0){
-      await viewHome();
-      return;
-    }
-    if (parts.length === 1){
-      await viewCategory(parts[0]);
-      return;
-    }
-    await viewLeaf(parts.join(" | "));
-  }catch(e){
-    app.innerHTML = `<div class="center">Chyba: ${e.message}</div>`;
-  }
-}
 
-render();
-</script>
+    function buildSlugPath(parts) {
+      return parts.filter(Boolean).join('|');
+    }
+
+    function updateRoute(params) {
+      const url = new URL(window.location.href);
+      Object.entries(params).forEach(([key, value]) => {
+        if (value == null || value === '') {
+          url.searchParams.delete(key);
+        } else {
+          url.searchParams.set(key, value);
+        }
+      });
+      history.pushState({}, '', url);
+      render();
+    }
+
+    window.addEventListener('popstate', render);
+
+    searchInput.addEventListener('keydown', (event) => {
+      if (event.key === 'Enter') {
+        const value = searchInput.value.trim();
+        updateRoute({ search: value || null, c: null, shop: null, sort: null, page: null });
+      }
+    });
+
+    function parseRoute() {
+      const url = new URL(window.location.href);
+      const slugPath = url.searchParams.get('c') || '';
+      const search = url.searchParams.get('search') || '';
+      const shop = url.searchParams.get('shop') || '';
+      const sort = url.searchParams.get('sort') || 'price.asc';
+      const page = parseInt(url.searchParams.get('page') || '1', 10);
+      return { slugPath, search, shop, sort, page };
+    }
+
+    async function detectMarket() {
+      const { data } = await supa
+        .from('products')
+        .select('market_code')
+        .eq('is_active', true)
+        .limit(1);
+      if (data && data.length && data[0].market_code) {
+        state.marketCode = data[0].market_code;
+      }
+    }
+
+    async function loadShops() {
+      const { data, error } = await supa
+        .from('shops')
+        .select('id, name, website_url')
+        .eq('market_code', state.marketCode)
+        .eq('is_active', true)
+        .order('name');
+      if (error) throw error;
+      state.shops = (data || []).map((shop) => ({
+        ...shop,
+        rawId: shop.id,
+        id: shop.id != null ? String(shop.id) : '',
+      }));
+      state.shopById = new Map(state.shops.map((shop) => [shop.id, shop]));
+      state.shopRawIdByString = new Map(
+        state.shops.map((shop) => [shop.id, shop.rawId != null ? shop.rawId : shop.id])
+      );
+    }
+
+    async function ensureChildren(parentId) {
+      if (state.childrenByParent.has(parentId)) {
+        return state.childrenByParent.get(parentId);
+      }
+      const { data, error } = await supa
+        .from('categories')
+        .select('id, name, slug, description, image_url, parent_id')
+        .eq('market_code', state.marketCode)
+        .eq('is_active', true)
+        .eq('parent_id', parentId)
+        .order('name');
+      if (error) throw error;
+      (data || []).forEach((cat) => {
+        state.categoryBySlug.set(cat.slug, cat);
+        state.categoryById.set(cat.id, cat);
+      });
+      state.childrenByParent.set(parentId, data || []);
+      return state.childrenByParent.get(parentId);
+    }
+
+    async function hydrateCategoriesByIds(ids) {
+      const missing = Array.from(
+        new Set((ids || []).filter((id) => id && !state.categoryById.has(id)))
+      );
+      if (!missing.length) {
+        return;
+      }
+      const { data, error } = await supa
+        .from('categories')
+        .select('id, name, slug, description, image_url, parent_id')
+        .in('id', missing);
+      if (error) throw error;
+      (data || []).forEach((cat) => {
+        state.categoryBySlug.set(cat.slug, cat);
+        state.categoryById.set(cat.id, cat);
+        if (cat.parent_id) {
+          const bucket = state.childrenByParent.get(cat.parent_id) || [];
+          if (!bucket.some((existing) => existing.id === cat.id)) {
+            bucket.push(cat);
+            state.childrenByParent.set(cat.parent_id, bucket);
+          }
+        }
+      });
+    }
+
+    async function ensureCategoryBySlug(slug) {
+      if (state.categoryBySlug.has(slug)) {
+        return state.categoryBySlug.get(slug);
+      }
+      const { data, error } = await supa
+        .from('categories')
+        .select('id, name, slug, description, image_url, parent_id')
+        .eq('market_code', state.marketCode)
+        .eq('is_active', true)
+        .eq('slug', slug)
+        .maybeSingle();
+      if (error) throw error;
+      if (!data) {
+        return null;
+      }
+      state.categoryBySlug.set(slug, data);
+      state.categoryById.set(data.id, data);
+      if (data.parent_id) {
+        const bucket = state.childrenByParent.get(data.parent_id) || [];
+        if (!bucket.some((item) => item.id === data.id)) {
+          bucket.push(data);
+          state.childrenByParent.set(data.parent_id, bucket);
+        }
+      }
+      return data;
+    }
+
+    async function loadCategories() {
+      const { data, error } = await supa
+        .from('categories')
+        .select('id, name, slug, description, image_url')
+        .eq('market_code', state.marketCode)
+        .eq('is_active', true')
+        .is('parent_id', null)
+        .order('name')
+        .limit(12);
+      if (error) throw error;
+      state.categories = data || [];
+      state.categoryBySlug = new Map();
+      state.categoryById = new Map();
+      state.childrenByParent = new Map();
+      state.categories.forEach((cat) => {
+        state.categoryBySlug.set(cat.slug, cat);
+        state.categoryById.set(cat.id, cat);
+      });
+
+      if (!state.categories.length) {
+        return;
+      }
+
+      const parentIds = state.categories.map((cat) => cat.id);
+      const { data: children, error: childError } = await supa
+        .from('categories')
+        .select('id, name, slug, description, image_url, parent_id')
+        .eq('market_code', state.marketCode)
+        .eq('is_active', true)
+        .in('parent_id', parentIds)
+        .order('name');
+      if (childError) throw childError;
+      (children || []).forEach((cat) => {
+        state.categoryBySlug.set(cat.slug, cat);
+        state.categoryById.set(cat.id, cat);
+        const bucket = state.childrenByParent.get(cat.parent_id) || [];
+        bucket.push(cat);
+        state.childrenByParent.set(cat.parent_id, bucket);
+      });
+    }
+
+    async function boot() {
+      try {
+        app.innerHTML = '<div class="center">Načítavam katalóg…</div>';
+        await detectMarket();
+        await Promise.all([loadCategories(), loadShops()]);
+        state.ready = true;
+        render();
+        footerEl.textContent = `Aktualizované ${new Date().toLocaleString('sk-SK')}`;
+      } catch (error) {
+        app.innerHTML = `<div class="center">Chyba: ${escapeHtml(error.message)}</div>`;
+      }
+    }
+
+    function crumbs(parts) {
+      if (!parts.length) return '';
+      const links = [`<a href="?" onclick="event.preventDefault(); updateRoute({ c: null, page: null, shop: null })">Domov</a>`];
+      parts.forEach((slug, index) => {
+        const category = state.categoryBySlug.get(slug);
+        if (!category) return;
+        const chain = parts.slice(0, index + 1);
+        const href = `?c=${encodeURIComponent(buildSlugPath(chain))}`;
+        links.push(`<a href="${href}" onclick="event.preventDefault(); updateRoute({ c: '${buildSlugPath(chain)}', page: null, shop: null })">${escapeHtml(category.name)}</a>`);
+      });
+      return `<div class="crumbs">${links.join(' › ')}</div>`;
+    }
+
+    function productCard(product) {
+      const title = escapeHtml(product.title || 'Produkt');
+      const categoryName = escapeHtml(product.category_name || '');
+      const shop = escapeHtml(product.shop?.name || '');
+      const price = product.price != null ? formatPrice(product.price, product.currency) : '';
+      const image = escapeHtml(product.image_url || 'https://images.placeholders.dev/?width=320&height=240&text=Produkt');
+      const url = escapeHtml(product.link || '#');
+      return `
+        <a class="tile" href="${url}" target="_blank" rel="nofollow noopener">
+          <div class="thumb"><img loading="lazy" src="${image}" alt="${title}" /></div>
+          <h4>${title}</h4>
+          <p class="price">${price}</p>
+          <p class="muted">${categoryName}${shop ? ' • ' + shop : ''}</p>
+        </a>
+      `;
+    }
+
+    function subcategoryCard(category, parentSlug) {
+      const href = buildSlugPath([parentSlug, category.slug]);
+      const image = escapeHtml(category.image_url || 'https://images.placeholders.dev/?width=320&height=240&text=Kateg%C3%B3ria');
+      return `
+        <a class="tile" href="?c=${encodeURIComponent(href)}" onclick="event.preventDefault(); updateRoute({ c: '${href}', page: null, shop: null })">
+          <div class="thumb"><img loading="lazy" src="${image}" alt="${escapeHtml(category.name)}" /></div>
+          <h3>${escapeHtml(category.name)}</h3>
+          <p class="muted">${escapeHtml(category.description || '')}</p>
+        </a>
+      `;
+    }
+
+    function formatPrice(value, currency) {
+      try {
+        return new Intl.NumberFormat('sk-SK', {
+          style: 'currency',
+          currency: currency || 'EUR',
+          minimumFractionDigits: 0,
+        }).format(value);
+      } catch (_) {
+        return `${value} ${currency || 'EUR'}`;
+      }
+    }
+
+    async function collectDescendants(categoryId) {
+      const stack = [categoryId];
+      const all = new Set();
+      while (stack.length) {
+        const current = stack.pop();
+        if (all.has(current)) continue;
+        all.add(current);
+        const children = state.childrenByParent.get(current) || [];
+        if (!children.length) {
+          const fetched = await ensureChildren(current);
+          fetched.forEach((child) => {
+            stack.push(child.id);
+          });
+        } else {
+          children.forEach((child) => stack.push(child.id));
+        }
+      }
+      return Array.from(all);
+    }
+
+    async function fetchProducts(categoryId, { shopId = null, sort = 'price.asc' }) {
+      const categoryIds = await collectDescendants(categoryId);
+      if (!categoryIds.includes(categoryId)) {
+        categoryIds.push(categoryId);
+      }
+      let query = supa
+        .from('products')
+        .select(`
+          id,
+          title,
+          price,
+          currency,
+          image_url,
+          availability,
+          category_id,
+          shop_id,
+          affiliate_links(affiliate_url),
+          shop:shops(id, name, website_url)
+        `)
+        .eq('market_code', state.marketCode)
+        .eq('is_active', true)
+        .in('category_id', categoryIds)
+        .limit(120);
+
+      const [column, direction] = sort.split('.');
+      const ascending = direction !== 'desc';
+      const orderColumn = column === 'title' ? 'title' : 'price';
+      query = query.order(orderColumn, { ascending });
+
+      if (shopId) {
+        const rawId = state.shopRawIdByString.get(shopId) ?? shopId;
+        query = query.eq('shop_id', rawId);
+      }
+
+      const { data, error } = await query;
+      if (error) throw error;
+
+      await hydrateCategoriesByIds((data || []).map((item) => item.category_id));
+
+      return (data || []).map((item) => {
+        const category = state.categoryById.get(item.category_id);
+        return {
+          ...item,
+          link:
+            (item.affiliate_links && item.affiliate_links[0] && item.affiliate_links[0].affiliate_url) ||
+            (item.shop && item.shop.website_url) ||
+            '#',
+          category_name: category ? category.name : '',
+        };
+      });
+    }
+
+    async function renderHome() {
+      const heroPills = state.categories.slice(0, 6).map((cat) => {
+        const path = encodeURIComponent(cat.slug);
+        return `
+          <a class="pill" href="?c=${path}" onclick="event.preventDefault(); updateRoute({ c: '${cat.slug}', page: null, shop: null, sort: null })">
+            ${escapeHtml(cat.name)}
+          </a>
+        `;
+      });
+
+      const lanes = state.categories.slice(0, 6).map((cat) => {
+        const children = (state.childrenByParent.get(cat.id) || []).slice(0, 6);
+        const tiles = children.length
+          ? children.map((child) => subcategoryCard(child, cat.slug)).join('')
+          : '<div class="center">Žiadne podkategórie.</div>';
+        return `
+          <section class="lane">
+            <div class="lane-header">
+              <h2>${escapeHtml(cat.name)}</h2>
+              <a class="pill" href="?c=${encodeURIComponent(cat.slug)}" onclick="event.preventDefault(); updateRoute({ c: '${cat.slug}', page: null, shop: null, sort: null })">Prejsť do kategórie</a>
+            </div>
+            <div class="lane-grid">${tiles}</div>
+          </section>
+        `;
+      });
+
+      app.innerHTML = `
+        <section class="hero">
+          <h1>Porovnávač cien tisícov produktov</h1>
+          <p>Nájdite najlepšie ceny, tisíce produktov a stovky e-shopov na jednom mieste. Prekliknite sa do obľúbených kategórií a objavte aktuálne ponuky.</p>
+          <div class="hero-ctas">
+            <a class="cta primary" href="#" onclick="event.preventDefault(); document.getElementById('catalog-start').scrollIntoView({ behavior: 'smooth' });">Prejsť do katalógu</a>
+            <a class="cta secondary" href="mailto:info@bestpric.eu">Chcem pridať e-shop</a>
+          </div>
+          <div class="hero-pills">
+            ${heroPills.join('') || '<span>Pripravujeme kategórie…</span>'}
+          </div>
+        </section>
+        <div id="catalog-start"></div>
+        ${lanes.join('')}
+      `;
+    }
+
+    async function renderCategory(slug) {
+      const category = await ensureCategoryBySlug(slug);
+      if (!category) {
+        app.innerHTML = '<div class="center">Kategória sa nenašla.</div>';
+        return;
+      }
+      const children = await ensureChildren(category.id);
+      const tiles = children.length
+        ? children.map((child) => subcategoryCard(child, slug)).join('')
+        : '<div class="center">Žiadne podkategórie.</div>';
+
+      app.innerHTML = `
+        ${crumbs([slug])}
+        <section class="lane">
+          <div class="lane-header">
+            <h2>${escapeHtml(category.name)}</h2>
+            <p class="muted">${escapeHtml(category.description || '')}</p>
+          </div>
+          <div class="lane-grid">${tiles}</div>
+        </section>
+      `;
+    }
+
+    async function renderLeaf(parts, options) {
+      const slugs = [...parts];
+      for (const part of slugs) {
+        await ensureCategoryBySlug(part);
+      }
+      const targetSlug = slugs[slugs.length - 1];
+      const category = await ensureCategoryBySlug(targetSlug);
+      if (!category) {
+        app.innerHTML = '<div class="center">Kategória sa nenašla.</div>';
+        return;
+      }
+      await ensureChildren(category.id);
+
+      const normalizedOptions = {
+        shopId: options.shopId ? String(options.shopId) : null,
+        sort: options.sort,
+      };
+
+      const products = await fetchProducts(category.id, normalizedOptions);
+      const uniqueShops = new Map();
+      products.forEach((product) => {
+        if (product.shop && product.shop.id) {
+          const key = String(product.shop.id);
+          uniqueShops.set(key, product.shop.name || '');
+        }
+      });
+
+      if (normalizedOptions.shopId && !uniqueShops.has(normalizedOptions.shopId)) {
+        const fallbackShop = state.shopById.get(normalizedOptions.shopId);
+        if (fallbackShop) {
+          uniqueShops.set(normalizedOptions.shopId, fallbackShop.name || '');
+        }
+      }
+
+      const shopOptions = [`<option value="" ${normalizedOptions.shopId ? '' : 'selected'}>Všetky obchody</option>`];
+      Array.from(uniqueShops.entries())
+        .sort((a, b) => a[1].localeCompare(b[1]))
+        .forEach(([id, name]) => {
+          const value = escapeHtml(id);
+          const selected = normalizedOptions.shopId && normalizedOptions.shopId === id ? 'selected' : '';
+          shopOptions.push(`<option value="${value}" ${selected}>${escapeHtml(name)}</option>`);
+        });
+
+      const productGrid = products.length
+        ? products.map((product) => productCard(product)).join('')
+        : '<div class="center">Žiadne produkty pre túto kategóriu.</div>';
+
+      const filterBar = `
+        <div class="filters">
+          <label>
+            Obchod
+            <select id="shop-filter">
+              ${shopOptions.join('')}
+            </select>
+          </label>
+          <label>
+            Zoradiť
+            <select id="sort-filter">
+              <option value="price.asc" ${options.sort === 'price.asc' ? 'selected' : ''}>Najlacnejšie</option>
+              <option value="price.desc" ${options.sort === 'price.desc' ? 'selected' : ''}>Najdrahšie</option>
+              <option value="title.asc" ${options.sort === 'title.asc' ? 'selected' : ''}>A – Z</option>
+              <option value="title.desc" ${options.sort === 'title.desc' ? 'selected' : ''}>Z – A</option>
+            </select>
+          </label>
+        </div>
+      `;
+
+      app.innerHTML = `
+        ${crumbs(parts)}
+        <section class="lane">
+          <div class="lane-header">
+            <div>
+              <h2>${escapeHtml(category.name)}</h2>
+              <p class="muted">${escapeHtml(category.description || '')}</p>
+            </div>
+            <div class="muted">${products.length} produktov</div>
+          </div>
+          ${filterBar}
+          <div class="lane-grid">${productGrid}</div>
+        </section>
+      `;
+
+      const shopFilter = document.getElementById('shop-filter');
+      const sortFilter = document.getElementById('sort-filter');
+
+      shopFilter?.addEventListener('change', (event) => {
+        const value = event.target.value;
+        updateRoute({ shop: value || null, page: null });
+      });
+
+      sortFilter?.addEventListener('change', (event) => {
+        updateRoute({ sort: event.target.value });
+      });
+    }
+
+    async function renderSearch(term) {
+      searchInput.value = term;
+      const { data, error } = await supa
+        .from('products')
+        .select(`
+          id,
+          title,
+          price,
+          currency,
+          image_url,
+          category_id,
+          affiliate_links(affiliate_url),
+          shop:shops(id, name, website_url)
+        `)
+        .eq('market_code', state.marketCode)
+        .eq('is_active', true)
+        .ilike('title', `%${term}%`)
+        .limit(120);
+      if (error) {
+        app.innerHTML = `<div class="center">Chyba: ${escapeHtml(error.message)}</div>`;
+        return;
+      }
+      await hydrateCategoriesByIds((data || []).map((item) => item.category_id));
+
+      const products = (data || []).map((item) => {
+        const category = state.categoryById.get(item.category_id);
+        return {
+          ...item,
+          link:
+            (item.affiliate_links && item.affiliate_links[0] && item.affiliate_links[0].affiliate_url) ||
+            (item.shop && item.shop.website_url) ||
+            '#',
+          category_name: category ? category.name : '',
+        };
+      });
+      const grid = products.length
+        ? products.map((product) => productCard(product)).join('')
+        : '<div class="center">Žiadne výsledky.</div>';
+      app.innerHTML = `
+        <section class="lane">
+          <div class="lane-header">
+            <h2>Hľadanie: “${escapeHtml(term)}”</h2>
+            <div class="muted">${products.length} nájdených produktov</div>
+          </div>
+          <div class="lane-grid">${grid}</div>
+        </section>
+      `;
+    }
+
+    async function render() {
+      if (!state.ready) {
+        return;
+      }
+      const { slugPath, search, shop, sort } = parseRoute();
+      const parts = slugParts(slugPath);
+
+      if (search) {
+        await renderSearch(search);
+        return;
+      }
+
+      if (parts.length === 0) {
+        await renderHome();
+        return;
+      }
+
+      if (parts.length === 1) {
+        await renderCategory(parts[0]);
+        return;
+      }
+
+      await renderLeaf(parts, { shopId: shop || null, sort });
+    }
+
+    boot();
+  </script>
 </body>
 </html>
