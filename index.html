@@ -205,7 +205,7 @@
       text-decoration: none;
       color: inherit;
       overflow: hidden;
-      transition: transform 0.15s ease, box-shadow 0.15s ease;
+      transition: transform 0.15s ease, box-shadow 0.15s ease.
     }
 
     .tile:hover {
@@ -242,7 +242,7 @@
       margin: 12px 18px 18px;
       font-weight: 700;
       font-size: 18px;
-      color: var(--ink);
+      color: var(--ink).
     }
 
     .crumbs {
@@ -266,7 +266,7 @@
       flex-wrap: wrap;
       gap: 12px;
       align-items: center;
-      padding: 0 clamp(16px, 4vw, 28px) 12px;
+      padding: 0 clamp(16px, 4vw, 28px) 12px.
     }
 
     select {
@@ -274,7 +274,7 @@
       border-radius: 999px;
       border: 1px solid rgba(148, 163, 184, 0.4);
       background: #fff;
-      font: inherit;
+      font: inherit.
     }
 
     .center {
@@ -282,14 +282,14 @@
       place-items: center;
       padding: 48px;
       color: var(--muted);
-      text-align: center;
+      text-align: center.
     }
 
     footer {
       padding: 40px var(--gap);
       text-align: center;
       color: var(--muted);
-      font-size: 14px;
+      font-size: 14px.
     }
 
     @media (max-width: 720px) {
@@ -500,7 +500,7 @@
         .from('categories')
         .select('id, name, slug, description, image_url')
         .eq('market_code', state.marketCode)
-        .eq('is_active', true')
+        .eq('is_active', true)
         .is('parent_id', null)
         .order('name')
         .limit(12);
