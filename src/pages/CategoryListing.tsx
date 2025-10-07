@@ -23,7 +23,7 @@ interface Product {
   price: number;
   original_price?: number;
   currency: string;
-  shop: {
+  shop?: {
     id: string;
     name: string;
     logo_url?: string;
@@ -47,12 +47,11 @@ interface ChildCategory {
 export default function CategoryListing() {
   const { categorySlug } = useParams();
   const { market } = useMarket();
-  const marketCode = market?.code;
+  const marketCode = market?.code ? market.code.toUpperCase() : undefined;
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [priceRange, setPriceRange] = useState([0, 2000]);
   const [selectedMerchants, setSelectedMerchants] = useState<string[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
-  const [allProducts, setAllProducts] = useState<Product[]>([]);
   const [merchants, setMerchants] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
@@ -116,11 +115,32 @@ export default function CategoryListing() {
     fetchChildCategories(currentCategory.id);
   }, [currentCategory, fetchChildCategories]);
 
-  useEffect(() => {
-    if (marketCode) {
-      fetchMerchants();
+  const collectCategoryScope = useCallback(async (): Promise<string[]> => {
+    if (!currentCategory || !marketCode) {
+      return [];
     }
-  }, [marketCode]);
+
+    const ids = [currentCategory.id];
+
+    try {
+      const { data, error } = await supabase
+        .from('categories')
+        .select('id')
+        .eq('parent_id', currentCategory.id)
+        .eq('market_code', marketCode)
+        .eq('is_active', true);
+
+      if (error) throw error;
+
+      if (data) {
+        ids.push(...data.map(sub => sub.id));
+      }
+    } catch (error) {
+      console.error('Error collecting category scope:', error);
+    }
+
+    return ids;
+  }, [currentCategory, marketCode]);
 
   // Handle search functionality from header
   useEffect(() => {
@@ -191,29 +211,23 @@ export default function CategoryListing() {
     }
 
     try {
-      // Get all category IDs to search in (main category + subcategories)
-      const categoryIds = [];
-      if (currentCategory) {
-        categoryIds.push(currentCategory.id);
-
-        // Get subcategories if this is a main category
-        const { data: subcategories } = await supabase
-          .from('categories')
-          .select('id')
-          .eq('parent_id', currentCategory.id)
-          .eq('is_active', true);
-
-        if (subcategories) {
-          categoryIds.push(...subcategories.map(sub => sub.id));
-        }
-      }
+      const categoryIds = currentCategory ? await collectCategoryScope() : [];
 
       let query = supabase
         .from('products')
         .select(`
-          *,
-          shop:shops(id, name, logo_url),
-          affiliate_links(id, affiliate_url, tracking_code)
+          id,
+          title,
+          description,
+          image_url,
+          price,
+          original_price,
+          currency,
+          availability,
+          category_id,
+          merchant_name,
+          affiliate_url,
+          shop_id
         `)
         .eq('market_code', marketCode)
         .eq('is_active', true);
@@ -255,7 +269,7 @@ export default function CategoryListing() {
 
       // Apply merchant filter - simplified
       if (selectedMerchants.length > 0) {
-        query = query.in('shop.name', selectedMerchants);
+        query = query.in('merchant_name', selectedMerchants);
       }
 
       // Apply sorting
@@ -286,9 +300,6 @@ export default function CategoryListing() {
         return;
       }
 
-      console.log('🔍 CategoryListing - Fetched products:', data?.length || 0);
-      console.log('🔍 CategoryListing - First product affiliate_links:', data?.[0]?.affiliate_links);
-
       // Check if there are more products
       const hasMoreProducts = data && data.length > PRODUCTS_PER_PAGE;
       const productsToShow = hasMoreProducts ? data.slice(0, PRODUCTS_PER_PAGE) : data || [];
@@ -303,29 +314,21 @@ export default function CategoryListing() {
         price: item.price,
         original_price: item.original_price,
         currency: item.currency,
-        shop: item.shop,
+        shop: item.merchant_name
+          ? {
+              id: item.merchant_name,
+              name: item.merchant_name,
+            }
+          : undefined,
         availability: item.availability,
-        affiliate_links: item.affiliate_links
-          ? (Array.isArray(item.affiliate_links)
-              ? item.affiliate_links.map(link => ({
-                  id: link.id,
-                  affiliate_url: link.affiliate_url,
-                  tracking_code: link.tracking_code
-                }))
-              : [{
-                  id: item.affiliate_links.id,
-                  affiliate_url: item.affiliate_links.affiliate_url,
-                  tracking_code: item.affiliate_links.tracking_code
-                }])
+        affiliate_links: item.affiliate_url
+          ? [{
+              id: `${item.id}-affiliate`,
+              affiliate_url: item.affiliate_url,
+              tracking_code: undefined,
+            }]
           : []
       }));
-
-      console.log('🔍 CategoryListing - Transformed first product:', {
-        title: transformedData[0]?.title,
-        hasAffiliateLinks: !!transformedData[0]?.affiliate_links?.length,
-        affiliateLinksCount: transformedData[0]?.affiliate_links?.length || 0,
-        affiliateLinksData: transformedData[0]?.affiliate_links
-      });
 
       if (append) {
         setProducts(prev => [...prev, ...transformedData]);
@@ -340,27 +343,45 @@ export default function CategoryListing() {
     }
   };
 
-  const fetchMerchants = async () => {
-    if (!marketCode) {
+  const fetchMerchants = useCallback(async () => {
+    if (!marketCode || !currentCategory) {
       setMerchants([]);
       return;
     }
 
     try {
+      const categoryIds = await collectCategoryScope();
+      if (!categoryIds.length) {
+        setMerchants([]);
+        return;
+      }
+
       const { data, error } = await supabase
-        .from('shops')
-        .select('name')
+        .from('products')
+        .select('merchant_name')
         .eq('market_code', marketCode)
-        .eq('is_active', true);
+        .eq('is_active', true)
+        .in('category_id', categoryIds)
+        .not('merchant_name', 'is', null);
 
       if (error) throw error;
 
-      setMerchants(data?.map(shop => shop.name) || []);
+      const merchantNames = (data || [])
+        .map(item => (item.merchant_name || '').trim())
+        .filter((name): name is string => name.length > 0);
+
+      const uniqueMerchants = Array.from(new Set(merchantNames)).sort((a, b) => a.localeCompare(b));
+
+      setMerchants(uniqueMerchants);
     } catch (error) {
       console.error('Error fetching merchants:', error);
       setMerchants([]);
     }
-  };
+  }, [collectCategoryScope, currentCategory, marketCode]);
+
+  useEffect(() => {
+    fetchMerchants();
+  }, [fetchMerchants]);
 
   const handleProductClick = (product: Product) => {
     // Navigate to the current category showing related products
