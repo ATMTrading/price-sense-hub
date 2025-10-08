@@ -569,7 +569,7 @@ export default function CategoryListing() {
 
                 {/* Merchants */}
                 <div>
-                  <h3 className="font-semibold mb-3">{translate('filter.merchants', market)}</h3>
+                  <h3 className="font-semibold mb-3">{translate('filter.merchant', market)}</h3>
                   <div className="space-y-3">
                     {merchants.map((merchant) => (
                       <div key={merchant} className="flex items-center space-x-2">
