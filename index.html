@@ -155,6 +155,18 @@
       text-decoration: none;
     }
 
+    .pill-count {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 32px;
+      padding: 2px 8px;
+      border-radius: 999px;
+      background: var(--brand-soft);
+      color: var(--brand);
+      font-size: 13px;
+    }
+
     .lane {
       background: var(--surface);
       border: 1px solid rgba(148, 163, 184, 0.18);
@@ -175,6 +187,12 @@
       margin: 0;
       font-size: 22px;
       letter-spacing: -0.01em;
+    }
+
+    .lane-header-info {
+      display: flex;
+      align-items: center;
+      gap: 10px;
     }
 
     .lane-grid {
@@ -319,10 +337,10 @@
     const state = {
       ready: false,
       marketCode: 'SK',
-      catalog: {
-        topLevel: [],
-        nodesByPath: new Map(),
-      },
+      products: [],
+      categoryByPath: new Map(),
+      childrenByParent: new Map(),
+      topLevelPaths: [],
     };
 
     function escapeHtml(value) {
@@ -360,10 +378,28 @@
         .replace(/(^-|-$)/g, '');
     }
 
-    function parseCategoryPath(raw) {
-      if (!raw) return [];
-      return raw
-        .replace(/[>/]/g, '|')
+    function uniqueSlug(base, used, fallback) {
+      let candidate = base || fallback;
+      let suffix = 1;
+      while (used.has(candidate)) {
+        suffix += 1;
+        candidate = `${base || fallback}-${suffix}`;
+      }
+      used.add(candidate);
+      return candidate;
+    }
+
+    function parseCategoryLabel(raw) {
+      if (!raw) {
+        return [];
+      }
+
+      if (Array.isArray(raw)) {
+        return raw.map((value) => String(value).trim()).filter(Boolean);
+      }
+
+      const cleaned = String(raw).replace(/[>/]/g, '|');
+      return cleaned
         .split('|')
         .map((part) => part.trim())
         .filter(Boolean);
@@ -411,130 +447,170 @@
       return { slugPath, search, shop, sort };
     }
 
-    function ensureNode(tree, names, imageUrl) {
-      const slugSegments = [];
-      let parentPath = null;
+    function getFirstAvailable(row, keys) {
+      for (const key of keys) {
+        if (row && row[key] != null && row[key] !== '') {
+          return row[key];
+        }
+      }
+      return null;
+    }
 
-      names.forEach((name, index) => {
-        const slug = slugify(name) || `segment-${index}`;
-        slugSegments.push(slug);
-        const slugPath = slugSegments.join('|');
-        let node = tree.nodesByPath.get(slugPath);
-        if (!node) {
-          node = {
-            name,
-            slug,
-            slugPath,
-            labelPath: names.slice(0, index + 1).join(' | '),
-            parentPath,
-            count: 0,
-            image: imageUrl || null,
-            children: new Set(),
-          };
-          tree.nodesByPath.set(slugPath, node);
-          if (!parentPath) {
-            tree.topLevel.push(node);
-          } else {
-            const parent = tree.nodesByPath.get(parentPath);
-            if (parent) parent.children.add(slugPath);
+    function getMarketCode(row) {
+      const code = getFirstAvailable(row, ['market_code', 'marketCode', 'MarketCode']);
+      return code ? String(code).toUpperCase() : null;
+    }
+
+    function normaliseProduct(row) {
+      const rawCategory = getFirstAvailable(row, [
+        'site_category',
+        'category_path',
+        'category',
+        'category_text',
+        'categoryText',
+        'categoryName',
+        'merchant_category',
+        'merchantCategory',
+      ]);
+
+      const parts = parseCategoryLabel(rawCategory);
+      const labels = parts.length ? parts : ['Produkty'];
+      const used = new Set();
+      const slugParts = labels.map((label, index) => {
+        const base = slugify(label);
+        return uniqueSlug(base, used, `segment-${index + 1}`);
+      });
+      const slugPath = slugParts.join('|');
+
+      const rawPrice = row.price ?? row.current_price ?? row.sale_price;
+      const numericPrice = typeof rawPrice === 'number' ? rawPrice : Number(rawPrice ?? NaN);
+      const merchant = getFirstAvailable(row, ['shop_name', 'shopName', 'merchant_name', 'merchantName']);
+      const currency = getFirstAvailable(row, ['currency', 'currency_code', 'currencyCode']) || 'EUR';
+      const image = getFirstAvailable(row, ['image_url', 'imageUrl', 'image']);
+      const link = getFirstAvailable(row, ['final_url', 'affiliate_url', 'product_url', 'url']);
+
+      return {
+        id: row.id,
+        title: row.title || row.name || 'Produkt',
+        price: Number.isFinite(numericPrice) ? numericPrice : null,
+        currency,
+        imageUrl: image || null,
+        link: link || '#',
+        merchant: merchant || '',
+        categoryLabels: labels,
+        slugParts,
+        categoryPath: slugPath,
+      };
+    }
+
+    function buildCatalog(products) {
+      state.categoryByPath = new Map();
+      state.childrenByParent = new Map();
+      state.topLevelPaths = [];
+
+      products.forEach((product) => {
+        const { categoryLabels, slugParts, imageUrl } = product;
+        let parentPath = null;
+        slugParts.forEach((slug, index) => {
+          const path = slugParts.slice(0, index + 1).join('|');
+          const name = categoryLabels[index] || `Sekcia ${index + 1}`;
+          let node = state.categoryByPath.get(path);
+          if (!node) {
+            node = {
+              name,
+              slug,
+              slugPath: path,
+              labelParts: categoryLabels.slice(0, index + 1),
+              count: 0,
+              image: imageUrl || null,
+              parentPath,
+            };
+            state.categoryByPath.set(path, node);
+            if (parentPath) {
+              const children = state.childrenByParent.get(parentPath) || [];
+              if (!children.includes(path)) {
+                children.push(path);
+                state.childrenByParent.set(parentPath, children);
+              }
+            } else if (!state.topLevelPaths.includes(path)) {
+              state.topLevelPaths.push(path);
+            }
           }
-        }
-        node.count += 1;
-        if (!node.image && imageUrl) {
-          node.image = imageUrl;
-        }
-        parentPath = slugPath;
+
+          node.count += 1;
+          if (!node.image && imageUrl) {
+            node.image = imageUrl;
+          }
+          parentPath = path;
+        });
+      });
+
+      state.topLevelPaths.sort((a, b) => {
+        const countA = state.categoryByPath.get(a)?.count || 0;
+        const countB = state.categoryByPath.get(b)?.count || 0;
+        return countB - countA;
       });
     }
 
-    function getNodeByParts(parts) {
-      const key = buildSlugPath(parts);
-      return state.catalog.nodesByPath.get(key) || null;
-    }
-
-    function getChildren(node) {
-      if (!node) return [];
-      return Array.from(node.children)
-        .map((path) => state.catalog.nodesByPath.get(path))
-        .filter(Boolean)
-        .sort((a, b) => b.count - a.count);
-    }
-
-    async function detectMarket() {
-      try {
-        const { data } = await supa
-          .from('products_public')
-          .select('market_code')
-          .not('market_code', 'is', null)
-          .limit(1);
-
-        if (data && data.length && data[0].market_code) {
-          state.marketCode = String(data[0].market_code).toUpperCase();
-          return;
-        }
-      } catch (error) {
-        console.warn('Nepodarilo sa načítať market_code z verejného pohľadu, skúšam produkty.', error);
-      }
-
-      try {
-        const { data } = await supa
-          .from('products')
-          .select('market_code')
-          .limit(1);
-
-        if (data && data.length && data[0].market_code) {
-          state.marketCode = String(data[0].market_code).toUpperCase();
-          return;
-        }
-      } catch (error) {
-        console.warn('Nepodarilo sa načítať market_code, používam SK.', error);
-      }
-
-      state.marketCode = 'SK';
-    }
-
-    async function loadCatalog() {
+    async function loadSnapshot(limit = 4000) {
       const { data, error } = await supa
-        .from('products_public')
-        .select('site_category, image_url, market_code')
-        .eq('market_code', state.marketCode)
-        .not('site_category', 'is', null)
-        .limit(4000);
+        .from('site_products_v2')
+        .select('*')
+        .limit(limit);
 
       if (error) {
         throw error;
       }
 
       const rows = data || [];
-      const tree = {
-        topLevel: [],
-        nodesByPath: new Map(),
-      };
 
+      const marketCounts = new Map();
       rows.forEach((row) => {
-        const parts = parseCategoryPath(row.site_category);
-        if (!parts.length) return;
-        ensureNode(tree, parts, row.image_url || null);
+        const code = getMarketCode(row);
+        if (code) {
+          marketCounts.set(code, (marketCounts.get(code) || 0) + 1);
+        }
       });
 
-      tree.topLevel.sort((a, b) => b.count - a.count);
-      state.catalog = tree;
+      if (marketCounts.size) {
+        state.marketCode = Array.from(marketCounts.entries()).sort((a, b) => b[1] - a[1])[0][0];
+      }
+
+      const filteredRows = rows.filter((row) => {
+        const code = getMarketCode(row);
+        return !code || !state.marketCode || code === state.marketCode;
+      });
+
+      state.products = filteredRows
+        .map(normaliseProduct)
+        .filter((product) => product && product.slugParts && product.slugParts.length);
+      buildCatalog(state.products);
     }
 
-    function crumbs(parts) {
-      if (!parts.length) return '';
+    function crumbs(path) {
+      if (!path) {
+        return '';
+      }
+
+      const segments = path.split('|').filter(Boolean);
+      if (!segments.length) {
+        return '';
+      }
+
       const links = [
         '<a href="?" onclick="event.preventDefault(); updateRoute({ c: null, shop: null, sort: null })">Domov</a>'
       ];
 
-      const chain = [];
-      parts.forEach((slug) => {
-        chain.push(slug);
-        const node = getNodeByParts(chain);
-        if (!node) return;
-        const href = `?c=${encodeURIComponent(buildSlugPath(chain))}`;
+      let accumulator = '';
+      segments.forEach((slug, index) => {
+        accumulator = index === 0 ? slug : `${accumulator}|${slug}`;
+        const node = state.categoryByPath.get(accumulator);
+        if (!node) {
+          return;
+        }
+        const href = `?c=${encodeURIComponent(accumulator)}`;
         links.push(`
-          <a href="${href}" onclick="event.preventDefault(); updateRoute({ c: '${buildSlugPath(chain)}', shop: null, sort: null })">
+          <a href="${href}" onclick="event.preventDefault(); updateRoute({ c: '${accumulator}', shop: null, sort: null })">
             ${escapeHtml(node.name)}
           </a>
         `);
@@ -544,10 +620,10 @@
     }
 
     function productCard(product) {
-      const title = escapeHtml(product.title || 'Produkt');
+      const title = escapeHtml(product.title);
       const price = formatPrice(product.price, product.currency);
       const merchant = escapeHtml(product.merchant || '');
-      const categoryName = escapeHtml(product.categoryName || '');
+      const category = escapeHtml(state.categoryByPath.get(product.categoryPath)?.name || '');
       const image = escapeHtml(product.imageUrl || 'https://images.placeholders.dev/?width=320&height=240&text=Produkt');
       const url = escapeHtml(product.link || '#');
 
@@ -556,7 +632,7 @@
           <div class="thumb"><img loading="lazy" src="${image}" alt="${title}" /></div>
           <h4>${title}</h4>
           <p class="price">${price}</p>
-          <p class="muted">${categoryName}${merchant ? ` • ${merchant}` : ''}</p>
+          <p class="muted">${category}${merchant ? ` • ${merchant}` : ''}</p>
         </a>
       `;
     }
@@ -572,88 +648,89 @@
       `;
     }
 
-    async function fetchProductsForNode(node, { merchant = null, sort = 'price.asc' }) {
-      const parts = slugParts(node.slugPath);
-      const leafName = parts[parts.length - 1] || '';
-      const likePattern = `%${leafName}%`;
-
-      let { data, error } = await supa
-        .from('products')
-        .select('id, title, price, currency, image_url, merchant_name, affiliate_url, product_url, site_category, market_code')
-        .eq('market_code', state.marketCode)
-        .or(`site_category.ilike.${likePattern},merchant_category.ilike.${likePattern}`)
-        .limit(200);
-
-      if (error) {
-        const fallback = await supa
-          .from('products_public')
-          .select('id, title, price, currency, image_url, affiliate_url, site_category, market_code')
-          .eq('market_code', state.marketCode)
-          .ilike('site_category', likePattern)
-          .limit(200);
-
-        if (fallback.error) {
-          throw fallback.error;
-        }
-
-        data = (fallback.data || []).map((item) => ({
-          ...item,
-          merchant_name: null,
-          product_url: null,
-        }));
+    function productsForPath(path) {
+      if (!path) {
+        return [];
       }
-
-      let items = (data || []).map((item) => ({
-        id: item.id,
-        title: item.title,
-        price: item.price,
-        currency: item.currency,
-        imageUrl: item.image_url,
-        merchant: item.merchant_name || '',
-        link: item.affiliate_url || item.product_url || '#',
-        categoryName: item.site_category || '',
-      }));
-
-      if (merchant) {
-        items = items.filter((item) => item.merchant === merchant);
-      }
-
-      const [column, direction] = sort.split('.');
-      const ascending = direction !== 'desc';
-      items.sort((a, b) => {
-        if (column === 'title') {
-          return ascending
-            ? a.title.localeCompare(b.title)
-            : b.title.localeCompare(a.title);
-        }
-
-        const priceA = a.price ?? Number.POSITIVE_INFINITY;
-        const priceB = b.price ?? Number.POSITIVE_INFINITY;
-        return ascending ? priceA - priceB : priceB - priceA;
-      });
-
-      return items;
+      const prefix = `${path}|`;
+      return state.products.filter((product) =>
+        product.categoryPath === path || product.categoryPath.startsWith(prefix)
+      );
     }
 
-    async function renderHome() {
+    function sortProducts(products, sortKey) {
+      const sorted = [...products];
+      switch (sortKey) {
+        case 'price.asc':
+          sorted.sort((a, b) => (a.price ?? Infinity) - (b.price ?? Infinity));
+          break;
+        case 'price.desc':
+          sorted.sort((a, b) => (b.price ?? Infinity) - (a.price ?? Infinity));
+          break;
+        case 'title.asc':
+          sorted.sort((a, b) => a.title.localeCompare(b.title));
+          break;
+        case 'title.desc':
+          sorted.sort((a, b) => b.title.localeCompare(a.title));
+          break;
+        default:
+          break;
+      }
+      return sorted;
+    }
+
+    function filterProducts(products, merchant) {
+      if (!merchant) {
+        return products;
+      }
+      return products.filter((product) => product.merchant === merchant);
+    }
+
+    function merchantsForProducts(products) {
+      const names = new Set();
+      products.forEach((product) => {
+        if (product.merchant) {
+          names.add(product.merchant);
+        }
+      });
+      return Array.from(names).sort((a, b) => a.localeCompare(b));
+    }
+
+    function renderHome() {
       searchInput.value = '';
 
-      const heroPills = state.catalog.topLevel.slice(0, 6).map((node) => `
-        <a class="pill" href="?c=${encodeURIComponent(node.slugPath)}" onclick="event.preventDefault(); updateRoute({ c: '${node.slugPath}', shop: null, sort: null })">
-          ${escapeHtml(node.name)}
-        </a>
-      `);
+      const heroPills = state.topLevelPaths.slice(0, 6).map((path) => {
+        const node = state.categoryByPath.get(path);
+        if (!node) return '';
+        return `
+          <a class="pill" href="?c=${encodeURIComponent(path)}" onclick="event.preventDefault(); updateRoute({ c: '${path}', shop: null, sort: null })">
+            ${escapeHtml(node.name)}
+            <span class="pill-count">${node.count}</span>
+          </a>
+        `;
+      });
 
-      const lanes = state.catalog.topLevel.slice(0, 6).map((node) => {
-        const children = getChildren(node).slice(0, 6);
+      const lanes = state.topLevelPaths.slice(0, 6).map((path) => {
+        const node = state.categoryByPath.get(path);
+        if (!node) return '';
+        const children = (state.childrenByParent.get(path) || [])
+          .map((childPath) => state.categoryByPath.get(childPath))
+          .filter(Boolean)
+          .sort((a, b) => (b?.count ?? 0) - (a?.count ?? 0))
+          .slice(0, 6);
+
         const tiles = children.length
-          ? children.map(subcategoryCard).join('')
+          ? children.map((child) => subcategoryCard(child)).join('')
           : '<div class="center">Žiadne podkategórie.</div>';
+
         return `
           <section class="lane">
             <div class="lane-header">
-              <h2>${escapeHtml(node.name)}</h2>
-              <a class="pill" href="?c=${encodeURIComponent(node.slugPath)}" onclick="event.preventDefault(); updateRoute({ c: '${node.slugPath}', shop: null, sort: null })">Prejsť do kategórie</a>
+              <div class="lane-header-info">
+                <h2>${escapeHtml(node.name)}</h2>
+                <span class="pill-count">${node.count}</span>
+              </div>
+              <a class="pill" href="?c=${encodeURIComponent(path)}" onclick="event.preventDefault(); updateRoute({ c: '${path}', shop: null, sort: null })">Prejsť do kategórie</a>
             </div>
             <div class="lane-grid">${tiles}</div>
           </section>
@@ -677,26 +754,31 @@
       `;
     }
 
-    async function renderCategory(slug) {
-      const node = getNodeByParts([slug]);
+    function renderCategory(path) {
+      const node = state.categoryByPath.get(path);
       if (!node) {
         app.innerHTML = '<div class="center">Kategória sa nenašla.</div>';
         return;
       }
 
       searchInput.value = '';
-      const children = getChildren(node);
+
+      const children = (state.childrenByParent.get(path) || [])
+        .map((childPath) => state.categoryByPath.get(childPath))
+        .filter(Boolean)
+        .sort((a, b) => (b?.count ?? 0) - (a?.count ?? 0));
+
       const tiles = children.length
-        ? children.map(subcategoryCard).join('')
+        ? children.map((child) => subcategoryCard(child)).join('')
         : '<div class="center">Žiadne podkategórie.</div>';
 
       app.innerHTML = `
-        ${crumbs([slug])}
+        ${crumbs(path)}
         <section class="lane">
           <div class="lane-header">
-            <div>
+            <div class="lane-header-info">
               <h2>${escapeHtml(node.name)}</h2>
-              <p class="muted">${node.count} produktov</p>
+              <span class="pill-count">${node.count}</span>
             </div>
           </div>
           <div class="lane-grid">${tiles}</div>
@@ -704,8 +786,8 @@
       `;
     }
 
-    async function renderLeaf(parts, options) {
-      const node = getNodeByParts(parts);
+    function renderLeaf(path, options) {
+      const node = state.categoryByPath.get(path);
       if (!node) {
         app.innerHTML = '<div class="center">Kategória sa nenašla.</div>';
         return;
@@ -713,70 +795,47 @@
 
       searchInput.value = '';
 
-      const normalizedOptions = {
-        merchant: options.merchant ? String(options.merchant) : null,
-        sort: options.sort || 'price.asc',
-      };
+      const products = sortProducts(filterProducts(productsForPath(path), options.merchant), options.sort);
+      const merchants = merchantsForProducts(products);
 
-      const products = await fetchProductsForNode(node, normalizedOptions);
-      const merchantNames = Array.from(new Set(products.map((product) => product.merchant).filter(Boolean))).sort((a, b) => a.localeCompare(b));
-
-      const hasMerchants = merchantNames.length > 0;
       const shopOptions = [
-        `<option value="" ${normalizedOptions.merchant ? '' : 'selected'}>Všetky obchody</option>`
+        `<option value="" ${options.merchant ? '' : 'selected'}>Všetky obchody</option>`
       ];
-      merchantNames.forEach((name) => {
-        const escaped = escapeHtml(name);
-        const selected = normalizedOptions.merchant === name ? 'selected' : '';
-        shopOptions.push(`<option value="${escaped}" ${selected}>${escaped}</option>`);
+      merchants.forEach((name) => {
+        const selected = options.merchant === name ? 'selected' : '';
+        shopOptions.push(`<option value="${escapeHtml(name)}" ${selected}>${escapeHtml(name)}</option>`);
       });
 
       const productGrid = products.length
-        ? products.map(productCard).join('')
+        ? products.map((product) => productCard(product)).join('')
         : '<div class="center">Žiadne produkty pre túto kategóriu.</div>';
 
-      const filterBar = hasMerchants ? `
-        <div class="filters">
-          <label>
-            Obchod
-            <select id="shop-filter">
-              ${shopOptions.join('')}
-            </select>
-          </label>
-          <label>
-            Zoradiť
-            <select id="sort-filter">
-              <option value="price.asc" ${normalizedOptions.sort === 'price.asc' ? 'selected' : ''}>Najlacnejšie</option>
-              <option value="price.desc" ${normalizedOptions.sort === 'price.desc' ? 'selected' : ''}>Najdrahšie</option>
-              <option value="title.asc" ${normalizedOptions.sort === 'title.asc' ? 'selected' : ''}>A – Z</option>
-              <option value="title.desc" ${normalizedOptions.sort === 'title.desc' ? 'selected' : ''}>Z – A</option>
-            </select>
-          </label>
-        </div>
-      ` : `
-        <div class="filters">
-          <label>
-            Zoradiť
-            <select id="sort-filter">
-              <option value="price.asc" ${normalizedOptions.sort === 'price.asc' ? 'selected' : ''}>Najlacnejšie</option>
-              <option value="price.desc" ${normalizedOptions.sort === 'price.desc' ? 'selected' : ''}>Najdrahšie</option>
-              <option value="title.asc" ${normalizedOptions.sort === 'title.asc' ? 'selected' : ''}>A – Z</option>
-              <option value="title.desc" ${normalizedOptions.sort === 'title.desc' ? 'selected' : ''}>Z – A</option>
-            </select>
-          </label>
-        </div>
-      `;
-
       app.innerHTML = `
-        ${crumbs(parts)}
+        ${crumbs(path)}
         <section class="lane">
           <div class="lane-header">
-            <div>
-              <h2>${escapeHtml(node.labelPath)}</h2>
-              <p class="muted">${products.length} produktov</p>
+            <div class="lane-header-info">
+              <h2>${escapeHtml(node.labelParts.join(' › '))}</h2>
+              <span class="pill-count">${products.length}</span>
             </div>
           </div>
-          ${filterBar}
+          <div class="filters">
+            <label>
+              Obchod
+              <select id="shop-filter">
+                ${shopOptions.join('')}
+              </select>
+            </label>
+            <label>
+              Zoradiť
+              <select id="sort-filter">
+                <option value="price.asc" ${options.sort === 'price.asc' ? 'selected' : ''}>Najlacnejšie</option>
+                <option value="price.desc" ${options.sort === 'price.desc' ? 'selected' : ''}>Najdrahšie</option>
+                <option value="title.asc" ${options.sort === 'title.asc' ? 'selected' : ''}>A – Z</option>
+                <option value="title.desc" ${options.sort === 'title.desc' ? 'selected' : ''}>Z – A</option>
+              </select>
+            </label>
+          </div>
           <div class="lane-grid">${productGrid}</div>
         </section>
       `;
@@ -794,57 +853,25 @@
       });
     }
 
-    async function renderSearch(term) {
+    function renderSearch(term) {
       searchInput.value = term;
 
-      let { data, error } = await supa
-        .from('products')
-        .select('id, title, price, currency, image_url, merchant_name, affiliate_url, product_url, site_category')
-        .eq('market_code', state.marketCode)
-        .ilike('title', `%${term}%`)
-        .limit(120);
+      const lowered = term.toLowerCase();
+      const matches = state.products.filter((product) =>
+        product.title.toLowerCase().includes(lowered)
+      );
 
-      if (error) {
-        console.warn('Fallback to products_public search:', error.message);
-        const fallback = await supa
-          .from('products_public')
-          .select('id, title, price, currency, image_url, affiliate_url, site_category')
-          .eq('market_code', state.marketCode)
-          .ilike('title', `%${term}%`)
-          .limit(120);
-
-        if (fallback.error) {
-          app.innerHTML = `<div class="center">Chyba: ${escapeHtml(fallback.error.message)}</div>`;
-          return;
-        }
-
-        data = (fallback.data || []).map((item) => ({
-          ...item,
-          merchant_name: null,
-          product_url: null,
-        }));
-      }
-
-      const products = (data || []).map((item) => ({
-        id: item.id,
-        title: item.title,
-        price: item.price,
-        currency: item.currency,
-        imageUrl: item.image_url,
-        merchant: item.merchant_name || '',
-        link: item.affiliate_url || item.product_url || '#',
-        categoryName: item.site_category || '',
-      }));
-
-      const grid = products.length
-        ? products.map(productCard).join('')
+      const grid = matches.length
+        ? matches.map((product) => productCard(product)).join('')
         : '<div class="center">Žiadne výsledky.</div>';
 
       app.innerHTML = `
         <section class="lane">
           <div class="lane-header">
-            <h2>Hľadanie: “${escapeHtml(term)}”</h2>
-            <div class="muted">${products.length} nájdených produktov</div>
+            <div class="lane-header-info">
+              <h2>Hľadanie: “${escapeHtml(term)}”</h2>
+              <span class="pill-count">${matches.length}</span>
+            </div>
           </div>
           <div class="lane-grid">${grid}</div>
         </section>
@@ -861,26 +888,21 @@
 
       try {
         if (search) {
-          await renderSearch(search);
-          return;
-        }
-
-        if (!state.catalog.topLevel.length) {
-          app.innerHTML = '<div class="center">Katalóg je momentálne prázdny.</div>';
+          renderSearch(search);
           return;
         }
 
         if (parts.length === 0) {
-          await renderHome();
+          renderHome();
           return;
         }
 
         if (parts.length === 1) {
-          await renderCategory(parts[0]);
+          renderCategory(parts[0]);
           return;
         }
 
-        await renderLeaf(parts, { merchant: shop || null, sort });
+        renderLeaf(buildSlugPath(parts), { merchant: shop || null, sort });
       } catch (error) {
         app.innerHTML = `<div class="center">Chyba: ${escapeHtml(error.message)}</div>`;
       }
@@ -889,8 +911,7 @@
     async function boot() {
       app.innerHTML = '<div class="center">Načítavam katalóg…</div>';
       try {
-        await detectMarket();
-        await loadCatalog();
+        await loadSnapshot();
         state.ready = true;
         await render();
         footerEl.textContent = `Aktualizované ${new Date().toLocaleString('sk-SK')}`;
